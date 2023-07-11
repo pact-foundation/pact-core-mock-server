@@ -7,7 +7,6 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{
   apply_generators,
-  ContentTypeHandler,
   GenerateValue,
   Generator,
   GeneratorCategory,
@@ -18,7 +17,7 @@ use pact_models::generators::{
 use pact_models::matchingrules::MatchingRuleCategory;
 use pact_models::path_exp::DocPath;
 use serde_json::{self, Value};
-use sxd_document::dom::Document;
+#[cfg(feature = "xml")] use sxd_document::dom::Document;
 use tracing::{debug, error};
 use pact_models::http_parts::HttpPart;
 use pact_models::plugins::PluginData;
@@ -32,12 +31,14 @@ use crate::json::compare_json;
 pub mod bodies;
 
 /// Implementation of a content type handler for XML (currently unimplemented).
+#[cfg(feature = "xml")]
 pub struct XmlHandler<'a> {
   /// XML document to apply the generators to.
   pub value: Document<'a>
 }
 
-impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
+#[cfg(feature = "xml")]
+impl <'a> pact_models::generators::ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
   fn process_body(
     &mut self,
     _generators: &HashMap<DocPath, Generator>,

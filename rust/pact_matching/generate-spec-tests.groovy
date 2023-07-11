@@ -44,8 +44,12 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
 
     dir.eachFileMatch(~/.*\.json/) {
       def json = new JsonSlurper().parse(it)
+      def require = ''
+      if (it.name.contains('xml')) {
+        require = '\n|#[cfg(feature = "xml")]'
+      }
       def testBody = """
-        |#[tokio::test]
+        |#[tokio::test]$require
         |async fn ${it.name.replaceAll(' ', '_').replaceAll('-', '_').replaceAll('\\.json', '')}() {
         |    println!("FILE: ${it}");
         |    #[allow(unused_mut)]

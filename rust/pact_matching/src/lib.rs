@@ -14,6 +14,14 @@
 //! To compare any incoming request, it first needs to be converted to a [`models::Request`](models/struct.Request.html) and then can be compared. Same for
 //! any response.
 //!
+//! ## Crate features
+//! All features are enabled by default.
+//!
+//! * `datetime`: Enables support of date and time expressions and generators. This will add the `chronos` crate as a dependency.
+//! * `xml`: Enables support for parsing XML documents. This feature will add the `sxd-document` crate as a dependency.
+//! * `plugins`: Enables support for using plugins. This feature will add the `pact-plugin-driver` crate as a dependency.
+//! * `multipart`: Enables suport for MIME multipart bodies. This feature will add the `multer` crate as a dependency.
+//!
 //! ## Reading and writing Pact files
 //!
 //! The [`Pact`](models/struct.Pact.html) struct in the [`models`)(models/index.html) module has methods to read and write pact JSON files. It supports all the specification
@@ -401,7 +409,7 @@ pub mod matchingrules;
 pub mod metrics;
 pub mod generators;
 
-mod xml;
+#[cfg(feature = "xml")] mod xml;
 mod binary_utils;
 mod headers;
 mod query;
@@ -723,11 +731,27 @@ lazy_static! {
     fn(expected: &(dyn HttpPart + Send + Sync), actual: &(dyn HttpPart + Send + Sync), context: &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>); 5]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
-      (|content_type| { content_type.is_xml() }, xml::match_xml),
+      (|content_type| { content_type.is_xml() }, match_xml),
       (|content_type| { content_type.main_type == "multipart" }, binary_utils::match_mime_multipart),
       (|content_type| { content_type.base_type() == "application/x-www-form-urlencoded" }, form_urlencoded::match_form_urlencoded),
       (|content_type| { content_type.is_binary() || content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream)
   ];
+}
+
+fn match_xml(
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &(dyn MatchingContext + Send + Sync)
+) -> Result<(), Vec<Mismatch>> {
+  #[cfg(feature = "xml")]
+  {
+    xml::match_xml(expected, actual, context)
+  }
+  #[cfg(not(feature = "xml"))]
+  {
+    warn!("Matching XML documents requires the xml feature to be enabled");
+    match_text(&expected.body().value(), &actual.body().value(), context)
+  }
 }
 
 /// Enum that defines the different types of mismatches that can occur.
@@ -1334,7 +1358,17 @@ pub(crate) async fn compare_bodies(
           "core/content-matcher/json" => match_json(expected, actual, context),
           "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
           "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), context),
-          "core/content-matcher/xml" => xml::match_xml(expected, actual, context),
+          "core/content-matcher/xml" => {
+            #[cfg(feature = "xml")]
+            {
+              xml::match_xml(expected, actual, context)
+            }
+            #[cfg(not(feature = "xml"))]
+            {
+              warn!("Matching XML bodies requires the xml feature to be enabled");
+              match_text(&expected.body().value(), &actual.body().value(), context)
+            }
+          },
           "core/content-matcher/binary" => binary_utils::match_octet_stream(expected, actual, context),
           _ => {
             warn!("There is no core content matcher for entry {}", matcher.catalogue_entry_key());

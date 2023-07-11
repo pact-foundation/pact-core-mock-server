@@ -11,9 +11,9 @@ use pact_models::content_types::ContentType;
 use pact_models::generators::{ContentTypeHandler, Generator, GeneratorTestMode, JsonHandler, VariantMatcher};
 use pact_models::path_exp::DocPath;
 use pact_models::plugins::PluginData;
-use pact_models::xml_utils::parse_bytes;
+#[cfg(feature = "xml")] use pact_models::xml_utils::parse_bytes;
 
-use crate::generators::XmlHandler;
+#[cfg(feature = "xml")] use crate::generators::XmlHandler;
 
 /// Apply the generators to the body, returning a new body
 pub async fn generators_process_body(
@@ -45,18 +45,26 @@ pub async fn generators_process_body(
       }
     } else if content_type.is_xml() {
       debug!("apply_body_generators: XML content type");
-      match parse_bytes(&body.value().unwrap_or_default()) {
-        Ok(val) => {
-          let mut handler = XmlHandler { value: val.as_document() };
-          Ok(handler.process_body(generators, mode, context, &matcher.boxed()).unwrap_or_else(|err| {
-            error!("Failed to generate the body: {}", err);
-            body.clone()
-          }))
-        },
-        Err(err) => {
-          error!("Failed to parse the body, so not applying any generators: {}", err);
-          Ok(body.clone())
+      #[cfg(feature = "xml")]
+      {
+        match parse_bytes(&body.value().unwrap_or_default()) {
+          Ok(val) => {
+            let mut handler = XmlHandler { value: val.as_document() };
+            Ok(handler.process_body(generators, mode, context, &matcher.boxed()).unwrap_or_else(|err| {
+              error!("Failed to generate the body: {}", err);
+              body.clone()
+            }))
+          },
+          Err(err) => {
+            error!("Failed to parse the body, so not applying any generators: {}", err);
+            Ok(body.clone())
+          }
         }
+      }
+      #[cfg(not(feature = "xml"))]
+      {
+        warn!("Generating XML documents requires the xml feature to be enabled");
+        Ok(body.clone())
       }
     } else if let Some(content_generator) = find_content_generator(&content_type) {
       debug!("apply_body_generators: Found a content generator from a plugin");

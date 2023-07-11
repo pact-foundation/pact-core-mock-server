@@ -71,6 +71,7 @@ async fn null_found_at_key_where_not_null_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn no_body_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/no body xml.json");
     #[allow(unused_mut)]
@@ -226,6 +227,7 @@ async fn missing_body_found_when_empty_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn matches_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/matches xml.json");
     #[allow(unused_mut)]
@@ -874,6 +876,7 @@ async fn empty_body_no_content_type() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn value_found_in_array_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/value found in array when empty expected xml.json");
     #[allow(unused_mut)]
@@ -921,6 +924,7 @@ async fn value_found_in_array_when_empty_expected_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_regular_expression_that_does_not_match_in_element_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array with regular expression that does not match in element xml.json");
     #[allow(unused_mut)]
@@ -974,6 +978,7 @@ async fn array_with_regular_expression_that_does_not_match_in_element_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_in_different_order_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array in different order xml.json");
     #[allow(unused_mut)]
@@ -1082,6 +1087,7 @@ async fn array_size_less_than_required() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_at_least_one_element_matching_by_example_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array with at least one element matching by example xml.json");
     #[allow(unused_mut)]
@@ -1342,6 +1348,7 @@ async fn not_null_found_in_array_when_null_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_index_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/unexpected index with non-empty value xml.json");
     #[allow(unused_mut)]
@@ -1389,6 +1396,7 @@ async fn unexpected_index_with_non_empty_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_value_found_at_index_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/different value found at index xml.json");
     #[allow(unused_mut)]
@@ -1496,6 +1504,7 @@ async fn matches_with_floats() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn matches_with_regex_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/matches with regex xml.json");
     #[allow(unused_mut)]
@@ -1713,6 +1722,7 @@ async fn matches_with_regex() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_index_with_missing_value_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/unexpected index with missing value xml.json");
     #[allow(unused_mut)]
@@ -1760,6 +1770,7 @@ async fn unexpected_index_with_missing_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_at_top_level_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array at top level xml.json");
     #[allow(unused_mut)]
@@ -1807,6 +1818,7 @@ async fn array_at_top_level_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn no_body_no_content_type_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/no body no content type xml.json");
     #[allow(unused_mut)]
@@ -1899,6 +1911,7 @@ async fn plain_text_that_matches() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_regular_expression_in_element_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array with regular expression in element xml.json");
     #[allow(unused_mut)]
@@ -1951,6 +1964,7 @@ async fn array_with_regular_expression_in_element_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_key_with_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/unexpected key with empty value xml.json");
     #[allow(unused_mut)]
@@ -2158,6 +2172,7 @@ async fn no_body() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn not_empty_found_at_key_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/not empty found at key when empty expected xml.json");
     #[allow(unused_mut)]
@@ -2415,6 +2430,7 @@ async fn empty_body() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_key_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/unexpected key with non-empty value xml.json");
     #[allow(unused_mut)]
@@ -2462,6 +2478,7 @@ async fn unexpected_key_with_non_empty_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn missing_key_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/missing key xml.json");
     #[allow(unused_mut)]
@@ -2838,6 +2855,7 @@ async fn null_body() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_value_found_at_key_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/different value found at key xml.json");
     #[allow(unused_mut)]
@@ -2885,6 +2903,7 @@ async fn different_value_found_at_key_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn empty_found_at_key_where_not_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/empty found at key where not empty expected xml.json");
     #[allow(unused_mut)]
@@ -2932,6 +2951,7 @@ async fn empty_found_at_key_where_not_empty_expected_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn matches_with_regex_with_bracket_notation_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/matches with regex with bracket notation xml.json");
     #[allow(unused_mut)]
@@ -3280,6 +3300,7 @@ async fn string_found_at_key_when_number_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_size_less_than_required_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/array size less than required xml.json");
     #[allow(unused_mut)]
@@ -3330,6 +3351,7 @@ async fn array_size_less_than_required_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn missing_index_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/missing index xml.json");
     #[allow(unused_mut)]
@@ -3377,6 +3399,7 @@ async fn missing_index_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn not_empty_found_in_array_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v2/request/body/not empty found in array when empty expected xml.json");
     #[allow(unused_mut)]

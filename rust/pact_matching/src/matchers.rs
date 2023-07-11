@@ -10,7 +10,7 @@ use onig::Regex;
 use pact_models::HttpStatus;
 use pact_models::matchingrules::{MatchingRule, RuleList, RuleLogic};
 use pact_models::path_exp::DocPath;
-use pact_models::time_utils::validate_datetime;
+#[cfg(feature = "datetime")] use pact_models::time_utils::validate_datetime;
 use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
@@ -205,22 +205,46 @@ impl Matches<&str> for &str {
           Err(_) => Err(anyhow!("Expected '{}' to match an integer number", actual))
         }
       },
+      #[allow(unused_variables)]
       MatchingRule::Date(s) => {
-        match validate_datetime(&actual.to_string(), s) {
-          Ok(_) => Ok(()),
-          Err(_) => Err(anyhow!("Expected '{}' to match a date format of '{}'", actual, s))
+        #[cfg(feature = "datetime")]
+        {
+          match validate_datetime(&actual.to_string(), s) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(anyhow!("Expected '{}' to match a date format of '{}'", actual, s))
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Date matchers require the datetime feature to be enabled"))
         }
       },
+      #[allow(unused_variables)]
       MatchingRule::Time(s) => {
-        match validate_datetime(&actual.to_string(), s) {
-          Ok(_) => Ok(()),
-          Err(_) => Err(anyhow!("Expected '{}' to match a time format of '{}'", actual, s))
+        #[cfg(feature = "datetime")]
+        {
+          match validate_datetime(&actual.to_string(), s) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(anyhow!("Expected '{}' to match a time format of '{}'", actual, s))
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Time matchers require the datetime feature to be enabled"))
         }
       },
+      #[allow(unused_variables)]
       MatchingRule::Timestamp(s) => {
-        match validate_datetime(&actual.to_string(), s) {
-          Ok(_) => Ok(()),
-          Err(_) => Err(anyhow!("Expected '{}' to match a timestamp format of '{}'", actual, s))
+        #[cfg(feature = "datetime")]
+        {
+          match validate_datetime(&actual.to_string(), s) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(anyhow!("Expected '{}' to match a timestamp format of '{}'", actual, s))
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("DateTime matchers require the datetime feature to be enabled"))
         }
       },
       MatchingRule::Boolean => {
@@ -987,6 +1011,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn timestamp_matcher_test() {
     let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssZZZ".into());
 
@@ -1010,6 +1035,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn time_matcher_test() {
     let matcher = MatchingRule::Time("HH:mm:ss".into());
 
@@ -1035,6 +1061,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn date_matcher_test() {
     let matcher = MatchingRule::Date("yyyy-MM-dd".into());
     let matcher2 = MatchingRule::Date("MM/dd/yyyy".into());

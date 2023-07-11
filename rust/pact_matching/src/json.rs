@@ -13,7 +13,7 @@ use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
-use pact_models::time_utils::validate_datetime;
+#[cfg(feature = "datetime")] use pact_models::time_utils::validate_datetime;
 use tracing::debug;
 
 use crate::{DiffConfig, MatchingContext, merge_result};
@@ -180,17 +180,41 @@ impl Matches<&Value> for Value {
       } else {
         Err(anyhow!("Expected {} to be a number", value_of(actual)))
       },
+      #[allow(unused_variables)]
       MatchingRule::Date(ref s) => {
-        validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| anyhow!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
+        #[cfg(feature = "datetime")]
+        {
+          validate_datetime(&json_to_string(actual), s)
+            .map_err(|err| anyhow!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Date matchers require the datetime feature to be enabled"))
+        }
       },
+      #[allow(unused_variables)]
       MatchingRule::Time(ref s) => {
-        validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| anyhow!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
+        #[cfg(feature = "datetime")]
+        {
+          validate_datetime(&json_to_string(actual), s)
+            .map_err(|err| anyhow!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Time matchers require the datetime feature to be enabled"))
+        }
       },
+      #[allow(unused_variables)]
       MatchingRule::Timestamp(ref s) => {
-        validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| anyhow!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+        #[cfg(feature = "datetime")]
+        {
+          validate_datetime(&json_to_string(actual), s)
+            .map_err(|err| anyhow!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("DateTime matchers require the datetime feature to be enabled"))
+        }
       },
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&convert_data(actual), expected_content_type)

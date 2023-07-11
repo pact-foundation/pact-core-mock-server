@@ -152,6 +152,7 @@ async fn missing_body_found_when_empty_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn matches_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/matches xml.json");
     #[allow(unused_mut)]
@@ -193,6 +194,7 @@ async fn matches_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_at_top_level_with_matchers_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array at top level with matchers xml.json");
     #[allow(unused_mut)]
@@ -268,6 +270,7 @@ async fn array_at_top_level_with_matchers_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_type_matcher_mismatch_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array with type matcher mismatch xml.json");
     #[allow(unused_mut)]
@@ -365,6 +368,7 @@ async fn no_body_no_content_type() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn keys_out_of_order_match_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/keys out of order match xml.json");
     #[allow(unused_mut)]
@@ -836,6 +840,7 @@ async fn null_found_in_array_when_not_null_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn deeply_nested_objects_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/deeply nested objects xml.json");
     #[allow(unused_mut)]
@@ -959,6 +964,7 @@ async fn empty_body_no_content_type() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn value_found_in_array_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/value found in array when empty expected xml.json");
     #[allow(unused_mut)]
@@ -1179,6 +1185,7 @@ async fn objects_in_array_second_matches() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn objects_in_array_no_matches_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/objects in array no matches xml.json");
     #[allow(unused_mut)]
@@ -1220,6 +1227,7 @@ async fn objects_in_array_no_matches_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_xml_namespaces() {
     println!("FILE: tests/spec_testcases/v3/response/body/different xml namespaces.json");
     #[allow(unused_mut)]
@@ -1261,6 +1269,7 @@ async fn different_xml_namespaces() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_type_matcher_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array with type matcher xml.json");
     #[allow(unused_mut)]
@@ -1320,6 +1329,7 @@ async fn array_with_type_matcher_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_in_different_order_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array in different order xml.json");
     #[allow(unused_mut)]
@@ -1496,6 +1506,7 @@ async fn not_null_found_in_array_when_null_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_index_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/unexpected index with non-empty value xml.json");
     #[allow(unused_mut)]
@@ -1537,6 +1548,7 @@ async fn unexpected_index_with_non_empty_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_value_found_at_index_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/different value found at index xml.json");
     #[allow(unused_mut)]
@@ -1647,6 +1659,7 @@ async fn matches_with_floats() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn matches_with_regex_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/matches with regex xml.json");
     #[allow(unused_mut)]
@@ -1973,6 +1986,7 @@ async fn array_with_type_matcher() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_index_with_missing_value_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/unexpected index with missing value xml.json");
     #[allow(unused_mut)]
@@ -2014,6 +2028,7 @@ async fn unexpected_index_with_missing_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_at_top_level_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array at top level xml.json");
     #[allow(unused_mut)]
@@ -2055,6 +2070,7 @@ async fn array_at_top_level_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn no_body_no_content_type_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/no body no content type xml.json");
     #[allow(unused_mut)]
@@ -2094,6 +2110,7 @@ async fn no_body_no_content_type_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn array_with_regex_matcher_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array with regex matcher xml.json");
     #[allow(unused_mut)]
@@ -2195,6 +2212,7 @@ async fn plain_text_that_matches() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_key_with_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/unexpected key with empty value xml.json");
     #[allow(unused_mut)]
@@ -2334,6 +2352,7 @@ async fn different_value_found_at_index() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn missing_body_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/missing body xml.json");
     #[allow(unused_mut)]
@@ -2562,6 +2581,7 @@ async fn empty_body() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_xml_namespace_prefixes() {
     println!("FILE: tests/spec_testcases/v3/response/body/different xml namespace prefixes.json");
     #[allow(unused_mut)]
@@ -2656,6 +2676,7 @@ async fn plain_text_regex_matching() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_xml_namespace() {
     println!("FILE: tests/spec_testcases/v3/response/body/unexpected xml namespace.json");
     #[allow(unused_mut)]
@@ -2768,6 +2789,7 @@ async fn deeply_nested_objects() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn unexpected_key_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/unexpected key with non-empty value xml.json");
     #[allow(unused_mut)]
@@ -2809,6 +2831,7 @@ async fn unexpected_key_with_non_empty_value_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn missing_key_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/missing key xml.json");
     #[allow(unused_mut)]
@@ -3267,6 +3290,7 @@ async fn null_body() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn different_value_found_at_key_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/different value found at key xml.json");
     #[allow(unused_mut)]
@@ -3578,6 +3602,7 @@ async fn string_found_at_key_when_number_expected() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn objects_in_array_second_matches_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/objects in array second matches xml.json");
     #[allow(unused_mut)]
@@ -3619,6 +3644,7 @@ async fn objects_in_array_second_matches_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn missing_index_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/missing index xml.json");
     #[allow(unused_mut)]
@@ -3660,6 +3686,7 @@ async fn missing_index_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn objects_in_array_first_matches_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/objects in array first matches xml.json");
     #[allow(unused_mut)]
@@ -3813,6 +3840,7 @@ async fn additional_property_with_type_matcher() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn objects_in_array_type_matching_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/objects in array type matching xml.json");
     #[allow(unused_mut)]
@@ -3998,6 +4026,7 @@ async fn plain_text_regex_matching_that_does_not_match() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn objects_in_array_with_type_mismatching_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/objects in array with type mismatching xml.json");
     #[allow(unused_mut)]
@@ -4057,6 +4086,7 @@ async fn objects_in_array_with_type_mismatching_xml() {
 }
 
 #[tokio::test]
+#[cfg(feature = "xml")]
 async fn property_name_is_different_case_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/property name is different case xml.json");
     #[allow(unused_mut)]
