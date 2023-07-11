@@ -1995,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server_cli"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "anyhow",
  "clap 4.3.11",
