@@ -23,7 +23,7 @@ use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 
 use pact_mock_server::mock_server::{MockServer, MockServerConfig};
-use pact_mock_server::tls::TlsConfigBuilder;
+#[cfg(feature = "tls")] use pact_mock_server::tls::TlsConfigBuilder;
 
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use crate::verify;
@@ -73,26 +73,39 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           };
           debug!("Mock server config = {:?}", config);
 
-          let result = if query_param_set(context, "tls") {
-            debug!("Starting TLS mock server with id {}", &mock_server_id);
-            let key = include_str!("self-signed.key");
-            let cert = include_str!("self-signed.cert");
-            TlsConfigBuilder::new()
-              .key(key.as_bytes())
-              .cert(cert.as_bytes())
-              .build()
-              .map_err(|err| {
-                format!("Failed to setup TLS using self-signed certificate - {}", err)
-              })
-              .and_then(|tls_config| {
-                let mut guard = SERVER_MANAGER.lock().unwrap();
-                guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
-              })
-          } else {
+          #[allow(unused_assignments)]
+          let mut result = Err("No mock server started yet".to_string());
+          #[cfg(feature = "tls")]
+          {
+            result = if query_param_set(context, "tls") {
+              debug!("Starting TLS mock server with id {}", &mock_server_id);
+              let key = include_str!("self-signed.key");
+              let cert = include_str!("self-signed.cert");
+              TlsConfigBuilder::new()
+                .key(key.as_bytes())
+                .cert(cert.as_bytes())
+                .build()
+                .map_err(|err| {
+                  format!("Failed to setup TLS using self-signed certificate - {}", err)
+                })
+                .and_then(|tls_config| {
+                  let mut guard = SERVER_MANAGER.lock().unwrap();
+                  guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
+                })
+            } else {
+              debug!("Starting mock server with id {}", &mock_server_id);
+              let mut guard = SERVER_MANAGER.lock().unwrap();
+              guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config)
+            };
+          }
+
+          #[cfg(not(feature = "tls"))]
+          {
             debug!("Starting mock server with id {}", &mock_server_id);
             let mut guard = SERVER_MANAGER.lock().unwrap();
-            guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config)
-          };
+            result = guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config);
+          }
+
           match result {
             Ok(mock_server) => {
               debug!("mock server started on port {}", mock_server);

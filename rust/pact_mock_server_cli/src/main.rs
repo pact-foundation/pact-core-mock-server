@@ -185,6 +185,30 @@ async fn handle_command_args() -> Result<(), i32> {
 }
 
 fn setup_args() -> Command {
+  #[allow(unused_mut)]
+  let mut create_command = Command::new("create")
+    .about("Creates a new mock server from a pact file")
+    .version(clap::crate_version!())
+    .arg(Arg::new("file")
+      .short('f')
+      .long("file")
+      .action(ArgAction::Set)
+      .required(true)
+      .help("the pact file to define the mock server"))
+    .arg(Arg::new("cors")
+      .short('c')
+      .long("cors-preflight")
+      .action(ArgAction::SetTrue)
+      .help("Handle CORS pre-flight requests"));
+
+  #[cfg(feature = "tls")]
+  {
+    create_command = create_command.arg(Arg::new("tls")
+     .long("tls")
+     .action(ArgAction::SetTrue)
+     .help("Enable TLS with the mock server (will use a self-signed certificate)"));
+  }
+
   command!()
     .about("Standalone Pact mock server")
     .disable_help_flag(true)
@@ -252,25 +276,7 @@ fn setup_args() -> Command {
     .subcommand(Command::new("list")
       .about("Lists all the running mock servers")
       .version(clap::crate_version!()))
-    .subcommand(Command::new("create")
-      .about("Creates a new mock server from a pact file")
-      .version(clap::crate_version!())
-      .arg(Arg::new("file")
-        .short('f')
-        .long("file")
-        .action(ArgAction::Set)
-        .required(true)
-        .help("the pact file to define the mock server"))
-      .arg(Arg::new("cors")
-        .short('c')
-        .long("cors-preflight")
-        .action(ArgAction::SetTrue)
-        .help("Handle CORS pre-flight requests"))
-      .arg(Arg::new("tls")
-        .long("tls")
-        .action(ArgAction::SetTrue)
-        .help("Enable TLS with the mock server (will use a self-signed certificate)"))
-      )
+    .subcommand(create_command)
     .subcommand(Command::new("verify")
       .about("Verify the mock server by id or port number, and generate a pact file if all ok")
       .version(clap::crate_version!())
