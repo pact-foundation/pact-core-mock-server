@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.3 - Add crate features to turn-off some behaviour and dependencies
+
+* f6024b1d - chore: Add support for plugin feature (Ronald Holshausen, Tue Jul 11 11:21:24 2023 +1000)
+* 27441992 - chore: Add support for multipart feature (Ronald Holshausen, Tue Jul 11 10:38:23 2023 +1000)
+* 71ef0f49 - chore: Add support for datetime and xml features (Ronald Holshausen, Tue Jul 11 10:17:28 2023 +1000)
+* f2ae77ba - chore: Upgrade pact-plugin-driver to 0.4.5 (Ronald Holshausen, Mon Jul 10 17:15:20 2023 +1000)
+* a5e04a3d - bump version to 1.1.3 (Ronald Holshausen, Mon Jul 10 16:36:04 2023 +1000)
+
 # 1.1.2 - Bugfix Release
 
 * 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
