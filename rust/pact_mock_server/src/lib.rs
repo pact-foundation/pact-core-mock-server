@@ -1,9 +1,19 @@
 //! The `pact_mock_server` crate provides the in-process mock server for mocking HTTP requests
-//! and generating responses based on a pact file. It implements the V3 Pact specification
-//! (https://github.com/pact-foundation/pact-specification/tree/version-3).
+//! and generating responses based on a pact file. It implements the
+//! [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3)
+//! and [V4 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-4).
 //!
 //! The exported functions using C bindings for controlling the mock server now live in the `pact_mock_server_ffi`
 //! crate.
+//!
+//! ## Crate features
+//! All features are enabled by default
+//!
+//! * `datetime`: Enables support of date and time expressions and generators.
+//! * `xml`: Enables support for parsing XML documents.
+//! * `plugins`: Enables support for using plugins.
+//! * `multipart`: Enables support for MIME multipart bodies.
+//! * `tls`: Enables support for mock servers using TLS. This will add the following dependencies: hyper-rustls, rustls, rustls-pemfile, tokio-rustls.
 
 #![warn(missing_docs)]
 
