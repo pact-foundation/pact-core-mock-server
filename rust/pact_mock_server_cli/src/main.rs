@@ -1,6 +1,7 @@
 //! The `pact_mock_server` crate provides the CLI for the pact mock server for mocking HTTP requests
-//! and generating responses based on a pact file. It implements the V3 Pact specification
-//! (https://github.com/pact-foundation/pact-specification/tree/version-3).
+//! and generating responses based on a pact file. It implements the
+//! [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3)
+//! and [V4 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-4).
 
 #![warn(missing_docs)]
 
