@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pact_models::pact::Pact;
-use pact_models::plugins::PluginData;
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, increment_plugin_access};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+#[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::{drop_plugin_access, increment_plugin_access};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use tracing::{debug, warn};
 use url::Url;
 use uuid::Uuid;
@@ -51,8 +51,8 @@ impl ValidatingHttpMockServer {
   pub fn start(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Box<dyn ValidatingMockServer> {
     debug!("Starting mock server from pact {:?}", pact);
 
-    let plugins = pact.plugin_data();
-    Self::increment_plugin_access(&plugins);
+    #[allow(unused_variables)] let plugin_data = pact.plugin_data();
+    #[cfg(feature = "plugins")] Self::increment_plugin_access(&plugin_data);
 
     // Spawn new runtime in thread to prevent reactor execution context conflict
     let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send + Sync>>();
@@ -85,7 +85,7 @@ impl ValidatingHttpMockServer {
         .spawn(move || {
           runtime.block_on(server_future);
           let _ = done_tx.send(());
-          Self::decrement_plugin_access(&plugins);
+          #[cfg(feature = "plugins")] Self::decrement_plugin_access(&plugin_data);
         })
         .expect("thread spawn");
 
@@ -112,6 +112,7 @@ impl ValidatingHttpMockServer {
     })
   }
 
+  #[cfg(feature = "plugins")]
   fn decrement_plugin_access(plugins: &Vec<PluginData>) {
     for plugin in plugins {
       let dependency = PluginDependency {
@@ -123,6 +124,7 @@ impl ValidatingHttpMockServer {
     }
   }
 
+  #[cfg(feature = "plugins")]
   fn increment_plugin_access(plugins: &Vec<PluginData>) {
     for plugin in plugins {
       let dependency = PluginDependency {
@@ -142,8 +144,8 @@ impl ValidatingHttpMockServer {
   pub async fn start_async(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Box<dyn ValidatingMockServer> {
     debug!("Starting mock server from pact {:?}", pact);
 
-    let plugins = pact.plugin_data();
-    Self::increment_plugin_access(&plugins);
+    #[allow(unused_variables)] let plugin_data = pact.plugin_data();
+    #[cfg(feature = "plugins")] Self::increment_plugin_access(&plugin_data);
 
     let (mock_server, server_future) = mock_server::MockServer::new(
       Uuid::new_v4().to_string(),
@@ -158,7 +160,7 @@ impl ValidatingHttpMockServer {
     tokio::spawn(async move {
       server_future.await;
       let _ = done_tx.send(());
-      Self::decrement_plugin_access(&plugins);
+      #[cfg(feature = "plugins")] Self::decrement_plugin_access(&plugin_data);
     });
 
     let (description, url_str) = {

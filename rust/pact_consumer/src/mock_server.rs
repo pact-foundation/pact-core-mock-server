@@ -11,7 +11,7 @@ use pact_mock_server::mock_server::MockServerMetrics;
 use crate::mock_server::http_mock_server::ValidatingHttpMockServer;
 
 pub(crate) mod http_mock_server;
-pub(crate) mod plugin_mock_server;
+#[cfg(feature = "plugins")] pub(crate) mod plugin_mock_server;
 
 /// A mock server that handles the requests described in a `Pact`, intended
 /// for use in tests, and validates that the requests made to that server are

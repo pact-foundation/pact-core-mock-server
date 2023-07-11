@@ -96,6 +96,7 @@ impl InteractionBuilder {
   pub fn build_v4(&self) -> SynchronousHttp {
     debug!("Building V4 HTTP interaction: {:?}", self);
 
+    let markup = self.request.interaction_markup().merge(self.response.interaction_markup());
     SynchronousHttp {
       id: None,
       key: None,
@@ -109,30 +110,36 @@ impl InteractionBuilder {
       },
       pending: false,
       plugin_config: self.plugin_config(),
-      interaction_markup: self.request.interaction_markup().merge(self.response.interaction_markup()),
+      interaction_markup: markup,
       transport: self.transport.clone()
     }
   }
 
   /// Any plugin configuration returned from plugins to add to the interaction
   pub fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
-    let mut config = hashmap!{};
-    let request_config = self.request.plugin_config();
-    if !request_config.is_empty() {
-      for (key, value) in request_config {
-        config.insert(key.clone(), value.interaction_configuration.clone());
+    #[allow(unused_mut)] let mut config = hashmap!{};
+
+    #[cfg(feature = "plugins")]
+    {
+      let request_config = self.request.plugin_config();
+      if !request_config.is_empty() {
+        for (key, value) in request_config {
+          config.insert(key.clone(), value.interaction_configuration.clone());
+        }
+      }
+      let response_config = self.response.plugin_config();
+      if !response_config.is_empty() {
+        for (key, value) in response_config {
+          config.insert(key.clone(), value.interaction_configuration.clone());
+        }
       }
     }
-    let response_config = self.response.plugin_config();
-    if !response_config.is_empty() {
-      for (key, value) in response_config {
-        config.insert(key.clone(), value.interaction_configuration.clone());
-      }
-    }
+
     config
   }
 
   /// Any plugin configuration returned from plugins to add to the Pact metadata
+  #[cfg(feature = "plugins")]
   pub fn pact_plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
     let mut config = hashmap!{};
     let request_config = self.request.plugin_config();

@@ -393,7 +393,7 @@ pub mod util;
 /// ```
 pub mod prelude {
     pub use crate::builders::{HttpPartBuilder, PactBuilder, PactBuilderAsync};
-    pub use crate::builders::plugin_builder::PluginInteractionBuilder;
+    #[cfg(feature = "plugins")] pub use crate::builders::plugin_builder::PluginInteractionBuilder;
     pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
     pub use crate::patterns::{EachLike, Like, Term};
     pub use crate::patterns::{JsonPattern, Pattern, StringPattern};

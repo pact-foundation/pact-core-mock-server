@@ -9,10 +9,10 @@ use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::pact::V4Pact;
 use pact_models::v4::sync_message::SynchronousMessage;
-use pact_plugin_driver::catalogue_manager;
-use pact_plugin_driver::catalogue_manager::CatalogueEntryType;
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::CatalogueEntryType;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use tracing::trace;
 
 use pact_matching::metrics::{MetricEvent, send_metrics};
@@ -21,7 +21,7 @@ use crate::builders::message_builder::MessageInteractionBuilder;
 use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator, synchronous_messages_iter};
 use crate::builders::sync_message_builder::SyncMessageInteractionBuilder;
 use crate::mock_server::http_mock_server::ValidatingHttpMockServer;
-use crate::mock_server::plugin_mock_server::PluginMockServer;
+#[cfg(feature = "plugins")] use crate::mock_server::plugin_mock_server::PluginMockServer;
 use crate::mock_server::StartMockServerAsync;
 use crate::PACT_CONSUMER_VERSION;
 use crate::prelude::*;
@@ -106,6 +106,7 @@ impl PactBuilderAsync {
       PactBuilderAsync { pact: pact.boxed(), output_dir: None }
     }
 
+    #[cfg(feature = "plugins")]
     pub(crate) fn from_builder(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Self {
       PactBuilderAsync {
         pact,
@@ -113,12 +114,13 @@ impl PactBuilderAsync {
       }
     }
 
-    /// Add a plugin to be used by the test
+    /// Add a plugin to be used by the test. This requires the plugins feature.
     ///
     /// Panics:
     /// Plugins only work with V4 specification pacts. This method will panic if the pact
     /// being built is V3 format. Use `PactBuilder::new_v4` to create a builder with a V4 format
     /// pact.
+    #[cfg(feature = "plugins")]
     pub async fn using_plugin(&mut self, name: &str, version: Option<String>) -> &mut Self {
       if !self.pact.is_v4() {
         panic!("Plugins require V4 specification pacts. Use PactBuilder::new_v4");
@@ -150,6 +152,7 @@ impl PactBuilderAsync {
         let interaction = build_fn(interaction).await;
 
         if self.pact.is_v4() {
+          #[cfg(feature = "plugins")]
           for (plugin_name, plugin_config) in interaction.pact_plugin_config() {
             // TODO: Update this when there is an update plugin data function added to Pact models
             if let Some(plugin_data) = self.pact.plugin_data().iter().find(|pl| pl.name == plugin_name) {
@@ -194,6 +197,7 @@ impl PactBuilderAsync {
     let interaction = MessageInteractionBuilder::new(description.into());
     let interaction = build_fn(interaction).await;
 
+    #[cfg(feature = "plugins")]
     if let Some(plugin_data) = interaction.plugin_config() {
       let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
                            Some(plugin_data.configuration.clone()));
@@ -214,6 +218,7 @@ impl PactBuilderAsync {
     let interaction = SyncMessageInteractionBuilder::new(description.into());
     let interaction = build_fn(interaction).await;
 
+    #[cfg(feature = "plugins")]
     if let Some(plugin_data) = interaction.plugin_config() {
       let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
                                    Some(plugin_data.configuration.clone()));
@@ -246,40 +251,57 @@ impl PactBuilderAsync {
 }
 
 impl StartMockServer for PactBuilderAsync {
-  fn start_mock_server(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
-    match catalog_entry {
-      Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
-        Some(entry) => if entry.entry_type == CatalogueEntryType::TRANSPORT {
-          PluginMockServer::start(self.build(), self.output_dir.clone(), &entry)
-            .expect("Could not start the plugin mock server")
-        } else {
-          panic!("Catalogue entry for key '{}' is not for a network transport", entry_name);
+  fn start_mock_server(&self, _catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
+    #[cfg(feature = "plugins")]
+    {
+      match _catalog_entry {
+        Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
+          Some(entry) => if entry.entry_type == CatalogueEntryType::TRANSPORT {
+            PluginMockServer::start(self.build(), self.output_dir.clone(), &entry)
+              .expect("Could not start the plugin mock server")
+          } else {
+            panic!("Catalogue entry for key '{}' is not for a network transport", entry_name);
+          }
+          None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
         }
-        None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
+        None => ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
       }
-      None => ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    {
+      ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
     }
   }
 }
 
 #[async_trait]
 impl StartMockServerAsync for PactBuilderAsync {
-  async fn start_mock_server_async(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
-    match catalog_entry {
-      Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
-        Some(entry) => if entry.entry_type == CatalogueEntryType::TRANSPORT {
-          PluginMockServer::start_async(self.build(), self.output_dir.clone(), &entry).await
-            .expect("Could not start the plugin mock server")
-        } else {
-          panic!("Catalogue entry for key '{}' is not for a network transport", entry_name);
+  async fn start_mock_server_async(&self, _catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
+    #[cfg(feature = "plugins")]
+    {
+      match _catalog_entry {
+        Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
+          Some(entry) => if entry.entry_type == CatalogueEntryType::TRANSPORT {
+            PluginMockServer::start_async(self.build(), self.output_dir.clone(), &entry).await
+              .expect("Could not start the plugin mock server")
+          } else {
+            panic!("Catalogue entry for key '{}' is not for a network transport", entry_name);
+          }
+          None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
         }
-        None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
+        None => ValidatingHttpMockServer::start_async(self.build(), self.output_dir.clone()).await
       }
-      None => ValidatingHttpMockServer::start_async(self.build(), self.output_dir.clone()).await
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    {
+      ValidatingHttpMockServer::start_async(self.build(), self.output_dir.clone()).await
     }
   }
 }
 
+#[cfg(feature = "plugins")]
 impl Drop for PactBuilderAsync {
   fn drop(&mut self) {
     // decrement access to any plugin loaded for the Pact

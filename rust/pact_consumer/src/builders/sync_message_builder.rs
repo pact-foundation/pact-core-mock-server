@@ -4,20 +4,50 @@ use std::collections::HashMap;
 
 use maplit::hashmap;
 use pact_models::content_types::ContentType;
+#[cfg(not(feature = "plugins"))] use pact_models::generators::Generators;
 use pact_models::json_utils::json_to_string;
 use pact_models::path_exp::DocPath;
-use pact_models::plugins::PluginData;
+#[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
 use pact_models::prelude::{MatchingRuleCategory, MatchingRules, OptionalBody, ProviderState};
 use pact_models::v4::interaction::InteractionMarkup;
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
-use pact_plugin_driver::plugin_models::PactPluginManifest;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
+#[cfg(feature = "plugins")] use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
 use tracing::debug;
 
-use crate::prelude::{JsonPattern, Pattern, PluginInteractionBuilder};
+use crate::prelude::{JsonPattern, Pattern};
+#[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug, Default)]
+struct InteractionContents {
+  /// Description of what part this interaction belongs to (in the case of there being more than
+  /// one, for instance, request/response messages)
+  #[allow(dead_code)] pub part_name: String,
+
+  /// Body/Contents of the interaction
+  pub body: OptionalBody,
+
+  /// Matching rules to apply
+  pub rules: Option<MatchingRuleCategory>,
+
+  /// Generators to apply
+  pub generators: Option<Generators>,
+
+  /// Message metadata
+  pub metadata: Option<HashMap<String, Value>>
+}
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug)]
+struct PactPluginManifest {}
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug)]
+struct PluginConfiguration {}
 
 #[derive(Clone, Debug)]
 /// Synchronous message interaction builder. Normally created via PactBuilder::sync_message_interaction.
@@ -28,8 +58,8 @@ pub struct SyncMessageInteractionBuilder {
   test_name: Option<String>,
   request_contents: InteractionContents,
   response_contents: Vec<InteractionContents>,
-  contents_plugin: Option<PactPluginManifest>,
-  plugin_config: HashMap<String, PluginConfiguration>
+  #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
+  #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
 
 impl SyncMessageInteractionBuilder {
@@ -86,6 +116,26 @@ impl SyncMessageInteractionBuilder {
     let mut rules = MatchingRules::default();
     rules.add_category("body")
       .add_rules(self.request_contents.rules.as_ref().cloned().unwrap_or_default());
+
+    #[allow(unused_mut, unused_assignments)] let mut plugin_config = hashmap!{};
+    #[cfg(feature = "plugins")]
+    {
+      plugin_config = self.contents_plugin.as_ref().map(|plugin| {
+        hashmap! {
+          plugin.name.clone() => self.request_contents.plugin_config.interaction_configuration.clone()
+        }
+      }).unwrap_or_default();
+    }
+
+    #[allow(unused_mut, unused_assignments)] let mut interaction_markup = InteractionMarkup::default();
+    #[cfg(feature = "plugins")]
+    {
+      interaction_markup = InteractionMarkup {
+        markup: self.interaction_markup(),
+        markup_type: self.request_contents.interaction_markup_type.clone()
+      };
+    }
+
     SynchronousMessage {
       id: None,
       key: None,
@@ -113,19 +163,13 @@ impl SyncMessageInteractionBuilder {
         "testname".to_string() => json!(self.test_name)
       },
       pending: false,
-      plugin_config: self.contents_plugin.as_ref().map(|plugin| {
-        hashmap!{
-          plugin.name.clone() => self.request_contents.plugin_config.interaction_configuration.clone()
-        }
-      }).unwrap_or_default(),
-      interaction_markup: InteractionMarkup {
-        markup: self.interaction_markup(),
-        markup_type: self.request_contents.interaction_markup_type.clone()
-      },
+      plugin_config,
+      interaction_markup,
       transport: None
     }
   }
 
+  #[cfg(feature = "plugins")]
   fn interaction_markup(&self) -> String {
     let mut markup = self.request_contents.interaction_markup.clone();
 
@@ -143,53 +187,74 @@ impl SyncMessageInteractionBuilder {
     debug!("Configuring interaction from {:?}", contents);
 
     let contents_map = contents.as_object().cloned().unwrap_or(Map::default());
-    let contents_hashmap = contents_map.iter()
-      .map(|(k, v)| (k.clone(), v.clone())).collect();
+    let contents_hashmap: HashMap<String, Value> = contents_map.iter()
+      .map(|(k, v)| (k.clone(), v.clone()))
+      .collect();
     if let Some(content_type) = contents_map.get("pact:content-type") {
       let ct = ContentType::parse(json_to_string(content_type).as_str()).unwrap();
-      if let Some(content_matcher) = find_content_matcher(&ct) {
-        debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
-        if content_matcher.is_core() {
-          debug!("Content matcher is a core matcher, will use the internal implementation");
-          self.setup_core_matcher(Some(ct.clone()), &contents_hashmap, Some(content_matcher));
-        } else {
-          match content_matcher.configure_interation(&ct, contents_hashmap).await {
-            Ok((contents, plugin_config)) => {
-              if let Some(interaction) = contents.iter().find(|i| i.part_name == "request") {
-                self.request_contents = interaction.clone();
-              }
 
-              for interaction in contents.iter().filter(|i| i.part_name == "response") {
-                self.response_contents.push(interaction.clone());
-              }
+      #[cfg(feature = "plugins")]
+      {
+        if let Some(content_matcher) = find_content_matcher(&ct) {
+          debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
+          if content_matcher.is_core() {
+            debug!("Content matcher is a core matcher, will use the internal implementation");
+            self.setup_core_matcher(Some(ct.clone()), &contents_hashmap, Some(content_matcher));
+          } else {
+            match content_matcher.configure_interation(&ct, contents_hashmap).await {
+              Ok((contents, plugin_config)) => {
+                if let Some(interaction) = contents.iter().find(|i| i.part_name == "request") {
+                  self.request_contents = interaction.clone();
+                }
 
-              self.contents_plugin = content_matcher.plugin();
+                for interaction in contents.iter().filter(|i| i.part_name == "response") {
+                  self.response_contents.push(interaction.clone());
+                }
 
-              if let Some(plugin_config) = plugin_config {
-                let plugin_name = content_matcher.plugin_name();
-                self.add_plugin_config(plugin_config, plugin_name)
+                self.contents_plugin = content_matcher.plugin();
+
+                if let Some(plugin_config) = plugin_config {
+                  let plugin_name = content_matcher.plugin_name();
+                  self.add_plugin_config(plugin_config, plugin_name)
+                }
               }
+              Err(err) => panic!("Failed to call out to plugin - {}", err)
             }
-            Err(err) => panic!("Failed to call out to plugin - {}", err)
           }
+        } else {
+          debug!("No content matcher found, will use the internal implementation");
+          self.setup_core_matcher(Some(ct.clone()), &contents_hashmap, None);
         }
-      } else {
-        debug!("No content matcher found, will use the internal implementation");
-        self.setup_core_matcher(Some(ct.clone()), &contents_hashmap, None);
+      }
+
+      #[cfg(not(feature = "plugins"))]
+      {
+        self.setup_core_matcher(Some(ct.clone()), &contents_hashmap);
       }
     } else {
       debug!("No content type provided, will use the internal implementation");
-      self.setup_core_matcher(None, &contents_hashmap, None);
+
+      #[cfg(feature = "plugins")]
+      {
+        self.setup_core_matcher(None, &contents_hashmap, None);
+      }
+
+      #[cfg(not(feature = "plugins"))]
+      {
+        self.setup_core_matcher(None, &contents_hashmap);
+      }
     }
 
     self
   }
 
   /// Configure the interaction contents from a plugin builder
+  #[cfg(feature = "plugins")]
   pub async fn contents_for_plugin<B: PluginInteractionBuilder>(&mut self, builder: B) -> &mut Self {
     self.contents_from(builder.build()).await
   }
 
+  #[cfg(feature = "plugins")]
   fn add_plugin_config(&mut self, plugin_config: PluginConfiguration, plugin_name: String) {
     if self.plugin_config.contains_key(&*plugin_name) {
       let entry = self.plugin_config.get_mut(&*plugin_name).unwrap();
@@ -201,6 +266,7 @@ impl SyncMessageInteractionBuilder {
     }
   }
 
+  #[cfg(feature = "plugins")]
   fn setup_core_matcher(
     &mut self,
     content_type: Option<ContentType>,
@@ -255,7 +321,52 @@ impl SyncMessageInteractionBuilder {
     }
   }
 
+  #[cfg(not(feature = "plugins"))]
+  fn setup_core_matcher(
+    &mut self,
+    content_type: Option<ContentType>,
+    config: &HashMap<String, Value>
+  ) {
+    if let Some(request) = config.get("request") {
+      let mut body = OptionalBody::from(request);
+      if let Some(ct) = content_type.as_ref() {
+        body.set_content_type(ct);
+      }
+
+      self.request_contents = InteractionContents {
+        body, .. InteractionContents::default()
+      };
+    }
+    if let Some(responses) = config.get("response") {
+      match responses {
+        Value::Array(responses) => {
+          for response in responses {
+            let mut body = OptionalBody::from(response);
+            if let Some(ct) = content_type.as_ref() {
+              body.set_content_type(ct);
+            }
+
+            self.response_contents.push(InteractionContents {
+              body, .. InteractionContents::default()
+            });
+          }
+        }
+        _ => {
+          let mut body = OptionalBody::from(responses);
+          if let Some(ct) = content_type.as_ref() {
+            body.set_content_type(ct);
+          }
+
+          self.response_contents.push(InteractionContents {
+            body, .. InteractionContents::default()
+          });
+        }
+      }
+    }
+  }
+
   /// Any global plugin config required to add to the Pact
+  #[cfg(feature = "plugins")]
   pub fn plugin_config(&self) -> Option<PluginData> {
     self.contents_plugin.as_ref().map(|plugin| {
       let config = if let Some(config) = self.plugin_config.get(plugin.name.as_str()) {

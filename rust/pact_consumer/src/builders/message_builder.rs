@@ -7,20 +7,46 @@ use maplit::hashmap;
 use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRuleCategory;
+#[cfg(not(feature = "plugins"))] use pact_models::generators::Generators;
 use pact_models::path_exp::DocPath;
-use pact_models::plugins::PluginData;
+#[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
 use pact_models::prelude::{MatchingRules, OptionalBody, ProviderState};
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::InteractionMarkup;
 use pact_models::v4::message_parts::MessageContents;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
-use pact_plugin_driver::plugin_models::PactPluginManifest;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
+#[cfg(feature = "plugins")] use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
 use tracing::debug;
 
 use crate::patterns::JsonPattern;
-use crate::prelude::{Pattern, PluginInteractionBuilder};
+use crate::prelude::Pattern;
+#[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug, Default)]
+struct InteractionContents {
+  /// Body/Contents of the interaction
+  pub body: OptionalBody,
+
+  /// Matching rules to apply
+  pub rules: Option<MatchingRuleCategory>,
+
+  /// Generators to apply
+  pub generators: Option<Generators>,
+
+  /// Message metadata
+  pub metadata: Option<HashMap<String, Value>>
+}
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug)]
+struct PactPluginManifest {}
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug)]
+struct PluginConfiguration {}
 
 #[derive(Clone, Debug)]
 /// Asynchronous message interaction builder. Normally created via PactBuilder::message_interaction.
@@ -30,8 +56,8 @@ pub struct MessageInteractionBuilder {
   comments: Vec<String>,
   test_name: Option<String>,
   message_contents: InteractionContents,
-  contents_plugin: Option<PactPluginManifest>,
-  plugin_config: HashMap<String, PluginConfiguration>
+  #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
+  #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
 
 impl MessageInteractionBuilder {
@@ -88,6 +114,26 @@ impl MessageInteractionBuilder {
     let mut rules = MatchingRules::default();
     rules.add_category("body")
       .add_rules(self.message_contents.rules.as_ref().cloned().unwrap_or_default());
+
+    #[allow(unused_mut, unused_assignments)] let mut plugin_config = hashmap!{};
+    #[cfg(feature = "plugins")]
+    {
+      plugin_config = self.contents_plugin.as_ref().map(|plugin| {
+        hashmap! {
+          plugin.name.clone() => self.message_contents.plugin_config.interaction_configuration.clone()
+        }
+      }).unwrap_or_default();
+    }
+
+    #[allow(unused_mut, unused_assignments)] let mut interaction_markup = InteractionMarkup::default();
+    #[cfg(feature = "plugins")]
+    {
+      interaction_markup = InteractionMarkup {
+        markup: self.message_contents.interaction_markup.clone(),
+        markup_type: self.message_contents.interaction_markup_type.clone()
+      };
+    }
+
     AsynchronousMessage {
       id: None,
       key: None,
@@ -104,15 +150,8 @@ impl MessageInteractionBuilder {
         "testname".to_string() => json!(self.test_name)
       },
       pending: false,
-      plugin_config: self.contents_plugin.as_ref().map(|plugin| {
-        hashmap!{
-          plugin.name.clone() => self.message_contents.plugin_config.interaction_configuration.clone()
-        }
-      }).unwrap_or_default(),
-      interaction_markup: InteractionMarkup {
-        markup: self.message_contents.interaction_markup.clone(),
-        markup_type: self.message_contents.interaction_markup_type.clone()
-      },
+      plugin_config,
+      interaction_markup,
       transport: None
     }
   }
@@ -122,45 +161,66 @@ impl MessageInteractionBuilder {
     debug!("Configuring interaction from {:?}", contents);
 
     let contents_map = contents.as_object().cloned().unwrap_or(Map::default());
-    let contents_hashmap = contents_map.iter()
-      .map(|(k, v)| (k.clone(), v.clone())).collect();
+    let contents_hashmap: HashMap<String, Value> = contents_map.iter()
+      .map(|(k, v)| (k.clone(), v.clone()))
+      .collect();
     if let Some(content_type) = contents_map.get("pact:content-type") {
       let ct = ContentType::parse(json_to_string(content_type).as_str()).unwrap();
-      if let Some(content_matcher) = find_content_matcher(&ct) {
-        debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
-        if content_matcher.is_core() {
-          debug!("Content matcher is a core matcher, will use the internal implementation");
-          self.setup_core_matcher(&ct, &contents_hashmap, Some(content_matcher));
-        } else {
-          debug!("Plugin matcher, will get the plugin to provide the interaction contents");
-          match content_matcher.configure_interation(&ct, contents_hashmap).await {
-            Ok((contents, plugin_config)) => {
-              if let Some(contents) = contents.first() {
-                self.message_contents = contents.clone();
-                if !contents.plugin_config.is_empty() {
-                  self.plugin_config.insert(content_matcher.plugin_name(), contents.plugin_config.clone());
-                }
-              }
-              self.contents_plugin = content_matcher.plugin();
 
-              if let Some(plugin_config) = plugin_config {
-                let plugin_name = content_matcher.plugin_name();
-                if self.plugin_config.contains_key(&*plugin_name) {
-                  let entry = self.plugin_config.get_mut(&*plugin_name).unwrap();
-                  for (k, v) in plugin_config.pact_configuration {
-                    entry.pact_configuration.insert(k.clone(), v.clone());
+      #[cfg(feature = "plugins")]
+      {
+        if let Some(content_matcher) = find_content_matcher(&ct) {
+          debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
+          if content_matcher.is_core() {
+            debug!("Content matcher is a core matcher, will use the internal implementation");
+            self.setup_core_matcher(&ct, &contents_hashmap, Some(content_matcher));
+          } else {
+            debug!("Plugin matcher, will get the plugin to provide the interaction contents");
+            match content_matcher.configure_interation(&ct, contents_hashmap).await {
+              Ok((contents, plugin_config)) => {
+                if let Some(contents) = contents.first() {
+                  self.message_contents = contents.clone();
+                  if !contents.plugin_config.is_empty() {
+                    self.plugin_config.insert(content_matcher.plugin_name(), contents.plugin_config.clone());
                   }
-                } else {
-                  self.plugin_config.insert(plugin_name.to_string(), plugin_config.clone());
+                }
+                self.contents_plugin = content_matcher.plugin();
+
+                if let Some(plugin_config) = plugin_config {
+                  let plugin_name = content_matcher.plugin_name();
+                  if self.plugin_config.contains_key(&*plugin_name) {
+                    let entry = self.plugin_config.get_mut(&*plugin_name).unwrap();
+                    for (k, v) in plugin_config.pact_configuration {
+                      entry.pact_configuration.insert(k.clone(), v.clone());
+                    }
+                  } else {
+                    self.plugin_config.insert(plugin_name.to_string(), plugin_config.clone());
+                  }
                 }
               }
+              Err(err) => panic!("Failed to call out to plugin - {}", err)
             }
-            Err(err) => panic!("Failed to call out to plugin - {}", err)
           }
+        } else {
+          debug!("No content matcher found, will use the internal implementation");
+          self.setup_core_matcher(&ct, &contents_hashmap, None);
         }
-      } else {
-        debug!("No content matcher found, will use the internal implementation");
-        self.setup_core_matcher(&ct, &contents_hashmap, None);
+      }
+
+      #[cfg(not(feature = "plugins"))]
+      {
+        self.message_contents = InteractionContents {
+          body: if let Some(contents) = contents_hashmap.get("contents") {
+            OptionalBody::Present(
+              Bytes::from(contents.to_string()),
+              Some(ct.clone()),
+              None
+            )
+          } else {
+            OptionalBody::Missing
+          },
+          .. InteractionContents::default()
+        };
       }
     } else {
       self.message_contents = InteractionContents {
@@ -173,10 +233,12 @@ impl MessageInteractionBuilder {
   }
 
   /// Configure the interaction contents from a plugin builder
+  #[cfg(feature = "plugins")]
   pub async fn contents_for_plugin<B: PluginInteractionBuilder>(&mut self, builder: B) -> &mut Self {
     self.contents_from(builder.build()).await
   }
 
+  #[cfg(feature = "plugins")]
   fn setup_core_matcher(
     &mut self,
     content_type: &ContentType,
@@ -208,6 +270,7 @@ impl MessageInteractionBuilder {
   }
 
   /// Any global plugin config required to add to the Pact
+  #[cfg(feature = "plugins")]
   pub fn plugin_config(&self) -> Option<PluginData> {
     self.contents_plugin.as_ref().map(|plugin| {
       let config = if let Some(config) = self.plugin_config.get(plugin.name.as_str()) {
