@@ -498,6 +498,7 @@ impl CoreMatchingContext {
     }
   }
 
+  #[allow(dead_code)]
   pub(crate) fn clone_from(context: &(dyn MatchingContext + Send + Sync)) -> Self {
     CoreMatchingContext {
       matchers: context.matchers().clone(),

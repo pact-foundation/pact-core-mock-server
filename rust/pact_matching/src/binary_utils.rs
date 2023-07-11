@@ -1,31 +1,34 @@
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::convert::TryInto;
-use std::str::from_utf8;
-use std::sync::mpsc::channel;
-use std::thread;
-use std::time::Duration;
+#[cfg(feature = "multipart")] use std::collections::HashMap;
+#[cfg(feature = "multipart")] use std::convert::Infallible;
+#[cfg(feature = "multipart")] use std::convert::TryInto;
+#[cfg(feature = "multipart")] use std::str::from_utf8;
+#[cfg(feature = "multipart")] use std::sync::mpsc::channel;
+#[cfg(feature = "multipart")] use std::thread;
+#[cfg(feature = "multipart")] use std::time::Duration;
 
 use anyhow::anyhow;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use bytes::Bytes;
-use futures::stream::once;
-use http::header::{HeaderMap, HeaderName};
-use itertools::Itertools;
-use multer::Multipart;
-use onig::Regex;
-use pact_models::bodies::OptionalBody;
+#[cfg(feature = "multipart")] use futures::stream::once;
+#[cfg(feature = "multipart")] use http::header::{HeaderMap, HeaderName};
+#[cfg(feature = "multipart")] use itertools::Itertools;
+#[cfg(feature = "multipart")] use multer::Multipart;
+#[cfg(feature = "multipart")] use onig::Regex;
+#[cfg(feature = "multipart")] use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, detect_content_type_from_bytes};
 use pact_models::http_parts::HttpPart;
-use pact_models::matchingrules::{MatchingRule, RuleLogic};
+use pact_models::matchingrules::RuleLogic;
+#[cfg(feature = "multipart")] use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
-use pact_models::v4::http_parts::HttpRequest;
+#[cfg(feature = "multipart")] use pact_models::v4::http_parts::HttpRequest;
 use serde_json::Value;
-use tracing::{debug, error, warn};
+#[allow(unused_imports)] use tracing::{debug, error, warn};
 
-use crate::{BodyMatchResult, CoreMatchingContext, HeaderMatchingContext, MatchingContext, Mismatch};
-use crate::matchers::{match_values, Matches};
+use crate::{MatchingContext, Mismatch};
+#[cfg(feature = "multipart")] use crate::{BodyMatchResult, CoreMatchingContext, HeaderMatchingContext};
+use crate::matchers::Matches;
+#[cfg(feature = "multipart")] use crate::matchers::match_values;
 
 pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::Result<()>
   where S: Into<String> {
@@ -135,11 +138,13 @@ fn display_bytes(bytes: &Bytes, max_bytes: usize) -> String {
   }
 }
 
+#[cfg(feature = "multipart")]
 enum MimePart {
   Field(MimeField),
   File(MimeFile)
 }
 
+#[cfg(feature = "multipart")]
 impl MimePart {
   fn name(&self) -> &String {
     match self {
@@ -156,6 +161,7 @@ impl MimePart {
   }
 }
 
+#[cfg(feature = "multipart")]
 struct MimeField {
   index: usize,
   name: String,
@@ -163,6 +169,7 @@ struct MimeField {
   headers: HeaderMap
 }
 
+#[cfg(feature = "multipart")]
 impl MimeField {
   pub(crate) fn decode_data(&self) -> anyhow::Result<Bytes> {
     if let Some(encoding) = self.headers.get("Content-Transfer-Encoding") {
@@ -182,6 +189,7 @@ impl MimeField {
 }
 
 #[derive(Debug)]
+#[cfg(feature = "multipart")]
 struct MimeFile {
   index: usize,
   name: String,
@@ -191,6 +199,7 @@ struct MimeFile {
   headers: HeaderMap
 }
 
+#[cfg(feature = "multipart")]
 impl MimeFile {
   pub(crate) fn decode_data(&self) -> anyhow::Result<Bytes> {
     if let Some(encoding) = self.headers.get("Content-Transfer-Encoding") {
@@ -214,61 +223,70 @@ pub fn match_mime_multipart(
   actual: &(dyn HttpPart + Send + Sync),
   context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<super::Mismatch>> {
-  let expected_body = expected.body().clone();
-  let actual_body = actual.body().clone();
-  let expected_headers = expected.headers().clone();
-  let actual_headers = actual.headers().clone();
-  let context = CoreMatchingContext::clone_from(context);
+  #[cfg(feature = "multipart")]
+  {
+    let expected_body = expected.body().clone();
+    let actual_body = actual.body().clone();
+    let expected_headers = expected.headers().clone();
+    let actual_headers = actual.headers().clone();
+    let context = CoreMatchingContext::clone_from(context);
 
-  let (sender, receiver) = channel();
-  thread::spawn(move || {
-    match tokio::runtime::Handle::try_current() {
-      Ok(rt) => {
-        debug!("Spawning task on existing Tokio runtime");
-        rt.block_on(async move {
-          let results = match_mime_multipart_inner(&context,
-                                                   &expected_body, &actual_body, &expected_headers, &actual_headers).await;
-          if let Err(err) = sender.send(results) {
-            error!("Failed to send results back via channel: {}", err);
-          }
-        });
-      },
-      Err(err) => {
-        debug!("Could not get the tokio runtime, will try start a new one: {}", err);
-        tokio::runtime::Builder::new_multi_thread()
-          .enable_all()
-          .build()
-          .expect("Could not start a Tokio runtime for running async tasks")
-          .block_on(async move {
+    let (sender, receiver) = channel();
+    thread::spawn(move || {
+      match tokio::runtime::Handle::try_current() {
+        Ok(rt) => {
+          debug!("Spawning task on existing Tokio runtime");
+          rt.block_on(async move {
             let results = match_mime_multipart_inner(&context,
                                                      &expected_body, &actual_body, &expected_headers, &actual_headers).await;
             if let Err(err) = sender.send(results) {
               error!("Failed to send results back via channel: {}", err);
             }
-          })
-      }
-    }
-  });
-
-  let mismatches = receiver.recv_timeout(Duration::from_secs(30))
-    .map_err(|err| {
-      vec![
-        Mismatch::BodyMismatch {
-          path: "$".into(),
-          expected: expected.body().value(),
-          actual: actual.body().value(),
-          mismatch: format!("Timeout error, failed to parse the expected body as a MIME multipart body: {}", err)
+          });
+        },
+        Err(err) => {
+          debug!("Could not get the tokio runtime, will try start a new one: {}", err);
+          tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Could not start a Tokio runtime for running async tasks")
+            .block_on(async move {
+              let results = match_mime_multipart_inner(&context,
+                                                       &expected_body, &actual_body, &expected_headers, &actual_headers).await;
+              if let Err(err) = sender.send(results) {
+                error!("Failed to send results back via channel: {}", err);
+              }
+            })
         }
-      ]
-    })?;
+      }
+    });
 
-  if mismatches.is_empty() {
-    Ok(())
-  } else {
-    Err(mismatches.clone())
+    let mismatches = receiver.recv_timeout(Duration::from_secs(30))
+      .map_err(|err| {
+        vec![
+          Mismatch::BodyMismatch {
+            path: "$".into(),
+            expected: expected.body().value(),
+            actual: actual.body().value(),
+            mismatch: format!("Timeout error, failed to parse the expected body as a MIME multipart body: {}", err)
+          }
+        ]
+      })?;
+
+    if mismatches.is_empty() {
+      Ok(())
+    } else {
+      Err(mismatches.clone())
+    }
+  }
+  #[cfg(not(feature = "multipart"))]
+  {
+    warn!("Matching MIME multipart bodies requires the multipart feature to be enabled");
+    crate::match_text(&expected.body().value(), &actual.body().value(), context)
   }
 }
 
+#[cfg(feature = "multipart")]
 async fn match_mime_multipart_inner(
   context: &CoreMatchingContext,
   expected_body: &OptionalBody,
@@ -336,6 +354,7 @@ async fn match_mime_multipart_inner(
   mismatches
 }
 
+#[cfg(feature = "multipart")]
 async fn match_mime_part(
   expected: &MimePart,
   actual: &MimePart,
@@ -369,6 +388,7 @@ async fn match_mime_part(
   }
 }
 
+#[cfg(feature = "multipart")]
 fn match_field(
   key: &str,
   expected: &MimeField,
@@ -431,6 +451,7 @@ fn match_field(
   }
 }
 
+#[cfg(feature = "multipart")]
 pub(crate) fn match_headers(
   path: &DocPath,
   expected: &HeaderMap,
@@ -493,6 +514,7 @@ pub(crate) fn match_headers(
   }
 }
 
+#[cfg(feature = "multipart")]
 fn first(bytes: &[u8], len: usize) -> &[u8] {
   if bytes.len() <= len {
     bytes
@@ -501,6 +523,7 @@ fn first(bytes: &[u8], len: usize) -> &[u8] {
   }
 }
 
+#[cfg(feature = "multipart")]
 impl Matches<&MimeFile> for &MimeFile {
   fn matches_with(&self, actual: &MimeFile, matcher: &MatchingRule, _cascaded: bool) -> anyhow::Result<()> {
     debug!("FilePart: comparing binary data to '{:?}' using {:?}", actual.content_type, matcher);
@@ -547,6 +570,7 @@ impl Matches<&MimeFile> for &MimeFile {
   }
 }
 
+#[cfg(feature = "multipart")]
 async fn match_file_part(
   key: &str,
   expected: &MimeFile,
@@ -643,6 +667,7 @@ async fn match_file_part(
   }
 }
 
+#[cfg(feature = "multipart")]
 async fn parse_multipart(
   body: Bytes,
   headers: &Option<HashMap<String, Vec<String>>>
@@ -690,6 +715,7 @@ async fn parse_multipart(
   Ok(parts)
 }
 
+#[cfg(feature = "multipart")]
 fn get_multipart_boundary(headers: &Option<HashMap<String, Vec<String>>>) -> anyhow::Result<String> {
   let header_map = get_http_header_map(headers);
   let content_type = header_map.get(http::header::CONTENT_TYPE)
@@ -706,6 +732,7 @@ fn get_multipart_boundary(headers: &Option<HashMap<String, Vec<String>>>) -> any
   Ok(boundary.as_str().to_owned())
 }
 
+#[cfg(feature = "multipart")]
 fn get_http_header_map(h: &Option<HashMap<String, Vec<String>>>) -> HeaderMap {
   let mut headers = HeaderMap::new();
   if let Some(h) = h {
@@ -722,22 +749,23 @@ fn get_http_header_map(h: &Option<HashMap<String, Vec<String>>>) -> HeaderMap {
 
 #[cfg(test)]
 mod tests {
-  use std::str;
+  #[cfg(feature = "multipart")] use std::str;
 
-  use bytes::{Bytes, BytesMut};
-  use expectest::prelude::*;
-  use hamcrest2::prelude::*;
-  use http::header::HeaderMap;
-  use maplit::*;
-  use pact_models::{matchingrules, matchingrules_list};
-  use pact_models::bodies::OptionalBody;
-  use pact_models::matchingrules::MatchingRule;
-  use pact_models::path_exp::DocPath;
-  use pact_models::request::Request;
+  #[cfg(feature = "multipart")] use bytes::{Bytes, BytesMut};
+  #[allow(unused_imports)]  use expectest::prelude::*;
+  #[allow(unused_imports)]  use hamcrest2::prelude::*;
+  #[cfg(feature = "multipart")] use http::header::HeaderMap;
+  #[allow(unused_imports)]  use maplit::*;
+  #[cfg(feature = "multipart")] use pact_models::{matchingrules, matchingrules_list};
+  #[cfg(feature = "multipart")] use pact_models::bodies::OptionalBody;
+  #[cfg(feature = "multipart")] use pact_models::matchingrules::MatchingRule;
+  #[cfg(feature = "multipart")] use pact_models::path_exp::DocPath;
+  #[cfg(feature = "multipart")] use pact_models::request::Request;
 
-  use crate::{CoreMatchingContext, DiffConfig, Mismatch};
-  use crate::binary_utils::{match_content_type, match_mime_multipart};
+  #[cfg(feature = "multipart")] use crate::{CoreMatchingContext, DiffConfig, Mismatch};
+  #[cfg(feature = "multipart")] use crate::binary_utils::{match_content_type, match_mime_multipart};
 
+  #[cfg(feature = "multipart")]
   fn mismatch(m: &Mismatch) -> &str {
     match m {
       Mismatch::BodyMismatch { mismatch, .. } => mismatch.as_str(),
@@ -747,6 +775,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_mime_multipart_error_when_not_multipart() {
     let body = Bytes::from("not a multipart body");
     let request = Request {
@@ -767,6 +796,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_mime_multipart_equal() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -810,6 +840,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_mime_multipart_missing_part() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -848,6 +879,7 @@ mod tests {
   }
 
   #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
+  #[cfg(feature = "multipart")]
   async fn match_mime_multipart_different_values() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -895,6 +927,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   fn match_mime_multipart_with_matching_rule() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -940,6 +973,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   fn match_mime_multipart_different_content_type() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -986,6 +1020,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_mime_multipart_content_type_matcher() {
     let expected_body = Bytes::from("--1234\r\n\
@@ -1042,6 +1077,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_mime_multipart_content_type_matcher_with_mismatch() {
     let expected_body = Bytes::from("--1234\r\n\
@@ -1098,6 +1134,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_content_type_equals() {
     expect!(match_content_type("some text".as_bytes(), "text/plain")).to(be_ok());
@@ -1110,6 +1147,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_content_type_common_text_types() {
     expect!(match_content_type("{\"val\": \"some text\"}".as_bytes(), "application/json")).to(be_ok());
@@ -1117,6 +1155,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   fn ignores_missing_content_type_header_which_is_optional() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -1142,6 +1181,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn returns_a_mismatch_when_the_actual_body_is_empty() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -1187,6 +1227,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn returns_a_mismatch_when_the_headers_dont_match() {
     let expected_body = Bytes::from(
       "--1234\r\n\
@@ -1228,6 +1269,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_test() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -1245,6 +1287,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_missing_header() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -1264,6 +1307,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_ignores_missing_content_type_header() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -1280,6 +1324,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_different_value() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -1300,6 +1345,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_with_a_matcher() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
@@ -1320,6 +1366,7 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "multipart")]
   fn match_headers_ignores_content_disposition() {
     let path = DocPath::new_unwrap("$.one");
     let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -1337,6 +1384,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "multipart")]
   fn supports_content_transfer_encoding_header() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
