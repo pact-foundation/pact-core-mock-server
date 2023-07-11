@@ -4,14 +4,14 @@ use std::str::from_utf8;
 
 use anyhow::anyhow;
 use bytes::Bytes;
-use lazy_static::lazy_static;
-use maplit::hashmap;
+#[cfg(feature = "plugins")] use lazy_static::lazy_static;
+#[cfg(feature = "plugins")] use maplit::hashmap;
 use onig::Regex;
 use pact_models::HttpStatus;
 use pact_models::matchingrules::{MatchingRule, RuleList, RuleLogic};
 use pact_models::path_exp::DocPath;
 #[cfg(feature = "datetime")] use pact_models::time_utils::validate_datetime;
-use pact_plugin_driver::catalogue_manager::{
+#[cfg(feature = "plugins")]  use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
   CatalogueEntryType,
@@ -23,6 +23,7 @@ use tracing::{debug, instrument, trace};
 use crate::binary_utils::match_content_type;
 use crate::{MatchingContext, Mismatch};
 
+#[cfg(feature = "plugins")]
 lazy_static! {
   /// Content matcher/generator entries to add to the plugin catalogue
   static ref CONTENT_MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
@@ -115,8 +116,8 @@ lazy_static! {
 
 /// Sets up all the core catalogue entries for matchers and generators
 pub fn configure_core_catalogue() {
-  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+  #[cfg(feature = "plugins")] register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  #[cfg(feature = "plugins")] register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
 }
 
 /// Trait for matching rule implementation

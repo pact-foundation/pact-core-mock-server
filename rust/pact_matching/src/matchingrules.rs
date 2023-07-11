@@ -390,7 +390,8 @@ mod tests {
   use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::RuleLogic;
-  use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+  #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+  #[cfg(not(feature = "plugins"))] use crate::PluginInteractionConfig;
 
   use crate::{CoreMatchingContext, DiffConfig, MatchingContext, Mismatch};
   use crate::matchers::match_strings;

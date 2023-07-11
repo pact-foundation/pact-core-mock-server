@@ -380,15 +380,15 @@ use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::generators::DefaultVariantMatcher;
 use crate::generators::bodies::generators_process_body;
 use crate::headers::{match_header_value, match_headers};
-use crate::json::match_json;
+#[cfg(feature = "plugins")] use crate::json::match_json;
 use crate::matchers::*;
 use crate::matchingrules::DisplayForMismatch;
 use crate::query::match_query_maps;
@@ -414,6 +414,11 @@ mod binary_utils;
 mod headers;
 mod query;
 mod form_urlencoded;
+
+#[cfg(not(feature = "plugins"))]
+#[derive(Clone, Debug, PartialEq)]
+/// Stub for when plugins feature is not enabled
+pub struct PluginInteractionConfig {}
 
 /// Context used to apply matching logic
 pub trait MatchingContext: Debug {
@@ -1350,59 +1355,69 @@ pub(crate) async fn compare_bodies(
   context: &(dyn MatchingContext + Send + Sync)
 ) -> BodyMatchResult {
   let mut mismatches = vec![];
-  match find_content_matcher(content_type) {
-    Some(matcher) => {
-      debug!("Using content matcher {} for content type '{}'", matcher.catalogue_entry_key(), content_type);
-      if matcher.is_core() {
-        if let Err(m) = match matcher.catalogue_entry_key().as_str() {
-          "core/content-matcher/form-urlencoded" => form_urlencoded::match_form_urlencoded(expected, actual, context),
-          "core/content-matcher/json" => match_json(expected, actual, context),
-          "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
-          "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), context),
-          "core/content-matcher/xml" => {
-            #[cfg(feature = "xml")]
-            {
-              xml::match_xml(expected, actual, context)
-            }
-            #[cfg(not(feature = "xml"))]
-            {
-              warn!("Matching XML bodies requires the xml feature to be enabled");
+
+  #[cfg(feature = "plugins")]
+  {
+    match find_content_matcher(content_type) {
+      Some(matcher) => {
+        debug!("Using content matcher {} for content type '{}'", matcher.catalogue_entry_key(), content_type);
+        if matcher.is_core() {
+          if let Err(m) = match matcher.catalogue_entry_key().as_str() {
+            "core/content-matcher/form-urlencoded" => form_urlencoded::match_form_urlencoded(expected, actual, context),
+            "core/content-matcher/json" => match_json(expected, actual, context),
+            "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
+            "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), context),
+            "core/content-matcher/xml" => {
+              #[cfg(feature = "xml")]
+              {
+                xml::match_xml(expected, actual, context)
+              }
+              #[cfg(not(feature = "xml"))]
+              {
+                warn!("Matching XML bodies requires the xml feature to be enabled");
+                match_text(&expected.body().value(), &actual.body().value(), context)
+              }
+            },
+            "core/content-matcher/binary" => binary_utils::match_octet_stream(expected, actual, context),
+            _ => {
+              warn!("There is no core content matcher for entry {}", matcher.catalogue_entry_key());
               match_text(&expected.body().value(), &actual.body().value(), context)
             }
-          },
-          "core/content-matcher/binary" => binary_utils::match_octet_stream(expected, actual, context),
-          _ => {
-            warn!("There is no core content matcher for entry {}", matcher.catalogue_entry_key());
-            match_text(&expected.body().value(), &actual.body().value(), context)
+          } {
+            mismatches.extend_from_slice(&*m);
           }
-        } {
-          mismatches.extend_from_slice(&*m);
-        }
-      } else {
-        trace!(plugin_name = matcher.plugin_name(),"Content matcher is provided via a plugin");
-        let plugin_config = context.plugin_configuration().get(&matcher.plugin_name()).cloned();
-        trace!("Plugin config = {:?}", plugin_config);
-        if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers(),
-          context.config() == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
-          // TODO: group the mismatches by key
-          for (_key, list) in map {
-            for mismatch in list {
-              mismatches.push(Mismatch::BodyMismatch {
-                path: mismatch.path.clone(),
-                expected: Some(Bytes::from(mismatch.expected)),
-                actual: Some(Bytes::from(mismatch.actual)),
-                mismatch: mismatch.mismatch.clone()
-              });
+        } else {
+          trace!(plugin_name = matcher.plugin_name(),"Content matcher is provided via a plugin");
+          let plugin_config = context.plugin_configuration().get(&matcher.plugin_name()).cloned();
+          trace!("Plugin config = {:?}", plugin_config);
+          if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers(),
+                                                   context.config() == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
+            // TODO: group the mismatches by key
+            for (_key, list) in map {
+              for mismatch in list {
+                mismatches.push(Mismatch::BodyMismatch {
+                  path: mismatch.path.clone(),
+                  expected: Some(Bytes::from(mismatch.expected)),
+                  actual: Some(Bytes::from(mismatch.actual)),
+                  mismatch: mismatch.mismatch.clone()
+                });
+              }
             }
           }
         }
       }
-    }
-    None => {
-      debug!("No content matcher defined for content type '{}', using core matcher implementation", content_type);
-      mismatches.extend(compare_bodies_core(content_type, expected, actual, context));
+      None => {
+        debug!("No content matcher defined for content type '{}', using core matcher implementation", content_type);
+        mismatches.extend(compare_bodies_core(content_type, expected, actual, context));
+      }
     }
   }
+
+  #[cfg(not(feature = "plugins"))]
+  {
+    mismatches.extend(compare_bodies_core(content_type, expected, actual, context));
+  }
+
   if mismatches.is_empty() {
     BodyMatchResult::Ok
   } else {
@@ -1523,6 +1538,7 @@ pub async fn match_body(
 }
 
 /// Matches the expected and actual requests
+#[allow(unused_variables)]
 pub async fn match_request<'a>(
   expected: HttpRequest,
   actual: HttpRequest,
@@ -1534,7 +1550,11 @@ pub async fn match_request<'a>(
   debug!("     matching_rules: {:?}", expected.matching_rules);
   debug!("     generators: {:?}", expected.generators);
 
-  let plugin_data = setup_plugin_config(pact, interaction);
+  #[allow(unused_mut, unused_assignments)] let mut plugin_data = hashmap!{};
+  #[cfg(feature = "plugins")]
+  {
+    plugin_data = setup_plugin_config(pact, interaction);
+  };
   trace!("plugin_data = {:?}", plugin_data);
 
   let path_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
@@ -1588,6 +1608,7 @@ pub fn match_status(expected: u16, actual: u16, context: &dyn MatchingContext) -
 }
 
 /// Matches the actual and expected responses.
+#[allow(unused_variables)]
 pub async fn match_response<'a>(
   expected: HttpResponse,
   actual: HttpResponse,
@@ -1597,7 +1618,12 @@ pub async fn match_response<'a>(
   let mut mismatches = vec![];
 
   info!("comparing to expected response: {}", expected);
-  let plugin_data = setup_plugin_config(pact, interaction);
+  #[allow(unused_mut, unused_assignments)] let mut plugin_data = hashmap!{};
+  #[cfg(feature = "plugins")]
+  {
+    plugin_data = setup_plugin_config(pact, interaction);
+  };
+  trace!("plugin_data = {:?}", plugin_data);
 
   let status_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("status").unwrap_or_default(),
@@ -1626,6 +1652,7 @@ pub async fn match_response<'a>(
   mismatches
 }
 
+#[cfg(feature = "plugins")]
 fn setup_plugin_config<'a>(
   pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   interaction: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>
@@ -1644,6 +1671,7 @@ fn setup_plugin_config<'a>(
 }
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
+#[allow(unused_variables)]
 pub async fn match_message_contents(
   expected: &MessageContents,
   actual: &MessageContents,
@@ -1746,6 +1774,7 @@ fn match_metadata_value(
 }
 
 /// Matches the actual and expected messages.
+#[allow(unused_variables)]
 pub async fn match_message<'a>(
   expected: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
   actual: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
@@ -1758,7 +1787,11 @@ pub async fn match_message<'a>(
     let actual_message = actual.as_message().unwrap();
 
     let matching_rules = &expected_message.matching_rules;
-    let plugin_data = setup_plugin_config(pact, expected);
+    #[allow(unused_mut, unused_assignments)] let mut plugin_data = hashmap!{};
+    #[cfg(feature = "plugins")]
+    {
+      plugin_data = setup_plugin_config(pact, expected);
+    };
 
     let body_context = if expected.is_v4() {
       CoreMatchingContext {
@@ -1804,6 +1837,7 @@ pub async fn match_sync_message<'a>(expected: SynchronousMessage, actual: Synchr
 }
 
 /// Match the request part of a synchronous request/response message
+#[allow(unused_variables)]
 pub async fn match_sync_message_request<'a>(
   expected: &SynchronousMessage,
   actual: &SynchronousMessage,
@@ -1812,7 +1846,11 @@ pub async fn match_sync_message_request<'a>(
   info!("comparing to expected message request: {:?}", expected);
 
   let matching_rules = &expected.request.matching_rules;
-  let plugin_data = setup_plugin_config(pact, &expected.boxed());
+  #[allow(unused_mut, unused_assignments)] let mut plugin_data = hashmap!{};
+  #[cfg(feature = "plugins")]
+  {
+    plugin_data = setup_plugin_config(pact, &expected.boxed());
+  };
 
   let body_context = CoreMatchingContext {
     matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
@@ -1835,6 +1873,7 @@ pub async fn match_sync_message_request<'a>(
 }
 
 /// Match the response part of a synchronous request/response message
+#[allow(unused_variables)]
 pub async fn match_sync_message_response<'a>(
   expected: &SynchronousMessage,
   expected_responses: &[MessageContents],
@@ -1865,7 +1904,11 @@ pub async fn match_sync_message_response<'a>(
       });
     }
   } else {
-    let plugin_data = setup_plugin_config(pact, &expected.boxed());
+    #[allow(unused_mut, unused_assignments)] let mut plugin_data = hashmap!{};
+    #[cfg(feature = "plugins")]
+    {
+      plugin_data = setup_plugin_config(pact, &expected.boxed());
+    };
     for (expected_response, actual_response) in expected_responses.iter().zip(actual_responses) {
       let matching_rules = &expected_response.matching_rules;
       let body_context = CoreMatchingContext {

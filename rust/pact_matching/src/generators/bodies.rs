@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use pact_plugin_driver::catalogue_manager::find_content_generator;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_generator;
 use serde_json::Value;
 use tracing::{debug, error, warn};
 
@@ -16,6 +16,7 @@ use pact_models::plugins::PluginData;
 #[cfg(feature = "xml")] use crate::generators::XmlHandler;
 
 /// Apply the generators to the body, returning a new body
+#[allow(unused_variables)]
 pub async fn generators_process_body(
   mode: &GeneratorTestMode,
   body: &OptionalBody,
@@ -66,15 +67,26 @@ pub async fn generators_process_body(
         warn!("Generating XML documents requires the xml feature to be enabled");
         Ok(body.clone())
       }
-    } else if let Some(content_generator) = find_content_generator(&content_type) {
-      debug!("apply_body_generators: Found a content generator from a plugin");
-      let generators = generators.iter()
-        .map(|(k, v)| (k.to_string(), v.clone()))
-        .collect();
-      content_generator.generate_content(&content_type, &generators, body, plugin_data, interaction_data, context).await
-    } else {
-      warn!("Unsupported content type {} - Generators only support JSON and XML", content_type);
-      Ok(body.clone())
+    }
+    else {
+      #[cfg(feature = "plugins")]
+      {
+        if let Some(content_generator) = find_content_generator(&content_type) {
+          debug!("apply_body_generators: Found a content generator from a plugin");
+          let generators = generators.iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
+          content_generator.generate_content(&content_type, &generators, body, plugin_data, interaction_data, context).await
+        } else {
+          warn!("Unsupported content type {} - Generators only support JSON and XML", content_type);
+          Ok(body.clone())
+        }
+      }
+      #[cfg(not(feature = "plugins"))]
+      {
+        warn!("Unsupported content type {} - Generators only support JSON and XML", content_type);
+        Ok(body.clone())
+      }
     },
     _ => Ok(body.clone())
   }
