@@ -1,13 +1,13 @@
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::io;
+#[cfg(feature = "tls")]  use std::io;
 use std::net::SocketAddr;
-use std::pin::Pin;
+#[cfg(feature = "tls")] use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use futures::prelude::*;
-use futures::StreamExt;
-use futures::task::{Context, Poll};
+#[cfg(feature = "tls")] use futures::prelude::*;
+#[cfg(feature = "tls")] use futures::StreamExt;
+#[cfg(feature = "tls")] use futures::task::{Context, Poll};
 use hyper::{Body, Error, Response, Server};
 use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder as ResponseBuilder;
@@ -20,11 +20,11 @@ use pact_models::http_parts::HttpPart;
 use pact_models::pact::Pact;
 use pact_models::query_strings::parse_query_string;
 use pact_models::v4::http_parts::HttpRequest;
-use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_rustls::server::TlsStream;
-use tokio_rustls::TlsAcceptor;
+#[cfg(feature = "tls")] use tokio::net::{TcpListener, TcpStream};
+#[cfg(feature = "tls")] use tokio_rustls::server::TlsStream;
+#[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
 use pact_matching::logging::LOG_ID;
@@ -390,10 +390,12 @@ pub(crate) async fn create_and_bind(
 }
 
 // Taken from https://github.com/ctz/hyper-rustls/blob/master/examples/server.rs
+#[cfg(feature = "tls")]
 struct HyperAcceptor {
   stream: Pin<Box<dyn Stream<Item = Result<TlsStream<TcpStream>, io::Error>> + Send>>
 }
 
+#[cfg(feature = "tls")]
 impl hyper::server::accept::Accept for HyperAcceptor {
   type Conn = TlsStream<TcpStream>;
   type Error = io::Error;
@@ -406,6 +408,7 @@ impl hyper::server::accept::Accept for HyperAcceptor {
   }
 }
 
+#[cfg(feature = "tls")]
 pub(crate) async fn create_and_bind_tls(
   pact: Box<dyn Pact + Send + Sync>,
   addr: SocketAddr,

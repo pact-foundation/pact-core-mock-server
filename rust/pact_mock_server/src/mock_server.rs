@@ -15,7 +15,7 @@ use pact_models::pact::{Pact, write_pact};
 use pact_models::PactSpecification;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::HttpRequest;
-use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, info, trace, warn};
@@ -168,6 +168,7 @@ impl MockServer {
   }
 
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
+  #[cfg(feature = "tls")]
   pub async fn new_tls(
     id: String,
     pact: Box<dyn Pact + Send + Sync>,

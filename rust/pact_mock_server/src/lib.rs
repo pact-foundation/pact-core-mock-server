@@ -26,7 +26,7 @@ use pact_models::pact::{load_pact_from_json, Pact};
   register_core_entries
 };
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::get_mock_server_results;
-use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
 #[allow(unused_imports)] use tracing::{error, info, warn};
 use uuid::Uuid;
@@ -38,7 +38,7 @@ pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
 mod hyper_server;
-pub mod tls;
+#[cfg(feature = "tls")] pub mod tls;
 mod utils;
 
 /// Mock server errors
@@ -153,6 +153,7 @@ pub fn start_mock_server_with_config(
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
+#[cfg(feature = "tls")]
 pub fn start_tls_mock_server(
   id: String,
   pact: Box<dyn Pact + Send + Sync>,
@@ -177,6 +178,7 @@ pub fn start_tls_mock_server(
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
+#[cfg(feature = "tls")]
 pub fn start_tls_mock_server_with_config(
   id: String,
   pact: Box<dyn Pact + Send + Sync>,
@@ -265,6 +267,7 @@ pub fn create_mock_server(
 /// * `pact_json` - Pact in JSON format
 /// * `addr` - Socket address to listen on
 /// * `tls` - TLS config
+#[cfg(feature = "tls")]
 pub fn create_tls_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr,

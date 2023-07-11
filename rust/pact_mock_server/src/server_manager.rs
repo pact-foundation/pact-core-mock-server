@@ -16,7 +16,7 @@ use pact_models::pact::Pact;
 #[cfg(feature = "plugins")] use pact_models::prelude::v4::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 #[cfg(feature = "plugins")] use pact_plugin_driver::mock_server::MockServerDetails;
-use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
 #[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace};
 #[cfg(feature = "plugins")] use url::Url;
@@ -104,6 +104,7 @@ impl ServerManager {
     }
 
     /// Start a new TLS server on the runtime
+    #[cfg(feature = "tls")]
     pub fn start_tls_mock_server_with_addr(
       &mut self,
       id: String,
@@ -170,6 +171,7 @@ impl ServerManager {
   }
 
     /// Start a new TLS server on the runtime
+    #[cfg(feature = "tls")]
     pub fn start_tls_mock_server(
       &mut self,
       id: String,
