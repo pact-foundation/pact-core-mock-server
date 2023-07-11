@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+#[cfg(feature = "plugins")] use std::net::SocketAddr;
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
@@ -261,6 +261,7 @@ async fn match_request_with_more_specific_request() {
 }
 
 #[test]
+#[cfg(feature = "plugins")]
 fn basic_mock_server_test() {
   let pact = V4Pact {
     interactions: vec![

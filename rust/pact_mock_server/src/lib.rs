@@ -7,26 +7,28 @@
 
 #![warn(missing_docs)]
 
-use std::path::PathBuf;
+#[cfg(feature = "plugins")] use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::anyhow;
-use itertools::{Either, Itertools};
+#[cfg(feature = "plugins")] use anyhow::anyhow;
+use itertools::Either;
+#[cfg(feature = "plugins")] use itertools::Itertools;
 use lazy_static::*;
-use maplit::hashmap;
-use pact_models::pact::{load_pact_from_json, Pact, ReadWritePact, write_pact};
-use pact_models::PactSpecification;
-use pact_plugin_driver::catalogue_manager;
-use pact_plugin_driver::catalogue_manager::{
+#[cfg(feature = "plugins")] use maplit::hashmap;
+use pact_models::pact::{load_pact_from_json, Pact};
+#[cfg(feature = "plugins")] use pact_models::pact::{ReadWritePact, write_pact};
+#[cfg(feature = "plugins")] use pact_models::PactSpecification;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
   CatalogueEntryType,
   register_core_entries
 };
-use pact_plugin_driver::plugin_manager::get_mock_server_results;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::get_mock_server_results;
 use rustls::ServerConfig;
 use serde_json::json;
-use tracing::{error, info, warn};
+#[allow(unused_imports)] use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::mock_server::{MockServer, MockServerConfig};
@@ -57,8 +59,11 @@ lazy_static! {
   /// to serve requests.
   ///
   pub static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
+}
 
-  /// Mock server entries to add to the plugin catalogue
+#[cfg(feature = "plugins")]
+lazy_static! {
+/// Mock server entries to add to the plugin catalogue
   static ref MOCK_SERVER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
     let mut entries = vec![];
     entries.push(CatalogueEntry {
@@ -81,7 +86,7 @@ lazy_static! {
 
 /// Sets up all the core catalogue entries for mock servers
 pub fn configure_core_catalogue() {
-  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+  #[cfg(feature = "plugins")] register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
 }
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
@@ -198,9 +203,12 @@ pub fn start_tls_mock_server_with_config(
 /// * `transport` - Transport to use for the mock server.
 /// * `config` - Configuration for the mock server. Transport specific configuration must be specified in the `transport_config` field.
 ///
+/// Requires the plugins feature to be enabled.
+///
 /// # Errors
 ///
 /// An error will be returned if the mock server is not able to be started or the transport is not known.
+#[cfg(feature = "plugins")]
 pub fn start_mock_server_for_transport(
   id: String,
   pact: Box<dyn Pact + Send + Sync>,
@@ -287,17 +295,26 @@ pub fn create_tls_mock_server(
 pub fn mock_server_matched(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .find_mock_server_by_port(mock_server_port as u16, &|server_manager, _, mock_server| {
+    .find_mock_server_by_port(mock_server_port as u16, &|_server_manager, _, mock_server| {
       match mock_server {
         Either::Left(mock_server) => mock_server.mismatches().is_empty(),
-        Either::Right(plugin_mock_server) => {
-          let results = server_manager.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details));
-          match results {
-            Ok(results) => results.is_empty(),
-            Err(err) => {
-              error!("Request to plugin to get matching results failed - {}", err);
-              false
+        Either::Right(_plugin_mock_server) => {
+          #[cfg(feature = "plugins")]
+          {
+            let results = _server_manager.exec_async(get_mock_server_results(&_plugin_mock_server.mock_server_details));
+            match results {
+              Ok(results) => results.is_empty(),
+              Err(err) => {
+                error!("Request to plugin to get matching results failed - {}", err);
+                false
+              }
             }
+          }
+
+          #[cfg(not(feature = "plugins"))]
+          {
+            error!("Plugin mock server support requires the plugins feature to be enabled");
+            false
           }
         }
       }
@@ -315,7 +332,7 @@ pub fn mock_server_matched(mock_server_port: i32) -> bool {
 pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .find_mock_server_by_port(mock_server_port as u16, &|manager, _, mock_server| {
+    .find_mock_server_by_port(mock_server_port as u16, &|_manager, _, mock_server| {
       match mock_server {
         Either::Left(mock_server) => {
           let mismatches = mock_server.mismatches().iter()
@@ -323,11 +340,13 @@ pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
             .collect::<Vec<serde_json::Value>>();
           json!(mismatches).to_string()
         }
-        Either::Right(plugin_mock_server) => {
-          let results = manager.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details));
-          match results {
-            Ok(results) => {
-              json!(results.iter().map(|item| {
+        Either::Right(_plugin_mock_server) => {
+          #[cfg(feature = "plugins")]
+          {
+            let results = _manager.exec_async(get_mock_server_results(&_plugin_mock_server.mock_server_details));
+            match results {
+              Ok(results) => {
+                json!(results.iter().map(|item| {
                 json!({
                   "path": item.path,
                   "error": item.error,
@@ -342,12 +361,19 @@ pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
                   }).collect_vec()
                 })
               }).collect_vec())
-            },
-            Err(err) => {
-              error!("Request to plugin to get matching results failed - {}", err);
-              json!({ "error": format!("Request to plugin to get matching results failed - {}", err) })
-            }
-          }.to_string()
+              },
+              Err(err) => {
+                error!("Request to plugin to get matching results failed - {}", err);
+                json!({ "error": format!("Request to plugin to get matching results failed - {}", err) })
+              }
+            }.to_string()
+          }
+
+          #[cfg(not(feature = "plugins"))]
+          {
+            error!("Plugin mock server support requires the plugins feature to be enabled");
+            json!({ "error": "Plugin mock server support requires the plugins feature to be enabled" }).to_string()
+          }
         }
       }
     })
@@ -386,26 +412,35 @@ pub fn write_pact_file(
                   WritePactFileErr::IOError
                 })
             }
-            Either::Right(plugin_mock_server) => {
-              let mut pact = plugin_mock_server.pact.clone();
-              pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-              let pact_file_name = pact.default_file_name();
-              let filename = match directory {
-                Some(ref path) => {
-                  let mut path = PathBuf::from(path);
-                  path.push(pact_file_name);
-                  path
-                },
-                None => PathBuf::from(pact_file_name)
-              };
+            Either::Right(_plugin_mock_server) => {
+              #[cfg(feature = "plugins")]
+              {
+                let mut pact = _plugin_mock_server.pact.clone();
+                pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
+                let pact_file_name = pact.default_file_name();
+                let filename = match directory {
+                  Some(ref path) => {
+                    let mut path = PathBuf::from(path);
+                    path.push(pact_file_name);
+                    path
+                  },
+                  None => PathBuf::from(pact_file_name)
+                };
 
-              info!("Writing pact out to '{}'", filename.display());
-              match write_pact(pact.boxed(), filename.as_path(), PactSpecification::V4, overwrite) {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                  warn!("Failed to write pact to file - {}", err);
-                  Err(WritePactFileErr::IOError)
+                info!("Writing pact out to '{}'", filename.display());
+                match write_pact(pact.boxed(), filename.as_path(), PactSpecification::V4, overwrite) {
+                  Ok(_) => Ok(()),
+                  Err(err) => {
+                    warn!("Failed to write pact to file - {}", err);
+                    Err(WritePactFileErr::IOError)
+                  }
                 }
+              }
+
+              #[cfg(not(feature = "plugins"))]
+              {
+                error!("Plugin mock server support requires the plugins feature to be enabled");
+                Err(WritePactFileErr::NoMockServer)
               }
             }
           }

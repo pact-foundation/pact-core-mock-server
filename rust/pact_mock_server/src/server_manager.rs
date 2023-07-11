@@ -4,25 +4,28 @@
 
 use std::collections::BTreeMap;
 use std::ffi::CString;
-use std::future::Future;
-use std::net::{SocketAddr, ToSocketAddrs};
+#[cfg(feature = "plugins")] use std::future::Future;
+use std::net::SocketAddr;
+#[cfg(feature = "plugins")] use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use itertools::Either;
-use maplit::hashmap;
+#[cfg(feature = "plugins")] use maplit::hashmap;
 use pact_models::pact::Pact;
-use pact_models::prelude::v4::V4Pact;
-use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
-use pact_plugin_driver::mock_server::MockServerDetails;
+#[cfg(feature = "plugins")] use pact_models::prelude::v4::V4Pact;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
+#[cfg(feature = "plugins")] use pact_plugin_driver::mock_server::MockServerDetails;
 use rustls::ServerConfig;
+#[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace};
-use url::Url;
+#[cfg(feature = "plugins")] use url::Url;
 
 use crate::mock_server::{MockServer, MockServerConfig};
 
 /// Mock server that has been provided by a plugin
 #[derive(Debug, Clone)]
+#[cfg(feature = "plugins")]
 pub struct PluginMockServer {
   /// Details of the running mock server
   pub mock_server_details: MockServerDetails,
@@ -31,6 +34,16 @@ pub struct PluginMockServer {
   /// Pact for this mock server
   pub pact: V4Pact
 }
+
+/// Mock server that has been provided by a plugin (dummy struct)
+#[derive(Debug, Clone)]
+#[cfg(not(feature = "plugins"))]
+pub struct PluginMockServer {}
+
+/// Dummy Catalogue entry
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg(not(feature = "plugins"))]
+pub struct CatalogueEntry {}
 
 struct ServerEntry {
   /// Either a local mock server or a plugin provided one
@@ -171,6 +184,7 @@ impl ServerManager {
 
   /// Start a new mock server for the provided transport on the runtime. Returns the socket address
   /// that the server is running on.
+  #[allow(unused_variables)]
   pub fn start_mock_server_for_transport(
     &mut self,
     id: String,
@@ -179,42 +193,50 @@ impl ServerManager {
     transport: &CatalogueEntry,
     config: MockServerConfig
   ) -> anyhow::Result<SocketAddr> {
-    if transport.provider_type == CatalogueEntryProviderType::PLUGIN {
-      let mut v4_pact = pact.as_v4_pact()?;
-      for interaction in v4_pact.interactions.iter_mut() {
-        if let None = interaction.transport() {
-          interaction.set_transport(transport.key.split("/").last().map(|i| i.to_string()));
+    #[cfg(feature = "plugins")]
+    {
+      if transport.provider_type == CatalogueEntryProviderType::PLUGIN {
+        let mut v4_pact = pact.as_v4_pact()?;
+        for interaction in v4_pact.interactions.iter_mut() {
+          if let None = interaction.transport() {
+            interaction.set_transport(transport.key.split("/").last().map(|i| i.to_string()));
+          }
         }
-      }
-      let mock_server_config = pact_plugin_driver::mock_server::MockServerConfig {
-        output_path: None,
-        host_interface: Some(addr.ip().to_string()),
-        port: addr.port() as u32,
-        tls: false
-      };
-      let test_context = hashmap!{};
-      let result = self.runtime.block_on(
-        pact_plugin_driver::plugin_manager::start_mock_server_v2(transport, v4_pact.boxed(),
-          mock_server_config, test_context)
-      )?;
-      self.mock_servers.insert(
-        id,
-        ServerEntry {
-          mock_server: Either::Right(PluginMockServer {
-            mock_server_details: result.clone(),
-            catalogue_entry: transport.clone(),
-            pact: v4_pact
-          }),
-          port: result.port as u16,
-          resources: vec![],
-          join_handle: None
-        }
-      );
+        let mock_server_config = pact_plugin_driver::mock_server::MockServerConfig {
+          output_path: None,
+          host_interface: Some(addr.ip().to_string()),
+          port: addr.port() as u32,
+          tls: false
+        };
+        let test_context = hashmap! {};
+        let result = self.runtime.block_on(
+          pact_plugin_driver::plugin_manager::start_mock_server_v2(transport, v4_pact.boxed(),
+                                                                   mock_server_config, test_context)
+        )?;
+        self.mock_servers.insert(
+          id,
+          ServerEntry {
+            mock_server: Either::Right(PluginMockServer {
+              mock_server_details: result.clone(),
+              catalogue_entry: transport.clone(),
+              pact: v4_pact
+            }),
+            port: result.port as u16,
+            resources: vec![],
+            join_handle: None
+          }
+        );
 
-      let url = Url::parse(&result.base_url)?;
-      (url.host_str().unwrap_or_default(), result.port as u16).to_socket_addrs()?.next()
-        .ok_or_else(|| anyhow!("Could not parse the result from the plugin as a socket address"))
-    } else {
+        let url = Url::parse(&result.base_url)?;
+        (url.host_str().unwrap_or_default(), result.port as u16).to_socket_addrs()?.next()
+          .ok_or_else(|| anyhow!("Could not parse the result from the plugin as a socket address"))
+      } else {
+        self.start_mock_server_with_addr(id, pact, addr, config)
+          .map_err(|err| anyhow!(err))
+      }
+    }
+    #[cfg(not(feature = "plugins"))]
+    {
       self.start_mock_server_with_addr(id, pact, addr, config)
         .map_err(|err| anyhow!(err))
     }
@@ -236,13 +258,21 @@ impl ServerManager {
             Err(_) => false,
           }
         }
-        Either::Right(plugin_mock_server) => {
-          match self.runtime.block_on(pact_plugin_driver::plugin_manager::shutdown_mock_server(&plugin_mock_server.mock_server_details)) {
-            Ok(_) => true,
-            Err(err) => {
-              error!("Failed to shutdown plugin mock server with ID {} - {}", id, err);
-              false
+        Either::Right(_plugin_mock_server) => {
+          #[cfg(feature = "plugins")]
+          {
+            match self.runtime.block_on(pact_plugin_driver::plugin_manager::shutdown_mock_server(&_plugin_mock_server.mock_server_details)) {
+              Ok(_) => true,
+              Err(err) => {
+                error!("Failed to shutdown plugin mock server with ID {} - {}", id, err);
+                false
+              }
             }
+          }
+          #[cfg(not(feature = "plugins"))]
+          {
+            error!("Plugins require the plugin feature to be enabled");
+            false
           }
         }
       },
@@ -354,6 +384,7 @@ impl ServerManager {
   }
 
   /// Execute a future on the Tokio runtime for the service manager
+  #[cfg(feature = "plugins")]
   pub(crate) fn exec_async<OUT>(&self, future: impl Future<Output=OUT>) -> OUT {
     self.runtime.block_on(future)
   }
