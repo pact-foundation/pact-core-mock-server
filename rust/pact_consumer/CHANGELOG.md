@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.3 - Bugfix Release
+
+* e08119ab - fix(pact-consumer): Some code for the datetime feature was not being excluded when the feature was turned off #290 (Ronald Holshausen, Thu Jul 13 09:22:24 2023 +1000)
+* 4f448b1f - fix(pact_matching): EachValue matcher was not applying the associated matching rules correctly #299 (Ronald Holshausen, Wed Jul 12 16:28:16 2023 +1000)
+* 7444b6af - bump version to 1.0.3 (Ronald Holshausen, Wed Jul 12 10:04:09 2023 +1000)
+
 # 1.0.2 - Bugfixes + added crate features to disable functionality
 
 * 6661077a - feat: Add support for disabling plugins with consumer DSL (Ronald Holshausen, Tue Jul 11 16:53:12 2023 +1000)
