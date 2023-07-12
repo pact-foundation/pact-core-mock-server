@@ -400,11 +400,15 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
         }
       }
 
-      if let Some(junit_file) = matches.get_one::<String>("junit-file") {
-        if let Err(err) = reports::write_junit_report(&result, junit_file.as_str(), &provider_name) {
-          error!("Failed to write JUnit report to '{junit_file}' - {err}");
+      if let Some(_junit_file) = matches.get_one::<String>("junit-file") {
+        #[cfg(feature = "junit")]
+        if let Err(err) = reports::write_junit_report(&result, _junit_file.as_str(), &provider_name) {
+          error!("Failed to write JUnit report to '{_junit_file}' - {err}");
           return Err(2)
         }
+
+        #[cfg(not(feature = "junit"))]
+        warn!("junit feature is not enabled, ignoring junit-file option");
       }
 
       if result.result { Ok(()) } else { Err(1) }

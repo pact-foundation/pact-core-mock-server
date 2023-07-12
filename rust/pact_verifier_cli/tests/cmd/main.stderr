@@ -12,7 +12,7 @@ Logging options:
       --full-log             This emits human-readable, single-line logs for each event that occurs, with the current span context displayed before the formatted representation of the event.
       --compact-log          Emit logs optimized for short line lengths.
   -j, --json <json-file>     Generate a JSON report of the verification
-  -x, --junit <junit-file>   Generate a JUnit XML report of the verification
+  -x, --junit <junit-file>   Generate a JUnit XML report of the verification (requires the junit feature)
       --no-colour            Disables ANSI escape codes in the output [aliases: no-color]
 
 Loading pacts options:

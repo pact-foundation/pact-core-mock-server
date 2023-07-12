@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::Write;
 
-use junit_report::{ReportBuilder, TestCaseBuilder, TestSuiteBuilder};
+#[cfg(feature = "junit")] use junit_report::{ReportBuilder, TestCaseBuilder, TestSuiteBuilder};
 use serde_json::Value;
 use tracing::debug;
 
-use pact_verifier::{interaction_mismatch_output, MismatchResult};
+#[cfg(feature = "junit")] use pact_verifier::{interaction_mismatch_output, MismatchResult};
 use pact_verifier::verification_result::VerificationExecutionResult;
 
 pub(crate) fn write_json_report(result: &VerificationExecutionResult, file_name: &str) -> anyhow::Result<()> {
@@ -16,6 +16,7 @@ pub(crate) fn write_json_report(result: &VerificationExecutionResult, file_name:
   Ok(())
 }
 
+#[cfg(feature = "junit")]
 pub(crate) fn write_junit_report(result: &VerificationExecutionResult, file_name: &str, provider: &String) -> anyhow::Result<()> {
   debug!("Writing JUnit result of the verification to '{file_name}'");
   let mut f = File::create(file_name)?;

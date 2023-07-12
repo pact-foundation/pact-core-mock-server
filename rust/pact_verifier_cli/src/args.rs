@@ -77,7 +77,7 @@ pub(crate) fn setup_app() -> Command {
       .long("junit")
       .action(ArgAction::Set)
       .value_parser(NonEmptyStringValueParser::new())
-      .help("Generate a JUnit XML report of the verification"))
+      .help("Generate a JUnit XML report of the verification (requires the junit feature)"))
     .arg(Arg::new("no-colour")
       .long("no-colour")
       .action(ArgAction::SetTrue)
