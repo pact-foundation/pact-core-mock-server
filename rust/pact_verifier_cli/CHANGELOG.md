@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.0 - 1.0.0 Release
+
+* b9e034b2 - feat: Add crate feature for JUnit report output (Ronald Holshausen, Wed Jul 12 11:50:08 2023 +1000)
+* 7a25a819 - chore: Bump pact_verifier_cli version to 1.0.0 (Ronald Holshausen, Wed Jul 12 11:36:21 2023 +1000)
+* 63c1a8e6 - chore: Upgrade pact_verifier to 1.0.1 (Ronald Holshausen, Wed Jul 12 11:27:36 2023 +1000)
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* 2662cdfc - chore: Upgrade pact_models to 1.1.7 (Ronald Holshausen, Thu Jul 6 10:27:25 2023 +1000)
+* e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
+* bc68ed7f - chore: Upgrade pact_models to 1.1.4 (Ronald Holshausen, Thu Jun 1 10:22:38 2023 +1000)
+* 397c837f - chore: Upgrade pact_models to 1.1.3 (fixes MockServerURL generator) (Ronald Holshausen, Mon May 29 15:12:22 2023 +1000)
+* ca1e37fb - chore: Upgrade pact_verifier to 1.0.0 (Ronald Holshausen, Tue May 23 15:16:08 2023 +1000)
+* ac2e24da - chore: Use "Minimum version, with restricted compatibility range" for all Pact crate versions (Ronald Holshausen, Tue May 23 11:46:52 2023 +1000)
+* 261ecf47 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction uses (Ronald Holshausen, Mon May 15 13:59:31 2023 +1000)
+* 91cceabf - bump version to 0.10.7 (Ronald Holshausen, Tue Apr 18 15:26:13 2023 +1000)
+
 # 0.10.6 - Bugfix Release
 
 * 8cfc3d79 - chore: Upgrade pact_verifier to 0.15.3 (Ronald Holshausen, Tue Apr 18 15:22:26 2023 +1000)
