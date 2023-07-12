@@ -397,7 +397,7 @@ pub mod prelude {
     pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
     pub use crate::patterns::{EachLike, Like, Term};
     pub use crate::patterns::{JsonPattern, Pattern, StringPattern};
-    pub use crate::patterns::{DateTime};
+    #[cfg(feature = "datetime")] pub use crate::patterns::{DateTime};
     pub use crate::util::strip_null_fields;
 }
 

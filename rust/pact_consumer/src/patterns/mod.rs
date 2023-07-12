@@ -5,19 +5,16 @@ use pact_models::matchingrules::MatchingRuleCategory;
 use pact_models::path_exp::DocPath;
 use std::fmt::Debug;
 
-#[macro_use]
-mod json_macros;
+#[macro_use] mod json_macros;
 mod json_pattern;
-#[macro_use]
-mod special_rules;
+#[macro_use] mod special_rules;
 mod string_pattern;
-#[macro_use]
-mod date_time;
+#[cfg(feature = "datetime")] #[macro_use] mod date_time;
 
 pub use self::json_pattern::*;
 pub use self::special_rules::*;
 pub use self::string_pattern::*;
-pub use self::date_time::*;
+#[cfg(feature = "datetime")] pub use self::date_time::*;
 
 /// Abstract interface to types which can:
 ///
