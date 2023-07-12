@@ -8,7 +8,8 @@ gzip -c ../target/release/pact_verifier_cli > ../target/artifacts/pact_verifier_
 openssl dgst -sha256 -r ../target/artifacts/pact_verifier_cli-linux-x86_64.gz > ../target/artifacts/pact_verifier_cli-linux-x86_64.gz.sha256
 
 echo -- Build the aarch64 release artifacts --
+rustup toolchain install 1.69
 cargo install cross
-cross build --target aarch64-unknown-linux-gnu --release
+rustup run 1.69 cross build --target aarch64-unknown-linux-gnu --release
 gzip -c ../target/aarch64-unknown-linux-gnu/release/pact_verifier_cli > ../target/artifacts/pact_verifier_cli-linux-aarch64.gz
 openssl dgst -sha256 -r ../target/artifacts/pact_verifier_cli-linux-aarch64.gz > ../target/artifacts/pact_verifier_cli-linux-aarch64.gz.sha256
