@@ -1,5 +1,26 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.2 - Bugfixes + added crate features to disable functionality
+
+* 6661077a - feat: Add support for disabling plugins with consumer DSL (Ronald Holshausen, Tue Jul 11 16:53:12 2023 +1000)
+* b3c65285 - chore: Add support for datetime, xml, multipart. plugins and tls crate features (Ronald Holshausen, Tue Jul 11 15:39:05 2023 +1000)
+* e07ca36c - chore: Upgrade pact_mock_server to 1.2.1 (Ronald Holshausen, Tue Jul 11 14:47:17 2023 +1000)
+* 348eb3f3 - chore: Upgrade pact_matcing to 1.1.3 (Ronald Holshausen, Tue Jul 11 11:38:26 2023 +1000)
+* f2ae77ba - chore: Upgrade pact-plugin-driver to 0.4.5 (Ronald Holshausen, Mon Jul 10 17:15:20 2023 +1000)
+* b18b9dff - chore: Upgrade pact_matching to 1.1.2 (Ronald Holshausen, Mon Jul 10 16:42:27 2023 +1000)
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* 5c725214 - feat(consumer DSL): Add methods to support using a regex with a text body #291 (Ronald Holshausen, Mon Jul 10 15:38:42 2023 +1000)
+* 73033f54 - fix(consumer): Setup multi-value headers correctly #300 (Ronald Holshausen, Mon Jul 10 14:59:22 2023 +1000)
+* 2662cdfc - chore: Upgrade pact_models to 1.1.7 (Ronald Holshausen, Thu Jul 6 10:27:25 2023 +1000)
+* 445ea1ee - fix: Header matching rules should be looked up in a case-insenstive way (Ronald Holshausen, Wed Jun 28 15:21:32 2023 +1000)
+* e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
+* a8faee63 - chore: Update example in docs comments to show starting the mock server #294 (Ronald Holshausen, Thu Jun 22 09:45:49 2023 +1000)
+* 244f1fdb - feat(compatibility-suite): Implemented scenarios for no provider state callback configured + request filters (Ronald Holshausen, Fri Jun 16 11:36:30 2023 +1000)
+* 834f77cc - chore: Upgrade pact_mock_server to 1.2.0 (Ronald Holshausen, Wed Jun 14 15:22:11 2023 +1000)
+* e58aa917 - fix: no need to wrap the Pact for a mock server in a mutex (mock server is already behind a mutex) as this can cause deadlocks #274 (Ronald Holshausen, Wed Jun 14 13:26:54 2023 +1000)
+* cd536170 - feat: Add builder interface for plugins to provide DSL to construct interactions (Ronald Holshausen, Wed Jun 7 15:12:15 2023 +1000)
+* 8287f375 - bump version to 1.0.2 (Ronald Holshausen, Wed Jun 7 11:51:33 2023 +1000)
+
 # 1.0.1 - Bugfix Release
 
 * 4fbd45cc - fix: Mock server errors were not being printed if the test was panicking due to a failed assertion #282 (Ronald Holshausen, Wed Jun 7 11:27:15 2023 +1000)
