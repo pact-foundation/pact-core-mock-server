@@ -20,7 +20,8 @@ use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
 use humantime::format_duration;
-use itertools::{Either, Itertools};
+use itertools::Itertools;
+#[cfg(feature = "plugins")] use itertools::Either;
 use maplit::*;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
@@ -30,14 +31,15 @@ use pact_models::pact::{load_pact_from_json, Pact, read_pact};
 use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
-use pact_plugin_driver::{catalogue_manager, plugin_manager};
-use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
-use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-use pact_plugin_driver::verification::{InteractionVerificationData, InteractionVerificationDetails};
+#[cfg(feature = "plugins")] use pact_plugin_driver::{catalogue_manager, plugin_manager};
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+#[cfg(feature = "plugins")] use pact_plugin_driver::verification::{InteractionVerificationData, InteractionVerificationDetails};
 use regex::Regex;
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::Value;
+#[cfg(feature = "plugins")] use serde_json::json;
 use tracing::{debug, debug_span, error, info, Instrument, instrument, trace, warn};
 
 pub use callback_executors::NullRequestFilterExecutor;
@@ -416,23 +418,36 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
 
   info!("Running provider verification for '{}'", interaction.description());
   trace!("Interaction to verify: {:?}", interaction);
-  let transport = if interaction.is_v4() {
-    interaction.as_v4()
-      .and_then(|i| i.transport())
-      .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
-  } else {
-    None
-  };
 
-  let result = if let Some(transport) = &transport {
-    trace!("Verifying interaction via {}", transport.key);
-    verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await
-  } else {
-    verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context)
+  #[allow(unused_assignments)] let mut result = Ok((None, vec![]));
+  #[cfg(feature = "plugins")]
+  {
+    let transport = if interaction.is_v4() {
+      interaction.as_v4()
+        .and_then(|i| i.transport())
+        .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
+    } else {
+      None
+    };
+
+    result = if let Some(transport) = &transport {
+      trace!("Verifying interaction via {}", transport.key);
+      verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await
+    } else {
+      verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context)
+        .await
+        .map(|r| (r, vec![]))
+        .map_err(|e| (e, vec![]))
+    };
+  }
+
+  #[cfg(not(feature = "plugins"))]
+  {
+    result = verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context)
       .await
       .map(|r| (r, vec![]))
-      .map_err(|e| (e, vec![]))
-  };
+      .map_err(|e| (e, vec![]));
+  }
 
   if provider_state_executor.teardown() {
     execute_provider_states(interaction, provider_state_executor, &client, false)
@@ -446,6 +461,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
 }
 
 /// Verify an interaction using the provided transport
+#[cfg(feature = "plugins")]
 async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
   transport_entry: &CatalogueEntry,
   provider: &ProviderInfo,
@@ -958,6 +974,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       match pact_result {
         Ok((pact, context, pact_source, pact_source_duration)) => {
           trace!("Pact file took {} to load", format_duration(pact_source_duration));
+
+          #[cfg(feature = "plugins")]
           if pact.requires_plugins() {
             info!("Pact file requires plugins, will load those now");
             for plugin_details in pact.plugin_data() {
@@ -1110,7 +1128,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       println!("{line}");
     }
 
-    shutdown_plugins();
+    #[cfg(feature = "plugins")] shutdown_plugins();
 
     Ok(verification_result)
   }.instrument(tracing::trace_span!("verify_provider_async"))).await
@@ -1403,12 +1421,20 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       if let Some(interaction) = interaction.as_v4() {
         process_comments(interaction.as_ref(), &mut output);
 
-        let verification_from_plugin = interaction.transport()
-          .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
-          .and_then(|entry| Some(entry.provider_type == CatalogueEntryProviderType::PLUGIN))
-          .unwrap_or(false);
+        #[cfg(feature = "plugins")]
+        {
+          let verification_from_plugin = interaction.transport()
+            .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
+            .and_then(|entry| Some(entry.provider_type == CatalogueEntryProviderType::PLUGIN))
+            .unwrap_or(false);
 
-        (interaction.key(), verification_from_plugin)
+          (interaction.key(), verification_from_plugin)
+        }
+
+        #[cfg(not(feature = "plugins"))]
+        {
+          (interaction.key(), false)
+        }
       } else {
         (None, false)
       }

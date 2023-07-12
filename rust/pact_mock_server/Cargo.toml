@@ -17,7 +17,7 @@ exclude = [
 default = ["datetime", "xml", "plugins", "multipart", "tls"]
 datetime = ["pact_models/datetime", "pact-plugin-driver?/datetime", "pact_matching/datetime"] # Support for date/time matchers and expressions
 xml = ["pact_models/xml", "pact-plugin-driver?/xml", "pact_matching/xml"] # support for matching XML documents
-plugins = ["dep:pact-plugin-driver"]
+plugins = ["dep:pact-plugin-driver", "pact_matching/plugins"]
 multipart = ["pact_matching/multipart"] # suport for MIME multipart bodies
 tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
 

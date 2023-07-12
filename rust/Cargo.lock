@@ -2131,7 +2131,6 @@ dependencies = [
  "http",
  "humantime",
  "itertools",
- "junit-report",
  "lazy_static",
  "maplit",
  "mime",
