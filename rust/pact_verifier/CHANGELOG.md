@@ -1,5 +1,25 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.1 - Bugfix Release
+
+* c2aad1ac - chore: Add support for datetime, xml, multipart and plugins crate features (Ronald Holshausen, Wed Jul 12 11:15:37 2023 +1000)
+* 348eb3f3 - chore: Upgrade pact_matcing to 1.1.3 (Ronald Holshausen, Tue Jul 11 11:38:26 2023 +1000)
+* f2ae77ba - chore: Upgrade pact-plugin-driver to 0.4.5 (Ronald Holshausen, Mon Jul 10 17:15:20 2023 +1000)
+* b18b9dff - chore: Upgrade pact_matching to 1.1.2 (Ronald Holshausen, Mon Jul 10 16:42:27 2023 +1000)
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* 2662cdfc - chore: Upgrade pact_models to 1.1.7 (Ronald Holshausen, Thu Jul 6 10:27:25 2023 +1000)
+* 95753e29 - fix: Correct the use of matching rules on repeated header values (Ronald Holshausen, Wed Jun 28 11:57:35 2023 +1000)
+* e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
+* 39bb7ff1 - chore(verifier): cleanup some log entries (Ronald Holshausen, Mon Jun 5 15:14:19 2023 +1000)
+* bc68ed7f - chore: Upgrade pact_models to 1.1.4 (Ronald Holshausen, Thu Jun 1 10:22:38 2023 +1000)
+* 693418fb - fix: Provider state teardown calls were not being invoked when there are no provider states (Ronald Holshausen, Wed May 31 13:39:49 2023 +1000)
+* 61bd331a - fix: correct test after changes for compatibility suite (Ronald Holshausen, Tue May 30 12:26:07 2023 +1000)
+* 8b0ecd8b - fix: Correct verifier error logging and handling optional JSON fields (Ronald Holshausen, Tue May 30 11:51:41 2023 +1000)
+* 397c837f - chore: Upgrade pact_models to 1.1.3 (fixes MockServerURL generator) (Ronald Holshausen, Mon May 29 15:12:22 2023 +1000)
+* 2211094e - feat: Implemented the initial provider verification campatibility suite steps (Ronald Holshausen, Mon May 29 09:31:09 2023 +1000)
+* c2d925e9 - chore: Upgrade pact_consumer to 1.0.0 (Ronald Holshausen, Tue May 23 16:05:12 2023 +1000)
+* c3a88262 - bump version to 1.0.1 (Ronald Holshausen, Tue May 23 15:23:22 2023 +1000)
+
 # 1.0.0 - Bugfixes + Update Pact models to 1.1 (breaking change)
 
 * ca1e37fb - chore: Upgrade pact_verifier to 1.0.0 (Ronald Holshausen, Tue May 23 15:16:08 2023 +1000)
