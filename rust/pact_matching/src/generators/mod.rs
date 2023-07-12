@@ -77,7 +77,7 @@ pub async fn generators_process_body(
 pub(crate) fn find_matching_variant<T>(
   value: &T,
   variants: &[(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)],
-  callback: &dyn Fn(&DocPath, &T, &dyn MatchingContext) -> bool
+  callback: &dyn Fn(&DocPath, &T, &(dyn MatchingContext + Send + Sync)) -> bool
 ) -> Option<(usize, HashMap<DocPath, Generator>)>
   where T: Clone + std::fmt::Debug {
   let result = variants.iter()
@@ -103,7 +103,7 @@ impl VariantMatcher for DefaultVariantMatcher {
     value: &Value,
     variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
   ) -> Option<(usize, HashMap<DocPath, Generator>)> {
-    let callback = |path: &DocPath, value: &Value, context: &dyn MatchingContext| {
+    let callback = |path: &DocPath, value: &Value, context: &(dyn MatchingContext + Send + Sync)| {
       compare_json(path, value, value, context).is_ok()
     };
     find_matching_variant(value, variants, &callback)

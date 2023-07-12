@@ -201,24 +201,56 @@ impl <T: Display> DisplayForMismatch for BTreeSet<T> {
 }
 
 /// Delegate to the matching rule defined at the given path to compare the key/value maps.
+#[tracing::instrument(ret, skip_all, fields(path, rule, cascaded, expected, actual), level = "trace")]
 pub fn compare_maps_with_matchingrule<T: Display + Debug>(
   rule: &MatchingRule,
   cascaded: bool,
   path: &DocPath,
   expected: &BTreeMap<String, T>,
   actual: &BTreeMap<String, T>,
-  context: &dyn MatchingContext,
-  callback: &mut dyn FnMut(&DocPath, &T, &T) -> Result<(), Vec<Mismatch>>
+  context: &(dyn MatchingContext + Send + Sync),
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   if !cascaded && rule.is_values_matcher() {
     debug!("Values matcher is defined for path {}", path);
+    let context = if let MatchingRule::EachValue(def) = rule {
+      debug!("Matching {} with EachValue", path);
+      let associated_rules = def.rules.iter().filter_map(|rule| {
+        match rule {
+          Either::Left(rule) => Some(rule.clone()),
+          Either::Right(reference) => {
+            result = merge_result(result.clone(), Err(vec![Mismatch::BodyMismatch {
+              path: path.to_string(),
+              expected: Some(format!("{:?}", expected).into()),
+              actual: Some(format!("{:?}", actual).into()),
+              mismatch: format!("Found an un-resolved reference {}", reference.name)
+            }]));
+            None
+          }
+        }
+      }).collect();
+      let rules = MatchingRuleCategory {
+        name: Category::BODY,
+        rules: hashmap! {
+            path.join("*") => RuleList {
+              rules: associated_rules,
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+      };
+      context.clone_with(&rules)
+    } else {
+      context.clone_with(context.matchers())
+    };
+
     for (key, value) in actual.iter() {
       let p = path.join(key);
       if expected.contains_key(key) {
-        result = merge_result(result, callback(&p, &expected[key], value));
+        result = merge_result(result, callback(&p, &expected[key], value, context.as_ref()));
       } else if let Some(first) = expected.values().next() {
-        result = merge_result(result, callback(&p, first, value));
+        result = merge_result(result, callback(&p, first, value, context.as_ref()));
       }
     }
   } else {
@@ -228,7 +260,7 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
     for (key, value) in expected.iter() {
       if actual.contains_key(key) {
         let p = path.join(key);
-        result = merge_result(result, callback(&p, value, &actual[key]));
+        result = merge_result(result, callback(&p, value, &actual[key], context));
       }
     }
   }
@@ -241,9 +273,9 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
   path: &DocPath,
   expected: &[T],
   actual: &[T],
-  context: &dyn MatchingContext,
+  context: &(dyn MatchingContext + Send + Sync),
   cascaded: bool,
-  callback: &mut dyn FnMut(&DocPath, &T, &T, &dyn MatchingContext) -> Result<(), Vec<Mismatch>>
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = vec![];
 
@@ -346,8 +378,8 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
   path: &DocPath,
   expected: &[T],
   actual: &[T],
-  context: &dyn MatchingContext,
-  callback: &mut dyn FnMut(&DocPath, &T, &T, &dyn MatchingContext) -> Result<(), Vec<Mismatch>>
+  context: &(dyn MatchingContext + Send + Sync),
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
 ) -> Vec<Mismatch> {
   let mut result = vec![];
 
@@ -399,7 +431,8 @@ mod tests {
 
   #[derive(Debug)]
   struct MockContext {
-    pub calls: RwLock<Vec<String>>
+    pub calls: RwLock<Vec<String>>,
+    matchers: MatchingRuleCategory
   }
 
   impl MatchingContext for MockContext {
@@ -436,7 +469,7 @@ mod tests {
     }
 
     fn matchers(&self) -> &MatchingRuleCategory {
-      todo!()
+      &self.matchers
     }
 
     fn config(&self) -> DiffConfig {
@@ -446,7 +479,8 @@ mod tests {
     fn clone_with(&self, _matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext + Send + Sync> {
       let r = self.calls.read().unwrap();
       Box::new(MockContext {
-        calls: RwLock::new(r.clone())
+        calls: RwLock::new(r.clone()),
+        matchers: MatchingRuleCategory::default()
       })
     }
   }
@@ -463,10 +497,11 @@ mod tests {
     };
 
     let context = MockContext {
-      calls: RwLock::new(vec![])
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
     };
     let mut calls = vec![];
-    let mut callback = |p: &DocPath, a: &String, b: &String| {
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
@@ -498,10 +533,11 @@ mod tests {
     };
 
     let context = MockContext {
-      calls: RwLock::new(vec![])
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
     };
     let mut calls = vec![];
-    let mut callback = |p: &DocPath, a: &String, b: &String| {
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
@@ -538,10 +574,11 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: RwLock::new(vec![])
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
     };
     let mut calls = vec![];
-    let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
@@ -562,10 +599,11 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: RwLock::new(vec![])
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
     };
     let mut calls = vec![];
-    let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
@@ -593,10 +631,11 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: RwLock::new(vec![])
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
     };
     let mut calls = vec![];
-    let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
@@ -641,7 +680,7 @@ mod tests {
     let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
       &matchers, &hashmap!{});
 
-    let mut callback = |p: &DocPath, a: &&str, b: &&str, c: &dyn MatchingContext| {
+    let mut callback = |p: &DocPath, a: &&str, b: &&str, c: &(dyn MatchingContext + Send + Sync)| {
       match_strings(p, *a, *b, c)
     };
     let result = compare_lists_with_matchingrule(&each_value, &path,

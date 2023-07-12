@@ -297,28 +297,20 @@ async fn post_json_with_incorrect_content_type() {
 // Issue #300
 #[test_log::test(tokio::test)]
 async fn multi_value_headers()     {
-  // Define the Pact for the test, specify the names of the consuming
-  // application and the provider application.
   let alice_service = PactBuilder::new_v4("Consumer", "Alice Service")
-    // Start a new interaction. We can add as many interactions as we want.
     .interaction("a retrieve Mallory request", "", |mut i| {
-      // Defines a provider state. It is optional.
       i.given("there is some good mallory");
-      // Define the request, a GET (default) request to '/mallory'.
       i.request.path("/mallory");
       i.request.header("accept", "application/problem+json, application/json, text/plain, */*");
-      // Define the response we want returned.
       i.response
         .ok()
         .content_type("text/plain")
         .body("That is some good Mallory.");
 
-      // Return the interaction back to the pact framework
       i.clone()
     })
     .start_mock_server(None);
 
-  // You would use your actual client code here.
   let mallory_url = alice_service.path("/mallory");
   let client = reqwest::Client::new();
   let response = client.get(mallory_url)

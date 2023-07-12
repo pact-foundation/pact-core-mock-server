@@ -352,7 +352,12 @@ pub fn display_diff(expected: &str, actual: &str, path: &str, indent: &str) -> S
 }
 
 /// Compares the actual JSON to the expected one
-pub fn compare_json(path: &DocPath, expected: &Value, actual: &Value, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
+pub fn compare_json(
+  path: &DocPath,
+  expected: &Value,
+  actual: &Value,
+  context: &(dyn MatchingContext + Send + Sync)
+) -> Result<(), Vec<Mismatch>> {
   debug!("compare: Comparing path {}", path);
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
@@ -383,7 +388,7 @@ fn compare_maps(
   path: &DocPath,
   expected: &serde_json::Map<String, Value>,
   actual: &serde_json::Map<String, Value>,
-  context: &dyn MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
   let spath = path.to_string();
   debug!("compare_maps: Comparing maps at {}: {:?} -> {:?}", spath, expected, actual);
@@ -404,9 +409,10 @@ fn compare_maps(
       debug!("compare_maps: Matcher is defined for path {}", path);
       let rule_list = context.select_best_matcher(path);
       for matcher in rule_list.rules {
-        result = merge_result(result,compare_maps_with_matchingrule(&matcher, rule_list.cascaded, path, &expected, &actual, context, &mut |p, expected, actual| {
+        let result1 = compare_maps_with_matchingrule(&matcher, rule_list.cascaded, path, &expected, &actual, context, &mut |p, expected, actual, context| {
           compare_json(p, expected, actual, context)
-        }));
+        });
+        result = merge_result(result, result1);
       }
     } else {
       let expected_keys = expected.keys().cloned().collect();
@@ -427,7 +433,7 @@ fn compare_lists(
   path: &DocPath,
   expected: &[Value],
   actual: &[Value],
-  context: &dyn MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
   let spath = path.to_string();
   if context.matcher_is_defined(path) {
@@ -468,7 +474,7 @@ fn compare_list_content(
   path: &DocPath,
   expected: &[Value],
   actual: &[Value],
-  context: &dyn MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
@@ -492,7 +498,7 @@ fn compare_values(
   path: &DocPath,
   expected: &Value,
   actual: &Value,
-  context: &dyn MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
   let matcher_result = if context.matcher_is_defined(path) {
     debug!("compare_values: Calling match_values for path {}", path);
@@ -524,6 +530,7 @@ mod tests {
   use pact_models::{matchingrules, matchingrules_list};
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+  use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pact_models::request::Request;
 
   use crate::{CoreMatchingContext, DiffConfig};
@@ -1175,6 +1182,39 @@ mod tests {
     let context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
                                        &MatchingRuleCategory::empty("body"), &hashmap!{});
     let result = compare_maps(&DocPath::root(), expected, actual, &context);
+    expect!(result).to(be_err());
+  }
+
+  #[test_log::test]
+  fn compare_maps_with_each_value_matcher() {
+    let expected_json = json!({
+      "id1": "book1"
+    });
+    let expected = expected_json.as_object().unwrap();
+    let actual_json = json!({
+      "id1001": "book1100",
+      "id2": "book2"
+    });
+    let actual = actual_json.as_object().unwrap();
+
+    let matchingrules = matchingrules_list! {
+       "body"; "$" => [
+        MatchingRule::EachValue(MatchingRuleDefinition::new("{\"id1\":\"book1\"}".to_string(),
+          ValueType::Unknown, MatchingRule::Regex("\\w+\\d+".to_string()), None))
+      ]
+    };
+
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &matchingrules, &hashmap!{});
+    let result = compare_maps(&DocPath::root(), expected, actual, &context);
+    expect!(result).to(be_ok());
+
+    let invalid_json = json!({
+      "id1001": "book1100",
+      "id2": 1
+    });
+    let invalid = invalid_json.as_object().unwrap();
+    let result = compare_maps(&DocPath::root(), expected, invalid, &context);
     expect!(result).to(be_err());
   }
 }
