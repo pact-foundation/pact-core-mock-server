@@ -47,7 +47,7 @@ use pact_verifier::{
 use pact_verifier::callback_executors::{ProviderStateExecutor, RequestFilterExecutor};
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
-use crate::shared_steps::setup_common_interactions;
+use crate::shared_steps::{setup_body, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ProviderWorld {
@@ -304,32 +304,7 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction_with_t
             }
           },
           "body" => {
-            if value.starts_with("JSON:") {
-              interaction.response.add_header("content-type", vec!["application/json"]);
-              interaction.response.body = OptionalBody::Present(Bytes::from(value.strip_prefix("JSON:").unwrap_or(value).to_string()),
-                                                   Some(JSON.clone()), None);
-            } else if value.starts_with("XML:") {
-              interaction.response.add_header("content-type", vec!["application/xml"]);
-              interaction.response.body = OptionalBody::Present(Bytes::from(value.strip_prefix("XML:").unwrap_or(value).to_string()),
-                                                   Some(XML.clone()), None);
-            } else {
-              let ct = if value.ends_with(".json") {
-                "application/json"
-              } else if value.ends_with(".xml") {
-                "application/xml"
-              } else {
-                "text/plain"
-              };
-              interaction.response.add_header("content-type", vec![ct]);
-
-              let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
-                .expect(format!("could not load fixture '{}'", value).as_str());
-              let mut buffer = Vec::new();
-              f.read_to_end(&mut buffer)
-                .expect(format!("could not read fixture '{}'", value).as_str());
-              interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
-                                                   ContentType::parse(ct).ok(), None);
-            }
+            setup_body(value, &mut interaction.response);
           },
           _ => {}
         }
