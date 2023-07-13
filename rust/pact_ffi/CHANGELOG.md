@@ -1,5 +1,26 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.6 - Bugfix Release
+
+* 7527fd32 - chore: Correct release script (Ronald Holshausen, Thu Jul 13 10:23:51 2023 +1000)
+* 4f448b1f - fix(pact_matching): EachValue matcher was not applying the associated matching rules correctly #299 (Ronald Holshausen, Wed Jul 12 16:28:16 2023 +1000)
+* 63c1a8e6 - chore: Upgrade pact_verifier to 1.0.1 (Ronald Holshausen, Wed Jul 12 11:27:36 2023 +1000)
+* e07ca36c - chore: Upgrade pact_mock_server to 1.2.1 (Ronald Holshausen, Tue Jul 11 14:47:17 2023 +1000)
+* 348eb3f3 - chore: Upgrade pact_matcing to 1.1.3 (Ronald Holshausen, Tue Jul 11 11:38:26 2023 +1000)
+* f2ae77ba - chore: Upgrade pact-plugin-driver to 0.4.5 (Ronald Holshausen, Mon Jul 10 17:15:20 2023 +1000)
+* b18b9dff - chore: Upgrade pact_matching to 1.1.2 (Ronald Holshausen, Mon Jul 10 16:42:27 2023 +1000)
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* bfd731b8 - fix(FFI): Deal with multi-value headers correctly #300 (Ronald Holshausen, Mon Jul 10 14:58:51 2023 +1000)
+* b7b7b9c0 - fix(pact_models): MatchingRule::from_json shoud support integration format (Ronald Holshausen, Mon Jul 10 12:59:54 2023 +1000)
+* 2662cdfc - chore: Upgrade pact_models to 1.1.7 (Ronald Holshausen, Thu Jul 6 10:27:25 2023 +1000)
+* e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
+* 244f1fdb - feat(compatibility-suite): Implemented scenarios for no provider state callback configured + request filters (Ronald Holshausen, Fri Jun 16 11:36:30 2023 +1000)
+* 834f77cc - chore: Upgrade pact_mock_server to 1.2.0 (Ronald Holshausen, Wed Jun 14 15:22:11 2023 +1000)
+* e58aa917 - fix: no need to wrap the Pact for a mock server in a mutex (mock server is already behind a mutex) as this can cause deadlocks #274 (Ronald Holshausen, Wed Jun 14 13:26:54 2023 +1000)
+* bc68ed7f - chore: Upgrade pact_models to 1.1.4 (Ronald Holshausen, Thu Jun 1 10:22:38 2023 +1000)
+* 397c837f - chore: Upgrade pact_models to 1.1.3 (fixes MockServerURL generator) (Ronald Holshausen, Mon May 29 15:12:22 2023 +1000)
+* 4555d0c4 - bump version to 0.4.6 (Ronald Holshausen, Tue May 23 16:45:37 2023 +1000)
+
 # 0.4.5 - Bugfix Release
 
 * 6137bba1 - chore: fix deps (Ronald Holshausen, Tue May 23 16:41:20 2023 +1000)
