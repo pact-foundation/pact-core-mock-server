@@ -215,7 +215,7 @@ fn element_text(root: Element, name: &str) -> Option<String> {
           .filter_map(|child| child.text().map(|t| t.text().trim()))
           .collect::<String>();
         if let Some(line_endings) = n.attribute_value("eol") {
-          if line_endings == "CRLF" {
+          if line_endings == "CRLF" && !cfg!(windows) {
             Some(string.replace('\n', "\r\n"))
           } else {
             Some(string)
