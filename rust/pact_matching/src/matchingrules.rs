@@ -569,6 +569,41 @@ mod tests {
   }
 
   #[test]
+  fn compare_maps_with_matchingrule_with_each_key_matcher_at_path() {
+    let expected = btreemap!{
+      "a".to_string() => "100".to_string()
+    };
+    let actual = btreemap!{
+      "b".to_string() => "101".to_string(),
+      "c".to_string() => "102".to_string()
+    };
+
+    let context = MockContext {
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
+    };
+    let mut calls = vec![];
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
+      calls.push(format!("{}, {}, {}", p, a, b));
+      Ok(())
+    };
+    let rule = MatchingRule::EachKey(MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![],
+      generator: None
+    });
+    let result = compare_maps_with_matchingrule(&rule, false, &DocPath::root(),
+      &expected, &actual, &context, &mut callback);
+
+    expect!(result).to(be_ok());
+
+    let v: Vec<String> = vec!["match_keys($, {\"a\"}, {\"b\", \"c\"})".to_string()];
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
+    expect!(calls.iter()).to(be_empty());
+  }
+
+  #[test]
   fn compare_lists_with_matchingrule_with_empty_expected_list() {
     let expected = vec![  ];
     let actual = vec![ "one".to_string(), "two".to_string() ];

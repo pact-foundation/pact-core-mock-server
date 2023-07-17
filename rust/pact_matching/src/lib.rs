@@ -566,7 +566,7 @@ impl MatchingContext for CoreMatchingContext {
     let missing_keys: Vec<String> = expected.iter().filter(|key| !actual.contains(*key)).cloned().collect();
     let mut result = vec![];
 
-    if !self.direct_matcher_defined(path, &hashset! { "values", "each-value" }) {
+    if !self.direct_matcher_defined(path, &hashset! { "values", "each-value", "each-key" }) {
       match self.config {
         DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
           result.push(Mismatch::BodyMismatch {

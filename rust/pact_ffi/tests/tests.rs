@@ -7,6 +7,7 @@ use std::ptr::null;
 
 use bytes::Bytes;
 use expectest::prelude::*;
+use itertools::Itertools;
 use libc::c_char;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
@@ -14,7 +15,7 @@ use pretty_assertions::assert_eq;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
-use serde_json::json;
+use serde_json::{json, Value};
 
 #[allow(deprecated)]
 use pact_ffi::mock_server::{
@@ -545,4 +546,77 @@ fn each_value_matcher() {
   let file_path = CString::new("/tmp/pact").unwrap();
   pactffi_write_pact_file(port, file_path.as_ptr(), true);
   pactffi_cleanup_mock_server(port);
+}
+
+// Issue #301
+#[test_log::test]
+#[allow(deprecated)]
+fn each_key_matcher() {
+  let consumer_name = CString::new("each_key_matcher-consumer").unwrap();
+  let provider_name = CString::new("each_key_matcher-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("each_key_matcher").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+
+  let content_type = CString::new("application/json").unwrap();
+  let path = CString::new("/book").unwrap();
+  let json = json!({
+    "pact:matcher:type": "each-key",
+    "value": {
+      "key1": "a string we don't care about",
+      "key2": "1",
+    },
+    "rules": [
+      {
+        "pact:matcher:type": "regex",
+        "regex": "[a-z]{3,}[0-9]"
+      }
+    ]
+  });
+  let body = CString::new(json.to_string()).unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let method = CString::new("PUT").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_body(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), body.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let result = client.put(format!("http://127.0.0.1:{}/book", port).as_str())
+    .header("Content-Type", "application/json")
+    .body(r#"{"1": "foo","not valid": 1,"key": "value","key2": "value"}"#)
+    .send();
+
+  let mismatches = unsafe {
+    CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
+  };
+
+  pactffi_cleanup_mock_server(port);
+
+  match result {
+    Ok(res) => {
+      expect!(res.status()).to(be_eq(500));
+    },
+    Err(err) => {
+      panic!("expected 500 response but request failed: {}", err);
+    }
+  };
+
+  let json: Value = serde_json::from_str(mismatches.as_str()).unwrap();
+  let mismatches = json.as_array().unwrap().first().unwrap().as_object()
+    .unwrap().get("mismatches").unwrap().as_array().unwrap();
+  let messages = mismatches.iter()
+    .map(|v| v.as_object().unwrap().get("mismatch").unwrap().as_str().unwrap())
+    .sorted()
+    .collect_vec();
+  assert_eq!(vec![
+    "Expected '1' to match '[a-z]{3,}[0-9]'",
+    "Expected 'key' to match '[a-z]{3,}[0-9]'",
+    "Expected 'not valid' to match '[a-z]{3,}[0-9]'"
+  ], messages);
 }
