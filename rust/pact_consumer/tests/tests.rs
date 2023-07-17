@@ -20,7 +20,7 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use pact_consumer::{json_pattern, json_pattern_internal, like};
+use pact_consumer::{json_pattern, json_pattern_internal, like, object_matching, matching_regex};
 use pact_consumer::prelude::*;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
@@ -319,4 +319,41 @@ async fn multi_value_headers()     {
     .expect("could not fetch URL");
   let body = response.text().await.expect("could not read response body");
   assert_eq!(body, "That is some good Mallory.");
+}
+
+// Issue #301
+#[test_log::test]
+#[should_panic]
+fn each_key_matcher()     {
+  let service = PactBuilder::new_v4("Consumer", "Service")
+    .interaction("a request only checks the keys and ignores the values", "", |mut i| {
+      i.request.put()
+        .path("/eachKeyMatches")
+        .json_body(object_matching!(
+          json!({
+            "key1": "a string we don't care about",
+            "key2": 1,
+          }),
+          [
+            each_key(matching_regex!("[a-z]{3,}[0-9]", "key1")),
+            each_value(matching_regex!("[a-z]{3,}[0-9]", "value1"))
+          ]
+        ));
+      i.response.ok();
+      i
+    })
+    .start_mock_server(None);
+
+  let url = service.path("/eachKeyMatches");
+  let client = reqwest::blocking::Client::new();
+  let response = client.put(url)
+    .json(&json!({
+      "1": "foo",
+      "not valid": 1,
+      "key": "value",
+      "key2": "value2"
+    }))
+    .send()
+    .unwrap();
+  expect!(response.status().is_server_error()).to(be_true());
 }

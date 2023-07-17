@@ -395,8 +395,19 @@ pub mod prelude {
     pub use crate::builders::{HttpPartBuilder, PactBuilder, PactBuilderAsync};
     #[cfg(feature = "plugins")] pub use crate::builders::plugin_builder::PluginInteractionBuilder;
     pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
-    pub use crate::patterns::{EachLike, Like, Term};
-    pub use crate::patterns::{JsonPattern, Pattern, StringPattern};
+    pub use crate::patterns::{
+        EachLike,
+        Like,
+        Term,
+        ObjectMatching,
+        EachKey,
+        EachValue,
+        JsonPattern,
+        Pattern,
+        StringPattern,
+        each_key,
+        each_value
+    };
     #[cfg(feature = "datetime")] pub use crate::patterns::{DateTime};
     pub use crate::util::strip_null_fields;
 }

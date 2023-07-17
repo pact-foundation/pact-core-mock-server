@@ -2,11 +2,13 @@
 
 use std::iter::repeat;
 use std::marker::PhantomData;
-
-use regex::Regex;
+use itertools::{Either, Itertools};
 
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
 use pact_models::path_exp::DocPath;
+use regex::Regex;
+use serde_json::Value;
 
 use super::json_pattern::JsonPattern;
 use super::Pattern;
@@ -332,7 +334,6 @@ impl_from_for_pattern!(Term<StringPattern>, StringPattern);
 #[test]
 fn term_is_pattern() {
     use maplit::*;
-    use pact_matching::s;
     use serde_json::*;
 
     let matchable = Term::<JsonPattern>::new(Regex::new("[Hh]ello").unwrap(), "hello");
@@ -341,7 +342,7 @@ fn term_is_pattern() {
     let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules(DocPath::root(), &mut rules);
     let expected_rules = hashmap!(
-        s!("$.body") => json!({ "match": "regex", "regex": "[Hh]ello" })
+        "$.body".to_string() => json!({ "match": "regex", "regex": "[Hh]ello" })
     );
     assert_eq!(rules.to_v2_json(), expected_rules);
 }
@@ -365,8 +366,8 @@ pub fn build_regex<S: AsRef<str>>(regex_str: S) -> Regex {
     }
 }
 
-/// A pattern which macthes the regular expression `$regex` (specified as a
-/// string) literal, and which generates `$example`.
+/// A pattern which matches the regular expression `$regex` (specified as a
+/// string) literal, and which generates `$example`. This is an alias for `matching_regex!`
 ///
 /// ```
 /// use pact_consumer::*;
@@ -386,4 +387,441 @@ macro_rules! term {
             $crate::patterns::Term::new($crate::patterns::build_regex($regex), $example)
         }
     }
+}
+
+/// A pattern which matches the regular expression `$regex` (specified as a
+/// string) literal, and which generates `$example`.
+///
+/// ```
+/// use pact_consumer::*;
+///
+/// # fn main() {
+/// json_pattern!({
+///   // Match a string consisting of numbers and lower case letters, and
+///   // generate `"10a"`.$crate::patterns::
+///   "id_string": matching_regex!("^[0-9a-z]$", "10a")
+/// });
+/// # }
+/// ```
+#[macro_export]
+macro_rules! matching_regex {
+    ($regex:expr, $example:expr) => {
+        {
+            $crate::patterns::Term::new($crate::patterns::build_regex($regex), $example)
+        }
+    }
+}
+
+/// Match keys and values in an Object based on associated matching rules
+#[derive(Debug)]
+pub struct ObjectMatching {
+    example: JsonPattern,
+    rules: Vec<MatchingRule>
+}
+
+impl ObjectMatching {
+  /// Create a new ObjectMatching pattern with the provided pattern and list of rules
+  pub fn new(example: JsonPattern, rules: Vec<MatchingRule>) -> Self {
+    Self {
+      example,
+      rules
+    }
+  }
+}
+
+impl Pattern for ObjectMatching {
+  type Matches = Value;
+
+  fn to_example(&self) -> Self::Matches {
+      self.example.to_example()
+  }
+
+  fn to_example_bytes(&self) -> Vec<u8> {
+      self.example.to_example_bytes()
+  }
+
+  fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
+    for rule in &self.rules {
+        rules_out.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+    }
+
+    let child_path = path.join("*");
+    let mut child_rules = MatchingRuleCategory::empty("body");
+    self.example.extract_matching_rules(DocPath::root(), &mut child_rules);
+    for (path, rules) in child_rules.rules {
+      let path_tokens = path.tokens().iter().dropping(2);
+      let mut rule_path = child_path.clone();
+      for segment in path_tokens {
+        rule_path.push(segment.clone());
+      }
+      for rule in &rules.rules {
+        rules_out.add_rule(rule_path.clone(), rule.clone(), rules.rule_logic);
+      }
+    }
+  }
+}
+
+impl_from_for_pattern!(ObjectMatching, JsonPattern);
+
+#[test]
+fn object_matching_is_pattern() {
+  use serde_json::*;
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+
+  let matchable = ObjectMatching::new(
+    json_pattern!({
+      "key1": "a string we don't care about",
+      "key2": "1",
+    }),
+    vec![
+      MatchingRule::EachKey(MatchingRuleDefinition::new(
+        "key1".to_string(), ValueType::String, MatchingRule::Regex("[a-z]{3,}[0-9]".to_string()), None
+      )),
+      MatchingRule::EachValue(MatchingRuleDefinition::new(
+        "some string".to_string(), ValueType::Unknown, MatchingRule::Type, None
+      ))
+    ]
+  );
+  assert_eq!(matchable.to_example(), json!({
+    "key1": "a string we don't care about",
+    "key2": "1",
+  }));
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  expect!(rules).to(be_equal_to(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachKey(MatchingRuleDefinition::new("key1".to_string(), ValueType::String,
+        MatchingRule::Regex("[a-z]{3,}[0-9]".to_string()), None)),
+      MatchingRule::EachValue(MatchingRuleDefinition::new("some string".to_string(), ValueType::Unknown,
+        MatchingRule::Type, None))
+    ]
+  }));
+}
+
+#[test]
+fn object_matching_into() {
+    // Make sure we can convert `ObjectMatching` into different pattern types.
+    let _: JsonPattern = ObjectMatching::new(json_pattern!({}), vec![]).into();
+}
+
+/// A pattern which can take a JSON pattern and then apply a number of matching rules to the
+/// resulting JSON object.
+///
+/// ```
+/// use pact_consumer::*;
+/// use pact_consumer::prelude::{each_key, each_value};
+///
+/// # fn main() {
+/// object_matching!(
+///   json_pattern!({
+///       "key1": "a string",
+///       "key2": "1",
+///   }),
+///   [
+///       each_key(matching_regex!("[a-z]{3}[0-9]", "key1")),
+///       each_value(like!("value1"))
+///   ]
+/// );
+/// # }
+/// ```
+#[macro_export]
+macro_rules! object_matching {
+  ($example:expr, [ $( $rule:expr ),* ]) => {{
+      let mut _rules: Vec<pact_models::matchingrules::MatchingRule> = vec![];
+
+      $(
+        _rules.push($rule.into());
+      )*
+
+      $crate::patterns::ObjectMatching::new(json_pattern!($example), _rules)
+  }}
+}
+
+#[test]
+fn object_matching_test() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+  use serde_json::json;
+  use pretty_assertions::assert_eq;
+
+  let matchable = object_matching!(
+    json_pattern!({
+        "key1": "a string",
+        "key2": "1",
+    }),
+    [
+        each_key(matching_regex!("[a-z]{3}[0-9]", "key1")),
+        each_value(like!("value1"))
+    ]
+  );
+  expect!(matchable.to_example()).to(be_equal_to(json!({
+    "key1": "a string",
+    "key2": "1"
+  })));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  assert_eq!(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachKey(MatchingRuleDefinition::new("key1".to_string(), ValueType::String,
+        MatchingRule::Regex("[a-z]{3}[0-9]".to_string()), None)),
+      MatchingRule::EachValue(MatchingRuleDefinition::new("\"value1\"".to_string(),
+        ValueType::Unknown, MatchingRule::Type, None))
+    ]
+  }, rules);
+}
+
+#[test]
+fn object_matching_supports_nested_matching_rules() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+  use serde_json::json;
+  use pretty_assertions::assert_eq;
+
+  let matchable = object_matching!(
+    json_pattern!({
+      "key1": {
+        "id": matching_regex!("[0-9]+", "1000"),
+        "desc": like!("description")
+      }
+    }),
+    [
+        each_key(matching_regex!("[a-z]{3}[0-9]", "key1"))
+    ]
+  );
+  expect!(matchable.to_example()).to(be_equal_to(json!({
+    "key1": {
+      "id": "1000",
+      "desc": "description"
+    }
+  })));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  assert_eq!(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachKey(MatchingRuleDefinition::new("key1".to_string(), ValueType::String,
+        MatchingRule::Regex("[a-z]{3}[0-9]".to_string()), None))
+    ],
+    "$.*.id" => [ MatchingRule::Regex("[0-9]+".to_string()) ],
+    "$.*.desc" => [ MatchingRule::Type ]
+  }, rules);
+}
+
+/// Apply an associated rule to each key of an Object
+#[derive(Debug)]
+pub struct EachKey {
+  /// The pattern we use to match.
+  pattern: StringPattern
+}
+
+impl EachKey {
+  /// Construct a new `EachKey`, given a pattern and example key.
+  pub fn new<Nested: Into<StringPattern>>(pattern: Nested) -> Self {
+    EachKey {
+      pattern: pattern.into()
+    }
+  }
+}
+
+impl Pattern for EachKey {
+  type Matches = String;
+
+  fn to_example(&self) -> Self::Matches {
+    self.pattern.to_example()
+  }
+
+  fn to_example_bytes(&self) -> Vec<u8> {
+    self.to_example().into_bytes()
+  }
+
+  fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
+    rules_out.add_rule(path, self.into(), RuleLogic::And);
+  }
+}
+
+impl Into<MatchingRule> for EachKey {
+  fn into(self) -> MatchingRule {
+    (&self).into()
+  }
+}
+
+impl Into<MatchingRule> for &EachKey {
+  fn into(self) -> MatchingRule {
+    let mut tmp = MatchingRuleCategory::empty("body");
+    self.pattern.extract_matching_rules(DocPath::root(), &mut tmp);
+    MatchingRule::EachKey(MatchingRuleDefinition {
+      value: self.to_example(),
+      value_type: ValueType::String,
+      rules: tmp.rules.values()
+        .flat_map(|list| list.rules.iter())
+        .map(|rule| Either::Left(rule.clone()))
+        .collect(),
+      generator: None
+    })
+  }
+}
+
+#[test]
+fn each_key_is_pattern() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+
+  let matchable = EachKey::new(
+    matching_regex!("\\d+", "100")
+  );
+  expect!(matchable.to_example()).to(be_equal_to("100"));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  expect!(rules).to(be_equal_to(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachKey(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+        MatchingRule::Regex("\\d+".to_string()), None))
+    ]
+  }));
+}
+
+/// A pattern which applies another pattern to each key of an object, and which generates an
+/// example key. A regex matcher is the only matcher that makes sense to use on keys.
+///
+/// ```
+/// use pact_consumer::*;
+///
+/// # fn main() {
+/// // Each key must match the given regex, and an example key is supplied.
+/// use pact_consumer::patterns::each_key;
+/// each_key(matching_regex!("[a-z]{3}[0-9]", "key1"));
+/// # }
+/// ```
+pub fn each_key<P>(pattern: P) -> EachKey where P: Into<StringPattern> {
+  EachKey::new(pattern.into())
+}
+
+#[test]
+fn each_key_test() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+
+  let matchable = each_key(matching_regex!("[a-z]{3}[0-9]", "key1"));
+  expect!(matchable.to_example()).to(be_equal_to("key1"));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  expect!(rules).to(be_equal_to(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachKey(MatchingRuleDefinition::new("key1".to_string(), ValueType::String,
+        MatchingRule::Regex("[a-z]{3}[0-9]".to_string()), None))
+    ]
+  }));
+}
+
+/// Apply an associated rule to each value of an Object
+#[derive(Debug)]
+pub struct EachValue {
+  /// The regex we use to match.
+  rule: JsonPattern
+}
+
+impl EachValue {
+  /// Construct a new `EachValue`, given a pattern and example JSON.
+  pub fn new<P: Into<JsonPattern>>(pattern: P) -> Self {
+    EachValue {
+      rule: pattern.into()
+    }
+  }
+}
+
+impl Pattern for EachValue
+{
+  type Matches = Value;
+
+  fn to_example(&self) -> Self::Matches {
+    self.rule.to_example()
+  }
+
+  fn to_example_bytes(&self) -> Vec<u8> {
+    self.to_example().to_string().into_bytes()
+  }
+
+  fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
+    rules_out.add_rule(path, self.into(), RuleLogic::And);
+  }
+}
+
+impl Into<MatchingRule> for EachValue {
+  fn into(self) -> MatchingRule {
+    (&self).into()
+  }
+}
+
+impl Into<MatchingRule> for &EachValue {
+  fn into(self) -> MatchingRule {
+    let mut tmp = MatchingRuleCategory::empty("body");
+    self.rule.extract_matching_rules(DocPath::root(), &mut tmp);
+    MatchingRule::EachValue(MatchingRuleDefinition {
+      value: self.to_example().to_string(),
+      value_type: ValueType::String,
+      rules: tmp.rules.values()
+        .flat_map(|list| list.rules.iter())
+        .map(|rule| Either::Left(rule.clone()))
+        .collect(),
+      generator: None
+    })
+  }
+}
+
+#[test]
+fn each_value_is_pattern() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+
+  let matchable = EachValue::new(
+    matching_regex!("\\d+", "100")
+  );
+  expect!(matchable.to_example()).to(be_equal_to("100"));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
+  expect!(rules).to(be_equal_to(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+        MatchingRule::Regex("\\d+".to_string()), None))
+    ]
+  }));
+}
+
+/// A pattern which applies another pattern to each value of an object, and which generates an
+/// example value.
+///
+/// ```
+/// use pact_consumer::*;
+/// use pact_consumer::prelude::each_value;
+///
+/// # fn main() {
+/// // Each value must match the given regex, and an example value is supplied.
+/// each_value(matching_regex!("[a-z]{3}[0-9]", "value1"));
+/// # }
+/// ```
+pub fn each_value<P: Into<JsonPattern>>(pattern: P) -> EachValue {
+  EachValue::new(pattern.into())
+}
+
+#[test]
+fn each_value_test() {
+  use expectest::prelude::*;
+  use pact_models::matchingrules_list;
+
+  let result = each_value(matching_regex!("[a-z]{5}[0-9]", "value1"));
+  expect!(result.to_example()).to(be_equal_to("value1"));
+
+  let mut rules = MatchingRuleCategory::empty("body");
+  result.extract_matching_rules(DocPath::root(), &mut rules);
+  expect!(rules).to(be_equal_to(matchingrules_list! {
+    "body"; "$" => [
+      MatchingRule::EachValue(MatchingRuleDefinition::new("value1".to_string(), ValueType::Unknown,
+        MatchingRule::Regex("[a-z]{5}[0-9]".to_string()), None))
+    ]
+  }));
 }
