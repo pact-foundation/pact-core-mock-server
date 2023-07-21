@@ -83,6 +83,62 @@ async fn the_mock_server_is_started_with_interaction(world: &mut ConsumerWorld, 
   Ok(())
 }
 
+#[when(expr = "the mock server is started with interaction {int} but with the following changes:")]
+async fn the_mock_server_is_started_with_interaction_but_with_the_following_changes(
+  world: &mut ConsumerWorld,
+  step: &Step,
+  interaction: usize
+) -> anyhow::Result<()> {
+  let mut request_response_interaction = world.interactions
+    .get(interaction - 1).unwrap().clone();
+
+  if let Some(table) = step.table.as_ref() {
+    let headers = table.rows.first().unwrap();
+    for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
+      if let Some(field) = headers.get(index) {
+        match field.as_str() {
+          "method" => request_response_interaction.request.method = value.clone(),
+          "path" => request_response_interaction.request.path = value.clone(),
+          "query" => request_response_interaction.request.query = parse_query_string(value),
+          "headers" => {
+            let headers = value.split(",")
+              .map(|header| {
+                let key_value = header.strip_prefix("'").unwrap_or(header)
+                  .strip_suffix("'").unwrap_or(header)
+                  .splitn(2, ":")
+                  .map(|v| v.trim())
+                  .collect::<Vec<_>>();
+                (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
+              }).collect();
+            request_response_interaction.request.headers = Some(headers);
+          },
+          "body" => setup_body(value, &mut request_response_interaction.request),
+          _ => {}
+        }
+      }
+    }
+  }
+
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    interactions: vec![request_response_interaction],
+    specification_version: PactSpecification::V1,
+    .. RequestResponsePact::default()
+  };
+  world.mock_server_key = Uuid::new_v4().to_string();
+  let config = MockServerConfig {
+    pact_specification: PactSpecification::V1,
+    .. MockServerConfig::default()
+  };
+  let (mock_server, future) = MockServer::new(
+    world.mock_server_key.clone(), pact.boxed(), "[::1]:0".parse()?, config
+  ).await.map_err(|err| anyhow!(err))?;
+  tokio::spawn(future);
+  world.mock_server = mock_server;
+  Ok(())
+}
+
 #[when(expr = "the mock server is started with interactions {string}")]
 async fn the_mock_server_is_started_with_interactions(world: &mut ConsumerWorld, ids: String) -> anyhow::Result<()> {
   let interactions = ids.split(",")
