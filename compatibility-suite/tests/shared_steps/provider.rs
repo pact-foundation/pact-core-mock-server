@@ -51,6 +51,7 @@ use crate::shared_steps::{setup_body, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ProviderWorld {
+  pub spec_version: PactSpecification,
   pub interactions: Vec<RequestResponseInteraction>,
   pub provider_key: String,
   pub provider_server: Arc<Mutex<MockServer>>,
@@ -81,6 +82,7 @@ impl ProviderWorld {
 impl Default for ProviderWorld {
   fn default() -> Self {
     ProviderWorld {
+      spec_version: PactSpecification::V1,
       interactions: vec![],
       provider_key: "".to_string(),
       provider_server: Default::default(),
@@ -118,6 +120,20 @@ impl MockProviderStateExecutor {
     let params = self.params.lock().unwrap();
     params.iter().find(|(state, setup)| {
       state.name == state_name && *setup == is_setup
+    }).is_some()
+  }
+
+  pub fn was_called_for_state_with_params(
+    &self,
+    state_name: &str,
+    state_params: &HashMap<String, Value>,
+    is_setup: bool
+  ) -> bool {
+    let params = self.params.lock().unwrap();
+    params.iter().find(|(state, setup)| {
+      state.name == state_name &&
+        state.params == *state_params &&
+        *setup == is_setup
     }).is_some()
   }
 }
@@ -238,12 +254,12 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction(world:
     consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
     provider: Provider { name: "p".to_string() },
     interactions: vec![ world.interactions.get(num - 1).unwrap().clone() ],
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
   world.provider_key = Uuid::new_v4().to_string();
   let config = MockServerConfig {
-    pact_specification: PactSpecification::V1,
+    pact_specification: world.spec_version,
     .. MockServerConfig::default()
   };
   let (mock_server, future) = MockServer::new(
@@ -316,12 +332,12 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction_with_t
     consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
     provider: Provider { name: "p".to_string() },
     interactions: vec![interaction],
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
   world.provider_key = Uuid::new_v4().to_string();
   let config = MockServerConfig {
-    pact_specification: PactSpecification::V1,
+    pact_specification: world.spec_version,
     .. MockServerConfig::default()
   };
   let (mock_server, future) = MockServer::new(
@@ -351,10 +367,10 @@ fn a_pact_file_for_interaction_is_to_be_verified(world: &mut ProviderWorld, num:
     consumer: Consumer { name: format!("c_{}", num) },
     provider: Provider { name: "p".to_string() },
     interactions: vec![ world.interactions.get(num - 1).unwrap().clone() ],
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
-  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V1)?.to_string()));
+  world.sources.push(PactSource::String(pact.to_json(world.spec_version)?.to_string()));
   Ok(())
 }
 
@@ -373,10 +389,55 @@ fn a_pact_file_for_interaction_is_to_be_verified_with_a_provider_state(
     consumer: Consumer { name: format!("c_{}", num) },
     provider: Provider { name: "p".to_string() },
     interactions: vec![interaction],
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
-  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V1)?.to_string()));
+  world.sources.push(PactSource::String(pact.to_json(world.spec_version)?.to_string()));
+  Ok(())
+}
+
+#[given(expr = "a Pact file for interaction {int} is to be verified with the following provider states defined:")]
+fn a_pact_file_for_interaction_is_to_be_verified_with_the_following_provider_states_defined(
+  world: &mut ProviderWorld,
+  step: &Step,
+  num: usize
+) -> anyhow::Result<()> {
+  let mut interaction = world.interactions.get(num - 1).unwrap().clone();
+
+  if let Some(table) = step.table.as_ref() {
+    let headers = table.rows.first().unwrap().iter()
+      .enumerate()
+      .map(|(index, h)| (index, h.clone()))
+      .collect::<HashMap<usize, String>>();
+    for values in table.rows.iter().skip(1) {
+      let data = values.iter().enumerate()
+        .map(|(index, v)| (headers.get(&index).unwrap().as_str(), v.clone()))
+        .collect::<HashMap<_, _>>();
+      if let Some(parameters) = data.get("Parameters") {
+        let json: Value = serde_json::from_str(parameters.as_str()).unwrap();
+        interaction.provider_states.push(ProviderState {
+          name: data.get("State Name").unwrap().clone(),
+          params: json.as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        });
+      } else {
+        interaction.provider_states.push(ProviderState {
+          name: data.get("State Name").unwrap().clone(),
+          params: Default::default(),
+        });
+      }
+    }
+  } else {
+    return Err(anyhow!("No data table defined"));
+  }
+
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: format!("c_{}", num) },
+    provider: Provider { name: "p".to_string() },
+    interactions: vec![interaction],
+    specification_version: world.spec_version,
+    .. RequestResponsePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(world.spec_version)?.to_string()));
   Ok(())
 }
 
@@ -419,12 +480,12 @@ async fn a_provider_is_started_that_returns_the_responses_from_interactions(
     consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
     provider: Provider { name: "p".to_string() },
     interactions,
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
   world.provider_key = Uuid::new_v4().to_string();
   let config = MockServerConfig {
-    pact_specification: PactSpecification::V1,
+    pact_specification: world.spec_version,
     .. MockServerConfig::default()
   };
   let (mock_server, future) = MockServer::new(
@@ -496,10 +557,10 @@ async fn a_pact_file_for_interaction_is_to_be_verified_from_a_pact_broker(
     consumer: Consumer { name: format!("c_{}", num) },
     provider: Provider { name: "p".to_string() },
     interactions: vec![interaction.clone()],
-    specification_version: PactSpecification::V1,
+    specification_version: world.spec_version,
     .. RequestResponsePact::default()
   };
-  let mut pact_json = pact.to_json(PactSpecification::V1)?;
+  let mut pact_json = pact.to_json(world.spec_version)?;
   let pact_json_inner = pact_json.as_object_mut().unwrap();
   pact_json_inner.insert("_links".to_string(), json!({
     "pb:publish-verification-results": {
@@ -727,6 +788,51 @@ fn the_provider_state_callback_will_receive_a_setup_call_with_as_the_provider_st
     Ok(())
   } else {
     Err(anyhow!("Provider state callback was not called for state '{}'", state))
+  }
+}
+
+#[then(expr = "the provider state callback will receive a setup call with {string} and the following parameters:")]
+fn the_provider_state_callback_will_receive_a_setup_call_with_and_the_following_parameters(
+  world: &mut ProviderWorld,
+  step: &Step,
+  state: String
+) -> anyhow::Result<()> {
+  validate_state_call(world, step, state, true)
+}
+
+#[then(expr = "the provider state callback will receive a teardown call {string} and the following parameters:")]
+fn the_provider_state_callback_will_receive_a_teardown_call_with_and_the_following_parameters(
+  world: &mut ProviderWorld,
+  step: &Step,
+  state: String
+) -> anyhow::Result<()> {
+  validate_state_call(world, step, state, false)
+}
+
+fn validate_state_call(world: &mut ProviderWorld, step: &Step, state: String, is_setup: bool) -> anyhow::Result<()> {
+  if let Some(table) = step.table.as_ref() {
+    let headers = table.rows.first().unwrap().iter()
+      .enumerate()
+      .map(|(index, h)| (index, h.clone()))
+      .collect::<HashMap<usize, String>>();
+    if let Some(values) = table.rows.get(1) {
+      let parameters = values.iter().enumerate()
+        .map(|(index, v)| {
+          let key = headers.get(&index).unwrap();
+          let value = serde_json::from_str(v).unwrap();
+          (key.clone(), value)
+        })
+        .collect::<HashMap<_, _>>();
+      if world.provider_state_executor.was_called_for_state_with_params(state.as_str(), &parameters, is_setup) {
+        Ok(())
+      } else {
+        Err(anyhow!("Provider state callback was not called for state '{}' with params {:?}", state, parameters))
+      }
+    } else {
+      Err(anyhow!("No data table defined"))
+    }
+  } else {
+    Err(anyhow!("No data table defined"))
   }
 }
 

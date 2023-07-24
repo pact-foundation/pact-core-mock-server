@@ -38,3 +38,11 @@ harness = false
 [[test]]
 name = "v2_provider"
 harness = false
+
+#[[test]]
+#name = "v3"
+#harness = false
+
+[[test]]
+name = "v3_provider"
+harness = false
