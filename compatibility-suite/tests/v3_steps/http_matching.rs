@@ -14,7 +14,7 @@ use pact_models::pact::Pact;
 use pact_models::prelude::RequestResponseInteraction;
 use pact_models::request::Request;
 use pact_models::sync_pact::RequestResponsePact;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use pact_matching::{match_request, Mismatch};
 
@@ -59,7 +59,9 @@ fn an_expected_request_configured_with_the_following(world: &mut V3World, step: 
               let reader = BufReader::new(f);
               serde_json::from_reader(reader).unwrap()
             };
-            world.expected_request.matching_rules = matchers_from_json(&json, &None)
+            world.expected_request.matching_rules = matchers_from_json(&json!({
+              "matchingRules": json
+            }), &None)
               .expect("Matching rules fixture is not valid JSON");
           }
           _ => {}
