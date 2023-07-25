@@ -305,6 +305,34 @@ impl DocPath {
       expr: self.expr.to_lowercase()
     }
   }
+
+  /// Converts this path into a JSON pointer [RFC6901](https://datatracker.ietf.org/doc/html/rfc6901).
+  pub fn as_json_pointer(&self) -> anyhow::Result<String> {
+    let mut buffer = String::new();
+
+    for token in &self.path_tokens {
+      match token {
+        PathToken::Root => {},
+        PathToken::Field(v) => {
+          let parsed = v.replace('~', "~0")
+            .replace('/', "~1");
+          let _ = write!(buffer, "/{}", parsed);
+        }
+        PathToken::Index(i) => {
+          buffer.push('/');
+          buffer.push_str(i.to_string().as_str());
+        }
+        PathToken::Star => {
+          return Err(anyhow!("* can not be converted to a JSON pointer"));
+        }
+        PathToken::StarIndex => {
+          return Err(anyhow!("* can not be converted to a JSON pointer"));
+        }
+      }
+    }
+
+    Ok(buffer)
+  }
 }
 
 /// Format a JSON object key for use in a JSON path expression. If we were
@@ -883,5 +911,28 @@ mod tests {
 
     expect!(DocPath::root().parent()).to(be_none());
     expect!(DocPath::empty().parent()).to(be_none());
+  }
+
+  #[test]
+  fn as_json_pointer() {
+    let root = DocPath::root();
+    expect!(root.as_json_pointer().unwrap()).to(be_equal_to(""));
+
+    let mut something = root.join("something");
+    expect!(something.as_json_pointer().unwrap()).to(be_equal_to("/something"));
+
+    let with_slash = something.join("a/b");
+    expect!(with_slash.as_json_pointer().unwrap()).to(be_equal_to("/something/a~1b"));
+    let with_tilde = something.join("m~n");
+    expect!(with_tilde.as_json_pointer().unwrap()).to(be_equal_to("/something/m~0n"));
+
+    let encoded = something.join("c%25d");
+    expect!(encoded.as_json_pointer().unwrap()).to(be_equal_to("/something/c%25d"));
+
+    expect!(DocPath::root().push(PathToken::Field("something else".to_string())).as_json_pointer().unwrap())
+      .to(be_equal_to("/something else"));
+    expect!(something.join("*").as_json_pointer()).to(be_err());
+    expect!(something.push(PathToken::Index(101)).as_json_pointer().unwrap())
+      .to(be_equal_to("/something/101"));
   }
 }
