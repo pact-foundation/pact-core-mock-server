@@ -1133,7 +1133,8 @@ impl GenerateValue<Value> for Generator {
         if let Some(mock_server_details) = context.get("mockServer") {
           match mock_server_details.as_object() {
             Some(mock_server_details) => {
-              match get_field_as_string("url", mock_server_details) {
+              match get_field_as_string("url", mock_server_details)
+                .or_else(|| get_field_as_string("href", mock_server_details)) {
                 Some(url) => match Regex::new(regex) {
                   Ok(re) => Ok(Value::String(replace_with_regex(example, url, re))),
                   Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
@@ -1984,7 +1985,7 @@ mod tests {
     expect!(generated.unwrap()).to(be_equal_to("http://127.0.0.1:38055/pacts/provider/p/for-verification"));
     let generated = generator.generate_value(&Value::String("".to_string()), &hashmap! {
         "mockServer" => json!({
-          "url": "http://127.0.0.1:38055",
+          "href": "http://127.0.0.1:38055",
           "port": 38055
         })
       }, &NoopVariantMatcher.boxed());
