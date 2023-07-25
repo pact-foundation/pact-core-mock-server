@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 
@@ -149,7 +150,7 @@ impl PactBuilder {
 
     /// Directly add a pre-built `Interaction` to our `Pact`. Normally it's
     /// easier to use `interaction` instead of this function.
-    pub fn push_interaction(&mut self, interaction: &dyn Interaction) -> &mut Self {
+    pub fn push_interaction(&mut self, interaction: &(dyn Interaction + Send + Sync + RefUnwindSafe)) -> &mut Self {
       trace!("Adding interaction {:?}", interaction);
       self.pact.add_interaction(interaction).unwrap();
       self
@@ -249,6 +250,12 @@ impl StartMockServer for PactBuilder {
     {
       ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
     }
+  }
+}
+
+impl Debug for PactBuilder {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "PactBuilder({:?}, {:?})", self.pact, self.output_dir)
   }
 }
 

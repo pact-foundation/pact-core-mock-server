@@ -58,6 +58,26 @@ impl InteractionBuilder {
         self
     }
 
+  /// Specify a "provider state" for this interaction with some defined parameters. This is
+  /// normally use to set up database fixtures when using a pact to test a provider.
+  ///
+  /// The paramaters must be provided as a serde_json::Value Object.
+  pub fn given_with_params<G: Into<String>>(&mut self, given: G, params: &Value) -> &mut Self {
+    let params = if let Some(params) = params.as_object() {
+      params.iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
+    } else {
+      HashMap::default()
+    };
+
+    self.provider_states.push(ProviderState {
+      name: given.into(),
+      params
+    });
+    self
+  }
+
   /// Adds a text comment to this interaction. This allows to specify just a bit more information
   /// about the interaction. It has no functional impact, but can be displayed in the broker HTML
   /// page, and potentially in the test output.

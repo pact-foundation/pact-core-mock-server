@@ -158,7 +158,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
   interactions
 }
 
-pub(crate) fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
+pub fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
   if !body.is_empty() {
     if body.starts_with("JSON:") {
       httppart.add_header("content-type", vec!["application/json"]);

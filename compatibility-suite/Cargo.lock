@@ -448,11 +448,14 @@ dependencies = [
  "cucumber",
  "futures",
  "itertools 0.11.0",
+ "lazy_static",
  "maplit",
+ "pact_consumer",
  "pact_matching",
  "pact_mock_server",
  "pact_models",
  "pact_verifier",
+ "regex",
  "reqwest",
  "serde_json",
  "sxd-document",
@@ -1815,6 +1818,30 @@ dependencies = [
  "tracing-core",
  "uuid",
  "zip",
+]
+
+[[package]]
+name = "pact_consumer"
+version = "1.0.4"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytes",
+ "futures",
+ "itertools 0.10.5",
+ "lazy_static",
+ "maplit",
+ "pact-plugin-driver",
+ "pact_matching",
+ "pact_mock_server",
+ "pact_models",
+ "regex",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-core",
+ "url",
+ "uuid",
 ]
 
 [[package]]
