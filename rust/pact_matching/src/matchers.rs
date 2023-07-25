@@ -180,7 +180,7 @@ impl Matches<&str> for &str {
         if self == &actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected '{}' to be equal to '{}'", self, actual))
+          Err(anyhow!("Expected '{}' to be equal to '{}'", actual, self))
         }
       },
       MatchingRule::Type |
@@ -212,7 +212,7 @@ impl Matches<&str> for &str {
         {
           match validate_datetime(&actual.to_string(), s) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a date format of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a date pattern of '{}'", actual, s))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -226,7 +226,7 @@ impl Matches<&str> for &str {
         {
           match validate_datetime(&actual.to_string(), s) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a time format of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a time pattern of '{}'", actual, s))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -240,7 +240,7 @@ impl Matches<&str> for &str {
         {
           match validate_datetime(&actual.to_string(), s) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a timestamp format of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a timestamp pattern of '{}'", actual, s))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -314,7 +314,7 @@ impl Matches<u64> for &str {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) =>
         Err(anyhow!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
-      MatchingRule::Equality => Err(anyhow!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Number) to be equal to '{}' (String)", actual, self)),
       MatchingRule::Include(substr) => {
         if actual.to_string().contains(substr) {
           Ok(())
@@ -359,7 +359,7 @@ impl Matches<u64> for u64 {
         if *self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+          Err(anyhow!("Expected {} to be equal to {}", actual, self))
         }
       },
       MatchingRule::Include(substr) => {
@@ -403,7 +403,7 @@ impl Matches<f64> for u64 {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) =>
         Err(anyhow!("Expected {} (Integer) to be the same type as {} (Decimal)", self, actual)),
-      MatchingRule::Equality => Err(anyhow!("Expected {} (Integer) to be equal to {} (Decimal)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Decimal) to be equal to {} (Integer)", actual, self)),
       MatchingRule::Include(substr) => {
         if actual.to_string().contains(substr) {
           Ok(())
@@ -447,7 +447,7 @@ impl Matches<f64> for f64 {
         if *self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+          Err(anyhow!("Expected {} to be equal to {}", actual, self))
         }
       },
       MatchingRule::Include(substr) => {
@@ -492,7 +492,7 @@ impl Matches<u64> for f64 {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) =>
         Err(anyhow!("Expected {} (Decimal) to be the same type as {} (Integer)", self, actual)),
-      MatchingRule::Equality => Err(anyhow!("Expected {} (Decimal) to be equal to {} (Integer)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Integer) to be equal to {} (Decimal)", actual, self)),
       MatchingRule::Include(substr) => {
         if actual.to_string().contains(substr) {
           Ok(())
@@ -565,7 +565,7 @@ impl Matches<i64> for &str {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) =>
         Err(anyhow!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
-      MatchingRule::Equality => Err(anyhow!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Number) to be equal to '{}' (String)", actual, self)),
       MatchingRule::Include(substr) => {
         if actual.to_string().contains(substr) {
           Ok(())
@@ -609,7 +609,7 @@ impl Matches<i64> for i64 {
         if *self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+          Err(anyhow!("Expected {} to be equal to {}", actual, self))
         }
       },
       MatchingRule::Include(substr) => {
@@ -675,7 +675,7 @@ impl Matches<bool> for bool {
       MatchingRule::Equality => if actual == *self {
         Ok(())
       } else {
-        Err(anyhow!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
+        Err(anyhow!("Expected {} (Boolean) to be equal to {} (Boolean)", actual, self))
       },
       MatchingRule::Boolean => Ok(()),
       _ => if !cascaded || matcher.can_cascade() {

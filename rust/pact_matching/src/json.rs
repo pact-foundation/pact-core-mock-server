@@ -5,6 +5,7 @@ use std::str::FromStr;
 use ansi_term::Colour::*;
 use anyhow::anyhow;
 use difference::*;
+use lazy_static::lazy_static;
 use onig::Regex;
 use semver::Version;
 use serde_json::{json, Value};
@@ -23,10 +24,14 @@ use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_ma
 
 use super::Mismatch;
 
+lazy_static! {
+  static ref DEC_REGEX: Regex = Regex::new(r"\d+\.\d+").unwrap();
+}
+
 fn type_of(json: &Value) -> String {
   match json {
-    Value::Object(_) => "Map",
-    Value::Array(_) => "List",
+    Value::Object(_) => "Object",
+    Value::Array(_) => "Array",
     Value::Null => "Null",
     Value::Bool(_) => "Boolean",
     Value::Number(n) => if n.is_i64() || n.is_u64() {
@@ -157,35 +162,52 @@ impl Matches<&Value> for Value {
         if self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected {} ({}) but received {} ({})",
-            value_of(self), type_of(self), value_of(actual), type_of(actual)))
+          Err(anyhow!("Expected {} ({}) be equal to {} ({})",
+            value_of(actual), type_of(actual), value_of(self), type_of(self)))
         }
       },
       MatchingRule::Null => match actual {
         Value::Null => Ok(()),
-        _ => Err(anyhow!("Expected {} to be a null value", value_of(actual)))
+        _ => Err(anyhow!("Expected {} ({}) to be a null value", value_of(actual), type_of(actual)))
       },
       MatchingRule::Integer => if actual.is_i64() || actual.is_u64() {
         Ok(())
+      } else if let Some(str) = actual.as_str() {
+        match str.parse::<u64>() {
+          Ok(_) => Ok(()),
+          Err(_) => Err(anyhow!("Expected '{}' (String) to be an integer number", str))
+        }
       } else {
-        Err(anyhow!("Expected {} to be an integer value", value_of(actual)))
+        Err(anyhow!("Expected {} ({}) to be an integer", value_of(actual), type_of(actual)))
       },
       MatchingRule::Decimal => if actual.is_f64() {
         Ok(())
+      } else if let Some(str) = actual.as_str() {
+        if DEC_REGEX.is_match(str) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected '{}' (String) to be a decimal number", str))
+        }
       } else {
-        Err(anyhow!("Expected {} to be a decimal value", value_of(actual)))
+        Err(anyhow!("Expected {} ({}) to be a decimal number", value_of(actual), type_of(actual)))
       },
       MatchingRule::Number => if actual.is_number() {
         Ok(())
+      } else if let Some(str) = actual.as_str() {
+        match str.parse::<f64>() {
+          Ok(_) => Ok(()),
+          Err(_) => Err(anyhow!("Expected '{}' (String) to be a number", str))
+        }
       } else {
-        Err(anyhow!("Expected {} to be a number", value_of(actual)))
+        Err(anyhow!("Expected {} ({}) to be a number", value_of(actual), type_of(actual)))
       },
       #[allow(unused_variables)]
       MatchingRule::Date(ref s) => {
         #[cfg(feature = "datetime")]
         {
-          validate_datetime(&json_to_string(actual), s)
-            .map_err(|err| anyhow!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
+          let string = json_to_string(actual);
+          validate_datetime(&string, s)
+            .map_err(|err| anyhow!("Expected '{}' to match a date pattern of '{}': {}", string, s, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
@@ -196,8 +218,9 @@ impl Matches<&Value> for Value {
       MatchingRule::Time(ref s) => {
         #[cfg(feature = "datetime")]
         {
-          validate_datetime(&json_to_string(actual), s)
-            .map_err(|err| anyhow!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
+          let string = json_to_string(actual);
+          validate_datetime(&string, s)
+            .map_err(|err| anyhow!("Expected '{}' to match a time pattern of '{}': {}", string, s, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
@@ -208,8 +231,9 @@ impl Matches<&Value> for Value {
       MatchingRule::Timestamp(ref s) => {
         #[cfg(feature = "datetime")]
         {
-          validate_datetime(&json_to_string(actual), s)
-            .map_err(|err| anyhow!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+          let string = json_to_string(actual);
+          validate_datetime(&string, s)
+            .map_err(|err| anyhow!("Expected '{}' to match a timestamp pattern of '{}': {}", string, s, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
@@ -526,7 +550,6 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use maplit::hashmap;
-
   use pact_models::{matchingrules, matchingrules_list};
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
@@ -587,12 +610,12 @@ mod tests {
     let expected = request!(r#"{}"#);
     let actual = request!(r#"[]"#);
     let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Type mismatch: Expected Map {} but received List []")));
+    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected Object {} but received Array []"));
     expect!(result).to(be_err().value(vec![Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: expected.body.value(),
       actual: actual.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     }]));
   }
 
@@ -601,12 +624,12 @@ mod tests {
     let expected = request!(r#"[{}]"#);
     let actual = request!(r#"{}"#);
     let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Type mismatch: Expected List [{}] but received Map {}")));
+    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected Array [{}] but received Object {}"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: expected.body.value(),
       actual: actual.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     }]));
   }
 
@@ -618,7 +641,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 'string value' (String) but received 'other value' (String)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 'other value' (String) be equal to 'string value' (String)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: val1.body.value(),
@@ -635,7 +658,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 100 (Integer) but received 200 (Integer)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 200 (Integer) be equal to 100 (Integer)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: val1.body.value(),
@@ -652,7 +675,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 100.01 (Decimal) but received 100.02 (Decimal)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 100.02 (Decimal) be equal to 100.01 (Decimal)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: val1.body.value(),
@@ -669,7 +692,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected true (Boolean) but received false (Boolean)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected false (Boolean) be equal to true (Boolean)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: val1.body.value(),
@@ -686,7 +709,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected null (Null) but received 33 (Integer)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 33 (Integer) be equal to null (Null)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: val1.clone().body.value(),
@@ -716,7 +739,7 @@ mod tests {
     expect!(result).to(be_err());
 
     let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected 22 (Integer) but received 44 (Integer)".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected 44 (Integer) be equal to 22 (Integer)".to_string()));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$[1]".to_string(),
         expected: Some("22".into()), actual: Some("44".into()), mismatch: "".to_string() } ]));
 
@@ -733,7 +756,7 @@ mod tests {
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$[1]".to_string(),
         expected: Some("22".into()),
         actual: Some("44".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$[1] -> Expected 22 (Integer) but received 44 (Integer)".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$[1] -> Expected 44 (Integer) be equal to 22 (Integer)".to_string()));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[11,22,33]".into()),
@@ -771,7 +794,7 @@ mod tests {
     expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected an empty Map but received {\"a\":1,\"b\":2}"));
 
     let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 2 (Integer) but received 3 (Integer)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 3 (Integer) be equal to 2 (Integer)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("2".into()), actual: Some("3".into()), mismatch: "".to_string() } ]));
 
@@ -786,7 +809,7 @@ mod tests {
     } ]));
 
     let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 3 (Integer) but received 2 (Integer)"));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 2 (Integer) be equal to 3 (Integer)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),
         actual: Some("2".into()), mismatch: "".to_string() } ]));
@@ -803,7 +826,7 @@ mod tests {
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),
         actual: Some("2".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$.b -> Expected 3 (Integer) but received 2 (Integer)".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$.b -> Expected 2 (Integer) be equal to 3 (Integer)".to_string()));
 
     let result = match_json(&val4.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     let mismatches = result.unwrap_err();
@@ -893,8 +916,9 @@ mod tests {
   #[test]
   fn integer_matcher_test() {
     let matcher = MatchingRule::Integer;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100.0".into()), &matcher, false)).to(be_err());
     expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&json!("100"), &matcher, false)).to(be_ok());
     expect!(Value::String("100".into()).matches_with(&json!(100.02), &matcher, false)).to(be_err());
   }
 
@@ -904,13 +928,15 @@ mod tests {
     expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
     expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_err());
     expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&json!("100.01"), &matcher, false)).to(be_ok());
   }
 
   #[test]
   fn number_matcher_test() {
     let matcher = MatchingRule::Number;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100x".into()), &matcher, false)).to(be_err());
     expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&json!("100"), &matcher, false)).to(be_ok());
     expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher, false)).to(be_ok());
   }
 

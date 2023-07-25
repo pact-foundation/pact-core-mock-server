@@ -589,7 +589,7 @@ mod tests {
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.blah['@a']".to_string(), expected: Some("c".into()),
         actual: Some("b".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$.blah['@a'] -> Expected 'c' to be equal to 'b'".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$.blah['@a'] -> Expected 'b' to be equal to 'c'".to_string()));
     let mismatch = mismatches[2].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.blah['@c']".to_string(), expected: Some("c".into()),
         actual: None, mismatch: "".to_string() }));
@@ -659,7 +659,7 @@ mod tests {
     <foo something="100" somethingElse="101"/>
     "#);
     let result = match_xml(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected \'100\' to be equal to \'101\'".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected '101' to be equal to '100'".to_string()));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.foo['@somethingElse']".to_string(), expected: Some("100".into()),
         actual: Some("101".into()), mismatch: "".to_string() } ]));
 
@@ -814,7 +814,7 @@ mod tests {
     <foo>hello mars</foo>
     "#);
     let result = match_xml(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'hello world' to be equal to 'hello mars'")));
+    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'hello mars' to be equal to 'hello world'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.foo['#text']".to_string(),
         expected: Some("hello world".into()),
         actual: Some("hello mars".into()), mismatch: "".to_string() } ]));
@@ -836,7 +836,7 @@ mod tests {
     <foo>hello<bar/>mars </foo>
     "#);
     let result = match_xml(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected 'helloworld' to be equal to 'hellomars'".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected 'hellomars' to be equal to 'helloworld'".to_string()));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.foo['#text']".to_string(),
         expected: Some("helloworld".into()),
         actual: Some("hellomars".into()), mismatch: "".to_string() } ]));

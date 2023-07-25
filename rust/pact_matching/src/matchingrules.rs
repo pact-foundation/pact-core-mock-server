@@ -5,6 +5,7 @@ use std::fmt::{Debug, Display};
 use std::str::from_utf8;
 
 use anyhow::anyhow;
+use itertools::Itertools;
 use maplit::hashmap;
 use onig::Regex;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList, RuleLogic};
@@ -22,6 +23,15 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
   }
 }
 
+fn display<T: Debug + Display + PartialEq + Clone>(value: &[T]) -> String {
+  let mut buffer = String::default();
+  buffer.push('[');
+  let string = value.iter().map(|v| v.to_string()).join(", ");
+  buffer.push_str(string.as_str());
+  buffer.push(']');
+  buffer
+}
+
 impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
   fn matches_with(&self, actual: &[T], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("slice -> slice: comparing [{}] to [{}] using {:?}", std::any::type_name::<T>(), std::any::type_name::<T>(), matcher);
@@ -30,23 +40,23 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
         if !cascaded && actual.len() < *min {
-          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected {} (size {}) to have minimum size of {}", display(actual), actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
         if !cascaded && actual.len() > *max {
-          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected {} (size {}) to have maximum size of {}", display(actual), actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
         if !cascaded && actual.len() < *min {
-          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected {} (size {}) to have minimum size of {}", display(actual), actual.len(), min))
         } else if !cascaded && actual.len() > *max {
-          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected {} (size {}) to have maximum size of {}", display(actual), actual.len(), max))
         } else {
           Ok(())
         }

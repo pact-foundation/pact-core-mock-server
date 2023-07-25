@@ -373,15 +373,15 @@ impl MatchingRule {
       },
       "timestamp" | "datetime" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
         Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
-        None => Err(anyhow!("Timestamp matcher missing 'timestamp' or 'format' field")),
+        None => Ok(MatchingRule::Timestamp(String::default())),
       },
       "date" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
         Some(s) => Ok(MatchingRule::Date(json_to_string(s))),
-        None => Err(anyhow!("Date matcher missing 'date' or 'format' field")),
+        None => Ok(MatchingRule::Date(String::default())),
       },
       "time" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
         Some(s) => Ok(MatchingRule::Time(json_to_string(s))),
-        None => Err(anyhow!("Time matcher missing 'time' or 'format' field")),
+        None => Ok(MatchingRule::Time(String::default()))
       },
       "null" => Ok(MatchingRule::Null),
       "contentType" | "content-type" => match attributes.get("value") {
@@ -1872,13 +1872,13 @@ mod tests {
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\", \"timestamp\": \"A\"}").unwrap())).to(
       be_ok().value(MatchingRule::Timestamp("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_ok());
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\", \"time\": \"A\"}").unwrap())).to(
       be_ok().value(MatchingRule::Time("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\"}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\"}").unwrap())).to(be_ok());
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
       be_ok().value(MatchingRule::Date("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_ok());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"null\"}").unwrap())).to(
       be_ok().value(MatchingRule::Null));

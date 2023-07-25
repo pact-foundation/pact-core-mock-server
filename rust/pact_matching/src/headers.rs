@@ -234,7 +234,7 @@ mod tests {
 
     match mismatches.unwrap_err()[0] {
       Mismatch::HeaderMismatch { ref mismatch, .. } =>
-        assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER_VALUE' to be equal to 'HEADER2'"),
+        assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER2' to be equal to 'HEADER_VALUE'"),
       _ => panic!("Unexpected mismatch response")
     }
   }

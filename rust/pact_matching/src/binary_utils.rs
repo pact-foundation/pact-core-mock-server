@@ -920,8 +920,8 @@ mod tests {
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "MIME part 'name': Expected 'Baxter' to be equal to 'Fred'",
-      "MIME part 'age': Expected '1 month' to be equal to '2 months'",
+      "MIME part 'name': Expected 'Fred' to be equal to 'Baxter'",
+      "MIME part 'age': Expected '2 months' to be equal to '1 month'",
       "MIME part 'file': Expected body '1,2,3,4\r\n4,5,6,7' to match 'a,b,c,d\r\n4,5,6,7' using equality but did not match"
     ]));
   }
@@ -1014,7 +1014,7 @@ mod tests {
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "MIME part 'file': header 'content-type': Expected 'text/csv' to be equal to 'text/html'",
+      "MIME part 'file': header 'content-type': Expected 'text/html' to be equal to 'text/csv'",
       "MIME part 'file': Expected a body of 'text/csv' but the actual content type was 'text/html'"
     ]));
   }
@@ -1128,9 +1128,6 @@ mod tests {
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
       "MIME part \'file\': Expected binary contents to have content type \'application/jpeg\' but detected contents was \'text/plain\'"
     ]));
-
-    //<["MIME part 'file': Expected binary contents to have content type 'application/jpeg' but detected contents was 'text/plain'"]>
-    //<["Actual body [application/jpeg, 16 bytes, starting with 612c622c632c640d0a342c352c362c37] is not equal to the expected body [application/jpeg, 16 bytes, starting with 312c322c332c340d0a342c352c362c37]"]>
   }
 
   #[test]
@@ -1222,7 +1219,7 @@ mod tests {
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "MIME part 'name': Expected 'Baxter' to be equal to ''"
+      "MIME part 'name': Expected '' to be equal to 'Baxter'"
     ]));
   }
 
@@ -1264,7 +1261,7 @@ mod tests {
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "MIME part 'name': header 'x-test': Expected 'one' to be equal to 'two'"
+      "MIME part 'name': header 'x-test': Expected 'two' to be equal to 'one'"
     ]));
   }
 
@@ -1340,7 +1337,7 @@ mod tests {
     let result = super::match_headers(&path, &expected, &actual, &context);
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "MIME part 'one': header 'x-two': Expected '123' to be equal to '456'"
+      "MIME part 'one': header 'x-two': Expected '456' to be equal to '123'"
     ]));
   }
 
