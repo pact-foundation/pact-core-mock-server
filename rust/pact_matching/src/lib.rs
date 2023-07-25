@@ -1935,6 +1935,7 @@ pub async fn match_sync_message_response<'a>(
 /// Generates the request by applying any defined generators
 // TODO: Need to pass in any plugin data
 pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpRequest {
+  trace!(?request, ?mode, ?context, "generate_request");
   let mut request = request.clone();
 
   let generators = request.build_generators(&GeneratorCategory::PATH);
@@ -1957,6 +1958,16 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
             if let Ok(v) = generator.generate_value(&headers.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
               headers.insert(header.to_string(), v);
             }
+          } else {
+            if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+              headers.insert(header.to_string(), vec![ v.to_string() ]);
+            }
+          }
+        } else {
+          if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+            request.headers = Some(hashmap!{
+              header.to_string() => vec![ v.to_string() ]
+            })
           }
         }
       }
@@ -1977,6 +1988,16 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
               }
             }
             *parameter = generated;
+          } else {
+            if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+              parameters.insert(param.to_string(), vec![ v.to_string() ]);
+            }
+          }
+        } else {
+          if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+            request.query = Some(hashmap!{
+              param.to_string() => vec![ v.to_string() ]
+            })
           }
         }
       }
@@ -1999,6 +2020,7 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
 /// Generates the response by applying any defined generators
 // TODO: Need to pass in any plugin data
 pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpResponse {
+  trace!(?response, ?mode, ?context, "generate_response");
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
   if !generators.is_empty() {
@@ -2017,13 +2039,19 @@ pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode
       if let Some(header) = key.first_field() {
         if let Some(ref mut headers) = response.headers {
           if headers.contains_key(header) {
-            match generator.generate_value(&headers.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
-              Ok(v) => {
-                debug!("Generated value for header: {} -> {:?}", header, v);
-                headers.insert(header.to_string(), v)
-              },
-              Err(_) => None
-            };
+            if let Ok(v) = generator.generate_value(&headers.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
+              headers.insert(header.to_string(), v);
+            }
+          } else {
+            if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+              headers.insert(header.to_string(), vec![ v.to_string() ]);
+            }
+          }
+        } else {
+          if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+            response.headers = Some(hashmap!{
+              header.to_string() => vec![ v.to_string() ]
+            })
           }
         }
       }
