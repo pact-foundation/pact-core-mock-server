@@ -9,7 +9,7 @@ Feature: V3 era Matching Rules
       | JSON: { "one": { "a": { "ids": [100], "status": "Lovely" }  }, "two": [ { "ids": [1], "status": "BAD" } ] } |
     When the request is compared to the expected one
     Then the comparison should NOT be OK
-    And the mismatches will contain a mismatch with error "$.one.a.status" -> "Expected 'Lovely' (String) be equal to 'OK' (String)"
+    And the mismatches will contain a mismatch with error "$.one.a.status" -> "Expected 'Lovely' (String) to be equal to 'OK' (String)"
 
   Scenario: Supports an include matcher (positive case)
     Given an expected request configured with the following:
