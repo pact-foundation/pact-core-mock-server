@@ -81,7 +81,7 @@ fn post_to_mock_server_with_mismatches() {
   pactffi_cleanup_mock_server(port);
 
   assert_eq!(
-    "[{\"method\":\"POST\",\"mismatches\":[{\"actual\":\"\\\"no-very-bar\\\"\",\"expected\":\"\\\"bar\\\"\",\"mismatch\":\"Expected 'no-very-bar' (String) be equal to 'bar' (String)\",\"path\":\"$.foo\",\"type\":\"BodyMismatch\"}],\"path\":\"/path\",\"type\":\"request-mismatch\"}]",
+    "[{\"method\":\"POST\",\"mismatches\":[{\"actual\":\"\\\"no-very-bar\\\"\",\"expected\":\"\\\"bar\\\"\",\"mismatch\":\"Expected 'no-very-bar' (String) to be equal to 'bar' (String)\",\"path\":\"$.foo\",\"type\":\"BodyMismatch\"}],\"path\":\"/path\",\"type\":\"request-mismatch\"}]",
     mismatches
   );
 }
