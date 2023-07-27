@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.9 - Bugfix Release
+
+* 2e45e223 - fix: Update matching error messages to be in line with the compatibility-suite (Ronald Holshausen, Tue Jul 25 17:42:03 2023 +1000)
+* e729e348 - chore: MockServerURL generator should look for both url and href keys (Ronald Holshausen, Tue Jul 25 14:39:19 2023 +1000)
+* 8a8ae8c6 - feat(pact_models): Added function to convert a DocPath into a JSON pointer (Ronald Holshausen, Tue Jul 25 11:16:59 2023 +1000)
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* c78ea504 - bump version to 1.1.9 (Ronald Holshausen, Mon Jul 10 15:59:15 2023 +1000)
+
 # 1.1.8 - Bugfix Release
 
 * 4b4e7105 - fix(pact_models): MatchingRule::from_json shoud support integration format (Ronald Holshausen, Mon Jul 10 13:56:13 2023 +1000)
