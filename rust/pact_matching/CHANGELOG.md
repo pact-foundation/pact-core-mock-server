@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.4 - Bugfix Release
+
+* ac885b89 - fix: Date/Time matchers should fall back to ISO 8601 formats if no format string is provided (Ronald Holshausen, Thu Jul 27 10:42:17 2023 +1000)
+* 4a01919a - chore: Upgrade pact_models to 1.1.9 (Ronald Holshausen, Thu Jul 27 10:24:00 2023 +1000)
+* 8a22a66a - fix: correct equality error message to match compatibility-suite (Ronald Holshausen, Wed Jul 26 14:30:48 2023 +1000)
+* 2e45e223 - fix: Update matching error messages to be in line with the compatibility-suite (Ronald Holshausen, Tue Jul 25 17:42:03 2023 +1000)
+* 78bc8e23 - fix(pact_matching): Generators should add headers and query parameters if the key does not exist (Ronald Holshausen, Tue Jul 25 15:22:24 2023 +1000)
+* 0459d40c - fix(pact_matching): Number of keys were still be compared when an EachKeys matcher is defined #301 (Ronald Holshausen, Mon Jul 17 13:37:05 2023 +1000)
+* 4f448b1f - fix(pact_matching): EachValue matcher was not applying the associated matching rules correctly #299 (Ronald Holshausen, Wed Jul 12 16:28:16 2023 +1000)
+* 3cd0417c - chore: Add crate features to readme and module docs (Ronald Holshausen, Tue Jul 11 14:24:40 2023 +1000)
+* 53867be5 - bump version to 1.1.4 (Ronald Holshausen, Tue Jul 11 11:33:25 2023 +1000)
+
 # 1.1.3 - Add crate features to turn-off some behaviour and dependencies
 
 * f6024b1d - chore: Add support for plugin feature (Ronald Holshausen, Tue Jul 11 11:21:24 2023 +1000)
