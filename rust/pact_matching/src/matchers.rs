@@ -210,9 +210,14 @@ impl Matches<&str> for &str {
       MatchingRule::Date(s) => {
         #[cfg(feature = "datetime")]
         {
-          match validate_datetime(&actual.to_string(), s) {
+          let format = if s.is_empty() {
+            "yyyy-MM-dd"
+          } else {
+            s.as_str()
+          };
+          match validate_datetime(&actual.to_string(), format) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a date pattern of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a date pattern of '{}'", actual, format))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -224,9 +229,14 @@ impl Matches<&str> for &str {
       MatchingRule::Time(s) => {
         #[cfg(feature = "datetime")]
         {
-          match validate_datetime(&actual.to_string(), s) {
+          let format = if s.is_empty() {
+            "HH:mm:ss"
+          } else {
+            s.as_str()
+          };
+          match validate_datetime(&actual.to_string(), format) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a time pattern of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a time pattern of '{}'", actual, format))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -238,9 +248,14 @@ impl Matches<&str> for &str {
       MatchingRule::Timestamp(s) => {
         #[cfg(feature = "datetime")]
         {
-          match validate_datetime(&actual.to_string(), s) {
+          let format = if s.is_empty() {
+            "yyyy-MM-dd'T'HH:mm:ssXXX"
+          } else {
+            s.as_str()
+          };
+          match validate_datetime(&actual.to_string(), format) {
             Ok(_) => Ok(()),
-            Err(_) => Err(anyhow!("Expected '{}' to match a timestamp pattern of '{}'", actual, s))
+            Err(_) => Err(anyhow!("Expected '{}' to match a timestamp pattern of '{}'", actual, format))
           }
         }
         #[cfg(not(feature = "datetime"))]
@@ -1033,6 +1048,9 @@ mod tests {
 
     let matcher = MatchingRule::Timestamp("yyyy#MM#dd#HH#mm#ss".into());
     expect!("2014-01-01 14:00:00+10:00".matches_with("2013#12#01#14#00#00", &matcher, false)).to(be_ok());
+
+    let matcher = MatchingRule::Timestamp("".into());
+    expect!("".matches_with("2013-12-01T14:00:00+10:00", &matcher, false)).to(be_ok());
   }
 
   #[test]
@@ -1058,7 +1076,7 @@ mod tests {
     expect!("100".matches_with("05:10:14", &matcher, false)).to(be_ok());
 
     let matcher = MatchingRule::Time("".into());
-    expect!("100".matches_with("14:00:00+10:00", &matcher, false)).to(be_err());
+    expect!("100".matches_with("14:00:00", &matcher, false)).to(be_ok());
   }
 
   #[test]
@@ -1077,6 +1095,9 @@ mod tests {
     expect!(100.matches_with(200, &matcher, false)).to(be_err());
     expect!(100.matches_with(100.1, &matcher, false)).to(be_err());
     expect!(100.1f64.matches_with(100.2, &matcher, false)).to(be_err());
+
+    let matcher = MatchingRule::Date("".into());
+    expect!("".matches_with("2001-10-01", &matcher, false)).to(be_ok());
   }
 
   #[test]

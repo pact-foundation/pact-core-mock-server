@@ -206,8 +206,13 @@ impl Matches<&Value> for Value {
         #[cfg(feature = "datetime")]
         {
           let string = json_to_string(actual);
-          validate_datetime(&string, s)
-            .map_err(|err| anyhow!("Expected '{}' to match a date pattern of '{}': {}", string, s, err))
+          let format = if s.is_empty() {
+            "yyyy-MM-dd"
+          } else {
+            s.as_str()
+          };
+          validate_datetime(&string, format)
+            .map_err(|err| anyhow!("Expected '{}' to match a date pattern of '{}': {}", string, format, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
@@ -219,8 +224,13 @@ impl Matches<&Value> for Value {
         #[cfg(feature = "datetime")]
         {
           let string = json_to_string(actual);
-          validate_datetime(&string, s)
-            .map_err(|err| anyhow!("Expected '{}' to match a time pattern of '{}': {}", string, s, err))
+          let format = if s.is_empty() {
+            "HH:mm:ss"
+          } else {
+            s.as_str()
+          };
+          validate_datetime(&string, format)
+            .map_err(|err| anyhow!("Expected '{}' to match a time pattern of '{}': {}", string, format, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
@@ -232,8 +242,13 @@ impl Matches<&Value> for Value {
         #[cfg(feature = "datetime")]
         {
           let string = json_to_string(actual);
-          validate_datetime(&string, s)
-            .map_err(|err| anyhow!("Expected '{}' to match a timestamp pattern of '{}': {}", string, s, err))
+          let format = if s.is_empty() {
+            "yyyy-MM-dd'T'HH:mm:ssXXX"
+          } else {
+            s.as_str()
+          };
+          validate_datetime(&string, format)
+            .map_err(|err| anyhow!("Expected '{}' to match a timestamp pattern of '{}': {}", string, format, err))
         }
         #[cfg(not(feature = "datetime"))]
         {
