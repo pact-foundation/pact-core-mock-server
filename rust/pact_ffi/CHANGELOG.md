@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.7 - Bugfix Release
+
+* 04af3923 - chore: Upgrade pact_verifier to 1.0.2 (Ronald Holshausen, Thu Jul 27 15:17:57 2023 +1000)
+* 0586fcf1 - chore: Upgrade pact_mock_server to 1.2.2 (Ronald Holshausen, Thu Jul 27 14:45:02 2023 +1000)
+* 8f88192e - chore: Upgrade pact_matching to 1.1.4 (Ronald Holshausen, Thu Jul 27 14:35:27 2023 +1000)
+* 4a01919a - chore: Upgrade pact_models to 1.1.9 (Ronald Holshausen, Thu Jul 27 10:24:00 2023 +1000)
+* 8a22a66a - fix: correct equality error message to match compatibility-suite (Ronald Holshausen, Wed Jul 26 14:30:48 2023 +1000)
+* 2e45e223 - fix: Update matching error messages to be in line with the compatibility-suite (Ronald Holshausen, Tue Jul 25 17:42:03 2023 +1000)
+* 0459d40c - fix(pact_matching): Number of keys were still be compared when an EachKeys matcher is defined #301 (Ronald Holshausen, Mon Jul 17 13:37:05 2023 +1000)
+* e69eef09 - bump version to 0.4.7 (Ronald Holshausen, Thu Jul 13 10:26:33 2023 +1000)
+
 # 0.4.6 - Bugfix Release
 
 * 7527fd32 - chore: Correct release script (Ronald Holshausen, Thu Jul 13 10:23:51 2023 +1000)
