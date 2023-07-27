@@ -574,25 +574,25 @@ mod test {
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "max", "max": 100 }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::MaxType(100)));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp" }).as_object().unwrap()))
-      .to(be_none());
+      .to(be_some().value(MatchingRule::Timestamp("".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp", "format": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp", "timestamp": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime" }).as_object().unwrap()))
-      .to(be_none());
+      .to(be_some().value(MatchingRule::Timestamp("".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "format": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "datetime": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date" }).as_object().unwrap()))
-      .to(be_none());
+      .to(be_some().value(MatchingRule::Date("".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date", "format": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Date("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date", "date": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Date("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time" }).as_object().unwrap()))
-      .to(be_none());
+      .to(be_some().value(MatchingRule::Time("".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time", "format": "yyyy-MM-dd" }).as_object().unwrap()))
       .to(be_some().value(MatchingRule::Time("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time", "time": "yyyy-MM-dd" }).as_object().unwrap()))
