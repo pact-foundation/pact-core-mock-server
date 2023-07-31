@@ -14,6 +14,7 @@ use pact_models::pact::Pact;
 use pact_models::prelude::RequestResponseInteraction;
 use pact_models::request::Request;
 use pact_models::sync_pact::RequestResponsePact;
+use regex::Regex;
 use serde_json::{json, Value};
 
 use pact_matching::{match_request, Mismatch};
@@ -177,7 +178,19 @@ fn the_mismatches_will_contain_a_mismatch_with_error(
         Mismatch::MetadataMismatch { key, .. } => key.as_str() == error_path,
         _ => false
       };
-      path_matches && mismatch.description().contains(error.as_str())
+      let desc_matches = mismatch.description().contains(error.as_str());
+      if path_matches && desc_matches {
+        true
+      } else if path_matches {
+        let desc = mismatch.description();
+        if let Ok(re) = Regex::new(error.as_str()) {
+          re.is_match(desc.as_str())
+        } else {
+          false
+        }
+      } else {
+        false
+      }
     }) {
     Ok(())
   } else {

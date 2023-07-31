@@ -12,10 +12,10 @@ futures = "0.3.28"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
-pact_models = "~1.1.8"
-pact_matching = { version = "1.1.3", path = "../rust/pact_matching" }
-pact_mock_server = { version = "1.2.1", path = "../rust/pact_mock_server" }
-pact_verifier = { version = "1.0.1", path = "../rust/pact_verifier" }
+pact_models = "~1.1.9"
+pact_matching = { version = "1.1.4", path = "../rust/pact_matching" }
+pact_mock_server = { version = "1.2.2", path = "../rust/pact_mock_server" }
+pact_verifier = { version = "1.0.2", path = "../rust/pact_verifier" }
 pact_consumer = { version = "1.0.2", path = "../rust/pact_consumer" }
 regex = "1.9.1"
 reqwest = { version = "0.11.18", features = ["rustls-tls-native-roots", "json"] }
