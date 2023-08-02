@@ -14,16 +14,17 @@ use pact_models::generators::{
   NoopVariantMatcher,
   VariantMatcher
 };
-use pact_models::matchingrules::MatchingRuleCategory;
-use pact_models::path_exp::DocPath;
-use serde_json::{self, Value};
-#[cfg(feature = "xml")] use sxd_document::dom::Document;
-use tracing::{debug, error};
 use pact_models::http_parts::HttpPart;
+use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::message::Message;
+use pact_models::path_exp::DocPath;
 use pact_models::plugins::PluginData;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
+use serde_json::{self, Value};
+#[cfg(feature = "xml")] use sxd_document::dom::Document;
+use tracing::{debug, error, trace};
 
 use crate::{CoreMatchingContext, DiffConfig, MatchingContext};
 use crate::json::compare_json;
@@ -215,6 +216,48 @@ pub async fn apply_generators_to_async_message(
   }
 
   copy
+}
+
+/// Generates the message by applying any defined generators to the contents and metadata
+pub async fn generate_message(
+  message: &Message,
+  mode: &GeneratorTestMode,
+  context: &HashMap<&str, Value>,
+  plugin_data: &Vec<PluginData>,
+  interaction_data: &HashMap<String, HashMap<String, Value>>
+) -> Message {
+  trace!(?message, ?mode, ?context, "generate_message");
+  let mut message = message.clone();
+
+  let generators = message.build_generators(&GeneratorCategory::METADATA);
+  if !generators.is_empty() {
+    debug!("Applying metadata generators...");
+    apply_generators(mode, &generators, &mut |key, generator| {
+      if let Some(header) = key.first_field() {
+        if message.metadata.contains_key(header) {
+          if let Ok(v) = generator.generate_value(&message.metadata.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
+            message.metadata.insert(header.to_string(), v);
+          }
+        } else {
+          if let Ok(v) = generator.generate_value(&Value::Null, context, &DefaultVariantMatcher.boxed()) {
+            message.metadata.insert(header.to_string(), v);
+          }
+        }
+      }
+    });
+  }
+
+  let generators = message.build_generators(&GeneratorCategory::BODY);
+  if !generators.is_empty() && message.contents.is_present() {
+    debug!("Applying body generators...");
+    match  bodies::generators_process_body(mode, &message.contents, message.content_type(),
+      context, &generators, &DefaultVariantMatcher{}, plugin_data, interaction_data).await {
+      Ok(body) => message.contents = body,
+      Err(err) => error!("Failed to generate the body, will use the original: {}", err)
+    }
+  }
+
+  message
 }
 
 #[cfg(test)]

@@ -2,12 +2,15 @@ use std::str::FromStr;
 
 use expectest::expect;
 use expectest::prelude::*;
-use serde_json::Value;
-
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::JSON;
 use pact_models::generators;
 use pact_models::generators::{ContentTypeHandler, Generator, JsonHandler};
+use pact_models::message::Message;
 use pact_models::path_exp::DocPath;
+use serde_json::Value;
+
+use crate::generators::generate_message;
 
 use super::*;
 
@@ -264,4 +267,44 @@ fn applies_the_generator_to_the_object_graph_with_wildcard() {
   expect!(&json_handler.value["a"][2]).to(be_equal_to(&json!("C")));
   expect!(&json_handler.value["b"]).to(be_equal_to(&json!("B")));
   expect!(&json_handler.value["c"]).to(be_equal_to(&json!("C")));
+}
+
+#[tokio::test]
+async fn returns_original_message_if_there_are_no_generators() {
+  let message = Message::default();
+  expect!(generate_message(&message, &GeneratorTestMode::Provider, &hashmap!{}, &vec![], &hashmap!{}).await).to(be_equal_to(message));
+}
+
+#[tokio::test]
+async fn applies_metadata_generator_for_to_the_copy_of_the_message() {
+  let message = Message {
+    metadata: hashmap!{
+      "A".to_string() => json!("a"),
+      "B".to_string() => json!("b")
+    },
+    generators: generators! {
+      "METADATA" => {
+        "A" => Generator::Uuid(None)
+      }
+    }, ..  Message::default()
+  };
+  let generated = generate_message(&message, &GeneratorTestMode::Provider, &hashmap!{}, &vec![], &hashmap!{}).await;
+  expect!(generated.metadata.get("A").unwrap()).to_not(be_equal_to(&json!("a")));
+}
+
+#[tokio::test]
+async fn applies_body_generator_to_the_copy_of_the_message() {
+  let message = Message {
+    contents: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), Some(JSON.clone()), None),
+    generators: generators! {
+      "BODY" => {
+        "$.a" => Generator::RandomInt(1, 10)
+      }
+    }, ..  Message::default()
+  };
+  let generated = generate_message(&message, &GeneratorTestMode::Provider, &hashmap!{}, &vec![], &hashmap!{}).await;
+  let json_str = generated.contents.value_as_string().unwrap();
+  let body: Value = serde_json::from_str(json_str.as_str()).unwrap();
+  expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
+  expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }

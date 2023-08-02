@@ -245,7 +245,7 @@ pub fn match_mime_multipart(
           });
         },
         Err(err) => {
-          debug!("Could not get the tokio runtime, will try start a new one: {}", err);
+          warn!("Could not get the tokio runtime, will try start a new one: {}", err);
           tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
