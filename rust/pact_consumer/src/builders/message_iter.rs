@@ -1,44 +1,88 @@
 use std::collections::VecDeque;
 use std::env;
+use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
+use std::sync::mpsc::channel;
 
-use pact_models::pact::{ReadWritePact, write_pact};
-use pact_models::prelude::Pact;
+use maplit::hashmap;
+use pact_models::generators::GeneratorTestMode;
+use pact_models::message::Message;
+use pact_models::pact::write_pact;
+use pact_models::prelude::{MessagePact, Pact};
 use pact_models::prelude::v4::V4Pact;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::V4InteractionType;
-use tracing::{debug, error, info};
+use tokio::runtime::Handle;
+use tracing::{debug, error, info, warn};
+
+use pact_matching::generators::generate_message;
 
 /// Iterator over the messages build with the PactBuilder
 pub struct MessageIterator<MT> {
-  pact: V4Pact,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   message_list: VecDeque<MT>,
   // Output directory to write pact files to when done
   output_dir: Option<PathBuf>,
 }
 
 /// Construct a new iterator over the asynchronous messages in the pact
-pub fn asynchronous_messages_iter(pact: V4Pact) -> MessageIterator<AsynchronousMessage> {
+pub fn asynchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) -> MessageIterator<AsynchronousMessage> {
   MessageIterator {
-    pact: pact.clone(),
+    pact: pact.boxed(),
     message_list: pact.filter_interactions(V4InteractionType::Asynchronous_Messages)
       .iter()
       .map(|item| item.as_v4_async_message().unwrap())
       .collect(),
-    output_dir: None
+    output_dir: output_dir.clone()
   }
 }
 
 /// Construct a new iterator over the synchronous messages in the pact
-pub fn synchronous_messages_iter(pact: V4Pact) -> MessageIterator<SynchronousMessage> {
+pub fn synchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) -> MessageIterator<SynchronousMessage> {
   MessageIterator {
-    pact: pact.clone(),
+    pact: pact.boxed(),
     message_list: pact.filter_interactions(V4InteractionType::Synchronous_Messages)
       .iter()
       .map(|item| item.as_v4_sync_message().unwrap())
       .collect(),
-    output_dir: None
+    output_dir: output_dir.clone()
+  }
+}
+
+/// Construct a new iterator over the messages in the Message Pact
+// TODO: This needs a mechanism to pass in the test context and plugin data
+pub fn messages_iter(pact: MessagePact, output_dir: &Option<PathBuf>) -> MessageIterator<Message> {
+  let original_messages = pact.messages.clone();
+  let (sx, rx) = channel();
+  match Handle::try_current() {
+    Ok(handle) => handle.spawn(async move {
+      let mut messages = VecDeque::new();
+      for message in original_messages {
+        messages.push_back(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}).await);
+      }
+      let _ = sx.send(messages);
+    }),
+    Err(err) => {
+      warn!("Could not access the Tokio runtime, will start a new one: {}", err);
+      tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Could not start a Tokio runtime for running async tasks")
+        .spawn(async move {
+          let mut messages = VecDeque::new();
+          for message in original_messages {
+            messages.push_back(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}).await);
+          }
+          let _ = sx.send(messages);
+        })
+    }
+  };
+
+  MessageIterator {
+    pact: pact.boxed(),
+    message_list: rx.recv().expect("Did not receive any messages"),
+    output_dir: output_dir.clone()
   }
 }
 

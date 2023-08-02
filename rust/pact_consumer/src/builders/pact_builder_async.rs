@@ -235,7 +235,7 @@ impl PactBuilderAsync {
       app_name: "pact_consumer".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
-    asynchronous_messages_iter(self.pact.as_v4_pact().unwrap())
+    asynchronous_messages_iter(self.pact.as_v4_pact().unwrap(), &self.output_dir)
   }
 
   /// Returns an iterator over the synchronous req/res messages in the Pact
@@ -246,7 +246,7 @@ impl PactBuilderAsync {
       app_name: "pact_consumer".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
-    synchronous_messages_iter(self.pact.as_v4_pact().unwrap())
+    synchronous_messages_iter(self.pact.as_v4_pact().unwrap(), &self.output_dir)
   }
 }
 

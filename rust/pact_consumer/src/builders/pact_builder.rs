@@ -4,7 +4,9 @@ use std::path::PathBuf;
 
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
+use pact_models::message::Message;
 use pact_models::pact::Pact;
+use pact_models::prelude::MessagePact;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::pact::V4Pact;
@@ -18,7 +20,12 @@ use tracing::trace;
 use pact_matching::metrics::{MetricEvent, send_metrics};
 
 use crate::builders::message_builder::MessageInteractionBuilder;
-use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator, synchronous_messages_iter};
+use crate::builders::message_iter::{
+  asynchronous_messages_iter,
+  messages_iter,
+  MessageIterator,
+  synchronous_messages_iter
+};
 #[cfg(feature = "plugins")] use crate::builders::pact_builder_async::PactBuilderAsync;
 use crate::builders::sync_message_builder::SyncMessageInteractionBuilder;
 use crate::mock_server::http_mock_server::ValidatingHttpMockServer;
@@ -49,7 +56,7 @@ use super::interaction_builder::InteractionBuilder;
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().response.status, 200);
 /// ```
 pub struct PactBuilder {
-  pact: Box<dyn Pact + Send + Sync>,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   output_dir: Option<PathBuf>
 }
 
@@ -79,6 +86,32 @@ impl PactBuilder {
         PactBuilder { pact: pact.boxed(), output_dir: None }
     }
 
+  /// Create a new `PactBuilder`, specifying the names of the service
+  /// consuming the API and the service providing it. This creates a V3 message pact, and only
+  /// message interactions can be added.
+  pub fn new_v3_message<C, P>(consumer: C, provider: P) -> Self
+    where
+      C: Into<String>,
+      P: Into<String>,
+  {
+    pact_matching::matchers::configure_core_catalogue();
+    pact_mock_server::configure_core_catalogue();
+
+    let mut pact = MessagePact::default();
+    pact.consumer = Consumer {
+      name: consumer.into(),
+    };
+    pact.provider = Provider {
+      name: provider.into(),
+    };
+
+    if let Some(version) = PACT_CONSUMER_VERSION {
+      pact.add_md_version("consumer", version);
+    }
+
+    PactBuilder { pact: pact.boxed(), output_dir: None }
+  }
+
     /// Create a new `PactBuilder` for a V4 specification Pact, specifying the names of the service
     /// consuming the API and the service providing it.
     pub fn new_v4<C, P>(consumer: C, provider: P) -> Self
@@ -101,6 +134,14 @@ impl PactBuilder {
 
       PactBuilder { pact: pact.boxed(), output_dir: None }
     }
+
+  ///  Sets the output directory to write any pact files to. If this is not set, will default
+  /// to the PACT_OUTPUT_DIR environment variable. If that is not set, will use the target
+  /// directory.
+    pub fn with_output_dir<P: Into<PathBuf>>(&mut self, dir: P) -> &mut Self {
+    self.output_dir = Some(dir.into());
+    self
+  }
 
     /// Add a plugin to be used by the test. Note this will return an async version of the Pact
     /// builder and requires the plugin crate feature.
@@ -163,6 +204,7 @@ impl PactBuilder {
   }
 
   /// Sets the output directory to write pact files to
+  #[deprecated(note = "Use with_output_dir")]
   pub fn output_dir<D: Into<PathBuf>>(&mut self, dir: D) -> &mut Self {
     self.output_dir = Some(dir.into());
     self
@@ -213,7 +255,18 @@ impl PactBuilder {
       app_name: "pact_consumer".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
-    asynchronous_messages_iter(self.pact.as_v4_pact().unwrap())
+    asynchronous_messages_iter(self.pact.as_v4_pact().unwrap(), &self.output_dir)
+  }
+
+  /// Returns an iterator over the asynchronous messages in a V3 Message Pact
+  pub fn v3_messages(&self) -> MessageIterator<Message> {
+    send_metrics(MetricEvent::ConsumerTestRun {
+      interactions: self.pact.interactions().len(),
+      test_framework: "pact_consumer".to_string(),
+      app_name: "pact_consumer".to_string(),
+      app_version: env!("CARGO_PKG_VERSION").to_string()
+    });
+    messages_iter(self.pact.as_message_pact().unwrap(), &self.output_dir)
   }
 
   /// Returns an iterator over the synchronous req/res messages in the Pact
@@ -224,7 +277,7 @@ impl PactBuilder {
       app_name: "pact_consumer".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
-    synchronous_messages_iter(self.pact.as_v4_pact().unwrap())
+    synchronous_messages_iter(self.pact.as_v4_pact().unwrap(), &self.output_dir)
   }
 }
 

@@ -1,5 +1,6 @@
 //! Builder for constructing Asynchronous message interactions
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use bytes::Bytes;
@@ -8,6 +9,7 @@ use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRuleCategory;
 #[cfg(not(feature = "plugins"))] use pact_models::generators::Generators;
+use pact_models::message::Message;
 use pact_models::path_exp::DocPath;
 #[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
 use pact_models::prelude::{MatchingRules, OptionalBody, ProviderState};
@@ -55,7 +57,8 @@ pub struct MessageInteractionBuilder {
   provider_states: Vec<ProviderState>,
   comments: Vec<String>,
   test_name: Option<String>,
-  message_contents: InteractionContents,
+  /// Contents of the message. This will include the payload as well as any metadata
+  pub message_contents: InteractionContents,
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
@@ -79,6 +82,26 @@ impl MessageInteractionBuilder {
   /// set up database fixtures when using a pact to test a provider.
   pub fn given<G: Into<String>>(&mut self, given: G) -> &mut Self {
     self.provider_states.push(ProviderState::default(&given.into()));
+    self
+  }
+
+  /// Specify a "provider state" for this interaction with some defined parameters. This is
+  /// normally use to set up database fixtures when using a pact to test a provider.
+  ///
+  /// The paramaters must be provided as a serde_json::Value Object.
+  pub fn given_with_params<G: Into<String>>(&mut self, given: G, params: &Value) -> &mut Self {
+    let params = if let Some(params) = params.as_object() {
+      params.iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
+    } else {
+      HashMap::default()
+    };
+
+    self.provider_states.push(ProviderState {
+      name: given.into(),
+      params
+    });
     self
   }
 
@@ -154,6 +177,25 @@ impl MessageInteractionBuilder {
       interaction_markup,
       transport: None
     }
+  }
+
+  /// The interaction we've built (in V3 format).
+  pub fn build_v3(&self) -> Message {
+    debug!("Building V3 Message interaction: {:?}", self);
+
+    let mut rules = MatchingRules::default();
+    rules.add_category("body")
+      .add_rules(self.message_contents.rules.as_ref().cloned().unwrap_or_default());
+
+        Message {
+      id: None,
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      contents: self.message_contents.body.clone(),
+          metadata: self.message_contents.metadata.as_ref().cloned().unwrap_or_default(),
+          matching_rules: rules,
+          generators: self.message_contents.generators.as_ref().cloned().unwrap_or_default()
+        }
   }
 
   /// Configure the interaction contents from a map
@@ -309,6 +351,27 @@ impl MessageInteractionBuilder {
         match &mut self.message_contents.rules {
           None => self.message_contents.rules = Some(rules.clone()),
           Some(mr) => mr.add_rules(rules.clone())
+        }
+      }
+    }
+    self
+  }
+
+  /// Specify the message metadata and content type
+  pub fn body<B:  Into<Bytes>>(&mut self, body: B, content_type: Option<String>) -> &mut Self {
+    let message_body = OptionalBody::Present(
+      body.into(),
+      content_type.as_ref().map(|ct| ct.into()),
+      None
+    );
+    self.message_contents.body = message_body;
+    let metadata = self.message_contents.metadata
+      .get_or_insert_with(|| hashmap!{});
+    if let Some(content_type) = content_type {
+      match metadata.entry("contentType".to_string()) {
+        Entry::Occupied(_) => {}
+        Entry::Vacant(entry) => {
+          entry.insert(Value::String(content_type.clone()));
         }
       }
     }

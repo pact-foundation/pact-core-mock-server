@@ -179,7 +179,7 @@ async fn duplicate_interactions() {
         interaction.response.body("TrixR4Kidz");
         interaction
       })
-      .output_dir(&output_dir)
+      .with_output_dir(&output_dir)
       .start_mock_server(None);
 
     let mock_url = mock_service.url();
