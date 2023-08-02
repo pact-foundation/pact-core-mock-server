@@ -49,3 +49,7 @@ harness = false
 [[test]]
 name = "v3_provider"
 harness = false
+
+[[test]]
+name = "v3_message"
+harness = false

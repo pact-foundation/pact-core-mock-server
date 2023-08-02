@@ -206,7 +206,7 @@ pub fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
   }
 }
 
-fn element_text(root: Element, name: &str) -> Option<String> {
+pub fn element_text(root: Element, name: &str) -> Option<String> {
   root.children().iter()
     .filter_map(|n| n.element())
     .find_map(|n| {
@@ -229,7 +229,7 @@ fn element_text(root: Element, name: &str) -> Option<String> {
     })
 }
 
-fn determine_content_type(body: &String, httppart: &mut dyn HttpPart) -> ContentType {
+pub fn determine_content_type(body: &String, httppart: &mut dyn HttpPart) -> ContentType {
   if body.ends_with(".json") {
     JSON.clone()
   } else if body.ends_with(".xml") {

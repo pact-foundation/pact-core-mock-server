@@ -16,6 +16,7 @@ use pact_matching::RequestMatchResult;
 mod http_consumer;
 mod http_matching;
 mod generators;
+pub mod message;
 
 #[derive(Debug, World)]
 pub struct V3World {

@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use cucumber::{given, then, when};
 use cucumber::gherkin::Step;
 use lazy_static::lazy_static;
@@ -175,7 +175,7 @@ async fn the_request_is_prepared_for_use_with_a_context(
   world.generated_body = world.generated_request.body.clone();
 }
 
-#[then(expr = "the body value for {string} will have been replaced with a {string}")]
+#[then(expr = "the body value for {string} will have been replaced with a(n) {string}")]
 fn the_body_value_for_will_have_been_replaced_with_a_value(
   world: &mut V3World,
   path: String,
@@ -191,6 +191,10 @@ fn the_body_value_for_will_have_been_replaced_with_a_value(
     return Err(anyhow!("Expected original ({:?}) to have been replaced", original_element))
   }
 
+  assert_value_type(value_type, element)
+}
+
+pub fn assert_value_type(value_type: String, element: &Value) -> Result<(), Error> {
   match value_type.as_str() {
     "integer" => {
       if !INT_REGEX.is_match(json_to_string(element).as_str()) {
@@ -270,7 +274,7 @@ fn the_body_value_for_will_have_been_replaced_with_a_value(
 }
 
 // TODO: Replace this with version from pact_models
-fn as_json_pointer(path: &DocPath) -> String {
+pub fn as_json_pointer(path: &DocPath) -> String {
   let mut buffer = String::new();
 
   for token in path.tokens() {
