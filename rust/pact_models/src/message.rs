@@ -345,6 +345,19 @@ impl HttpPart for Message {
       key == "contenttype" || key == "content-type"
     }).map(|(_, v)| json_to_string(&v[0]))
   }
+
+  fn add_header(&mut self, key: &str, val: Vec<&str>) {
+    if !val.is_empty() {
+      if val.len() == 1 {
+        self.metadata.insert(key.to_string(), Value::String(val.first().unwrap().to_string()));
+      } else {
+        self.metadata.insert(key.to_string(), Value::Array(val.iter()
+          .map(|v| Value::String(v.to_string())).collect()));
+      }
+    } else {
+      self.metadata.insert(key.to_string(), Value::Null);
+    }
+  }
 }
 
 impl Display for Message {
