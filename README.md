@@ -1,64 +1,42 @@
-![Logo of the project](https://raw.githubusercontent.com/pact-foundation/pact-reference/master/images/logo.svg)
+# pact-compatibility-suite
+Set of BDD style tests to check compatibility between Pact implementations.
 
-[![Pact-Rust Build](https://github.com/pact-foundation/pact-reference/workflows/Pact-Rust%20Build/badge.svg)](https://github.com/pact-foundation/pact-reference/actions?query=workflow%3A%22Pact-Rust+Build%22)
-[![Pact-Rust FFI Build](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml/badge.svg)](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml)
+This repository contains the BDD features for verifying a Pact implementation. It requires the [Cucumber BDD](https://cucumber.io/) test tool to execute.
 
-# Pact Reference Implementation
-> Reference implementations for Pact Specification written in Rust
+## Adding it to a project
+The easyest way to add the suite to a project to to create a compatibility-suite subdirectory and then use the Git subtree command to pull the features and fixtures.
+The project then needs the steps to be implemented to get the features to pass.
 
-This project contains a reference implementation of the [Pact specifications](https://github.com/pact-foundation/pact-specification)
-written in Rust, as well as example projects in JavaScript and C (and a few others) that use the mock server library.
+Recommend project layout:
 
-## Usage
-
-### Rust
-
-For Rust projects, you can use the Rust crates from this library in your project directly. Refer to the [Rust project
-readme](rust/README.md). Requires minimum Rust 1.59.0.
-
-### Other languages
-
-This project contains dynamic libraries that expose the core functionality through FFI (Foreign Function Interface).
-
-For examples:
-* [Javascript](javascript)
-* [C](c/consumer-verification)
-* [Ruby](ruby/example_consumer_spec)
-* [PHP](php)
-
-## Building
-
-To build the libraries in this project, you need a working Rust environment.  Requires minimum Rust 1.59.0.
-Refer to the [Rust Guide](https://www.rust-lang.org/learn/get-started).
-
-The build tool used is `cargo`.
-
-```shell
-cd rust
-cargo build
+```
+compatibility-suite
+    pact-compatibility-suite (subtree from this repo)
+    steps (code for the steps, can be named anything)
 ```
 
-This will compile all the libraries and put the generated files in `rust/target/debug`.
+For examples of how this has been implemented, see https://github.com/pact-foundation/pact-reference/tree/master/compatibility-suite and https://github.com/pact-foundation/pact-jvm/tree/master/compatibility-suite.
 
-## Contributing
+## Fixtures
 
-See [CONTRIBUTING](CONTRIBUTING.md) (PRs are always welcome!).
+The project has a number of fixture files that the features refer to. These files have the folowing formats.
 
-## Documentation
+### Body contents (XML)
+Any file ending in `-body.xml` contains data to setup the contents of a request, response or messages. It can contain the following elements.
 
-Rust library documentation is published to the Rust documentation site. Refer to the [Rust project README](rust/README.md).
+#### body
+This is the root element.
 
-Additional documentation can be found at the main [Pact website](https://pact.io).
+#### body/contentType
+This sets the content type of the body. It must be a valid MIME type. If not provided, it will default to either `text/plain` or `application/octet-stream`.
 
-## Contact
+#### body/contents
+The contents of the body. If newlines are required to be preserved, wrap the contents in a CDATA block. If the contents require the line endings to be CRLF 
+(for instance, MIME multipart formats require CRLF line endings), set the attrribute `eol="CRLF"`.
 
-Join us in slack: [![slack](https://slack.pact.io/badge.svg)](https://slack.pact.io)
+### Matcher fragments
+Any JSON file with a pattern `[matcher]-matcher-[type]-[format].json` or `[matcher]-matcher-[format].json` (i.e. `regex-matcher-header-v2.json`) contains matching rules
+in format presisted in Pact files. They can be loaded and added to any request, response or message.
 
-or
-
-- Twitter: [@pact_up](https://twitter.com/pact_up)
-- Stack Overflow: [stackoverflow.com/questions/tagged/pact](https://stackoverflow.com/questions/tagged/pact)
-
-## Licensing
-
-The code in this project is licensed under a MIT license. See [LICENSE](LICENSE).
+### All other files
+All other files will be used as data for the contents of requests, responses or messages. The content type will be derived from the file extension.
