@@ -184,7 +184,7 @@ impl Message {
     /// Constructs a `Message` from the `Json` struct.
     pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> anyhow::Result<Message> {
         match spec_version {
-            &PactSpecification::V3 => {
+            PactSpecification::V3 => {
                 let id = json.get("_id").map(|id| json_to_string(id));
                 let description = match json.get("description") {
                     Some(v) => match *v {
@@ -200,7 +200,6 @@ impl Message {
                   }).collect(),
                   _ => hashmap!{},
                 };
-              let mut body = body_from_json(json, "contents", &None);
               let content_type = metadata.iter()
                 .find(|(k, _)| {
                   let key = k.to_ascii_lowercase();
@@ -209,9 +208,17 @@ impl Message {
                 .map(|(_, v)| json_to_string(v))
                 .map(|s| ContentType::parse(s.as_str()).ok())
                 .flatten();
-              if let Some(ct) = content_type {
+
+              let body = if let Some(ct) = content_type {
+                let mut body = body_from_json(json, "contents", &Some(hashmap!{
+                  "content-type".to_string() => vec![ ct.to_string() ]
+                }));
                 body.set_content_type(&ct);
-              }
+                body
+              } else {
+                body_from_json(json, "contents", &None)
+              };
+
               Ok(Message {
                   id,
                   description,
