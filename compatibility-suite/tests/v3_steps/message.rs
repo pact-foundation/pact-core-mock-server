@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::panic::catch_unwind;
@@ -8,22 +9,34 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
+use itertools::Itertools;
+use lazy_static::lazy_static;
 use maplit::hashmap;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, JSON, XML};
 use pact_models::generators::Generators;
 use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
-use pact_models::pact::read_pact;
-use pact_models::PactSpecification;
+use pact_models::pact::{Pact, read_pact};
+use pact_models::{Consumer, PactSpecification, Provider};
+use pact_models::matchingrules::matchers_from_json;
 use pact_models::path_exp::DocPath;
+use pact_models::provider_states::ProviderState;
 use pact_models::xml_utils::parse_bytes;
 use serde_json::{json, Value};
 
 use pact_consumer::builders::{MessageInteractionBuilder, PactBuilder};
+use pact_matching::Mismatch;
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderTransport, VerificationOptions, verify_provider_async};
+use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
 use crate::shared_steps::{determine_content_type, element_text, IndexType};
+use crate::shared_steps::provider::MockProviderStateExecutor;
 use crate::v3_steps::generators::{as_json_pointer, assert_value_type};
+
+lazy_static!{
+  pub static ref MESSAGES: Arc<Mutex<HashMap<String, Message>>> = Arc::new(Mutex::new(hashmap![]));
+}
 
 #[derive(Debug, World)]
 pub struct V3MessageWorld {
@@ -32,7 +45,12 @@ pub struct V3MessageWorld {
   pub message_builder: MessageInteractionBuilder,
   pub received_messages: Vec<Message>,
   pub failed: Option<String>,
-  pub loaded_pact: MessagePact
+  pub loaded_pact: MessagePact,
+  pub message_proxy_port: u16,
+  pub provider_info: ProviderInfo,
+  pub sources: Vec<PactSource>,
+  pub provider_state_executor: Arc<MockProviderStateExecutor>,
+  pub verification_results: VerificationExecutionResult
 }
 
 impl Default for V3MessageWorld {
@@ -43,7 +61,12 @@ impl Default for V3MessageWorld {
       message_builder: MessageInteractionBuilder::new(""),
       received_messages: vec![],
       failed: None,
-      loaded_pact: MessagePact::default()
+      loaded_pact: MessagePact::default(),
+      message_proxy_port: 0,
+      provider_info: Default::default(),
+      sources: vec![],
+      provider_state_executor: Arc::new(Default::default()),
+      verification_results: VerificationExecutionResult::new(),
     }
   }
 }
@@ -552,5 +575,338 @@ pub fn setup_body(body: &String, httppart: &mut Message) {
       let body = Bytes::from(body.clone());
       httppart.contents = OptionalBody::Present(body, Some(content_type), None);
     }
+  }
+}
+
+// ----------------------------------------------------------------------
+// Provider steps
+// ----------------------------------------------------------------------
+
+#[given(expr = "a provider is started that can generate the {string} message with {string}")]
+#[allow(deprecated)]
+fn a_provider_is_started_that_can_generate_the_message(
+  world: &mut V3MessageWorld,
+  name: String,
+  fixture: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    .. Message::default()
+  };
+  setup_body(&fixture, &mut message);
+
+  {
+    let mut guard = MESSAGES.lock().unwrap();
+    guard.insert(key, message);
+  }
+
+  world.provider_info = ProviderInfo {
+    name: "p".to_string(),
+    host: "localhost".to_string(),
+    port: Some(world.message_proxy_port),
+    transports: vec![ProviderTransport {
+      port: Some(world.message_proxy_port),
+      .. ProviderTransport::default()
+    }],
+    .. ProviderInfo::default()
+  };
+}
+
+#[given(expr = "a Pact file for {string}:{string} is to be verified")]
+fn a_pact_file_for_is_to_be_verified(
+  world: &mut V3MessageWorld,
+  name: String,
+  fixture: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    .. Message::default()
+  };
+  setup_body(&fixture, &mut message);
+
+  let pact = MessagePact {
+    consumer: Consumer { name: "c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    messages: vec![ message ],
+    specification_version: PactSpecification::V3,
+    .. MessagePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V3).unwrap().to_string()));
+}
+
+#[given(expr = "a Pact file for {string}:{string} is to be verified with provider state {string}")]
+fn a_pact_file_for_is_to_be_verified_with_provider_state(
+  world: &mut V3MessageWorld,
+  name: String,
+  fixture: String,
+  state: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    provider_states: vec![ ProviderState::default(state) ],
+    .. Message::default()
+  };
+  setup_body(&fixture, &mut message);
+
+  let pact = MessagePact {
+    consumer: Consumer { name: "c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    messages: vec![ message ],
+    specification_version: PactSpecification::V3,
+    .. MessagePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V3).unwrap().to_string()));
+}
+
+#[given(expr = "a provider is started that can generate the {string} message with {string} and the following metadata:")]
+#[allow(deprecated)]
+fn a_provider_is_started_that_can_generate_the_message_with_the_following_metadata(
+  world: &mut V3MessageWorld,
+  step: &Step,
+  name: String,
+  fixture: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    .. Message::default()
+  };
+  setup_body(&fixture, &mut message);
+
+  if let Some(table) = &step.table {
+    for row in table.rows.iter().skip(1) {
+      let key = row[0].clone();
+      let value = row[1].clone();
+      if value.starts_with("JSON:") {
+        let json = serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value.as_str()).trim()).unwrap();
+        message.metadata.insert(key, json);
+      } else {
+        message.metadata.insert(key, Value::String(value));
+      };
+    }
+  }
+
+  {
+    let mut guard = MESSAGES.lock().unwrap();
+    guard.insert(key, message);
+  }
+
+  world.provider_info = ProviderInfo {
+    name: "p".to_string(),
+    host: "localhost".to_string(),
+    port: Some(world.message_proxy_port),
+    transports: vec![ProviderTransport {
+      port: Some(world.message_proxy_port),
+      .. ProviderTransport::default()
+    }],
+    .. ProviderInfo::default()
+  };
+}
+
+#[given(expr = "a Pact file for {string}:{string} is to be verified with the following metadata:")]
+fn a_pact_file_for_is_to_be_verified_with_the_following_metadata(
+  world: &mut V3MessageWorld,
+  step: &Step,
+  name: String,
+  fixture: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    .. Message::default()
+  };
+  setup_body(&fixture, &mut message);
+
+  if let Some(table) = &step.table {
+    for row in &table.rows {
+      let key = row[0].clone();
+      let value = row[1].clone();
+      if value.starts_with("JSON:") {
+        let json = serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value.as_str()).trim()).unwrap();
+        message.metadata.insert(key, json);
+      } else {
+        message.metadata.insert(key, Value::String(value));
+      };
+    }
+  }
+
+  let pact = MessagePact {
+    consumer: Consumer { name: "c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    messages: vec![ message ],
+    specification_version: PactSpecification::V3,
+    .. MessagePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V3).unwrap().to_string()));
+}
+
+#[given(expr = "a Pact file for {string} is to be verified with the following:")]
+fn a_pact_file_for_is_to_be_verified_with_the_following(
+  world: &mut V3MessageWorld,
+  step: &Step,
+  name: String
+) {
+  let key = format!("{}:{}", world.scenario_id, name);
+  let mut message = Message {
+    description: key.clone(),
+    .. Message::default()
+  };
+
+  if let Some(table) = &step.table {
+    for row in &table.rows {
+      match row[0].as_str() {
+        "body" => {
+          setup_body(&row[1], &mut message);
+        }
+        "matching rules" => {
+          let value = dbg!(&row[1]);
+          let json: Value = if value.starts_with("JSON:") {
+            serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap()
+          } else {
+            let f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
+              .expect(format!("could not load fixture '{}'", value).as_str());
+            let reader = BufReader::new(f);
+            serde_json::from_reader(reader).unwrap()
+          };
+          message.matching_rules = matchers_from_json(&json!({"matchingRules": json}), &None).unwrap();
+        }
+        "metadata" => {
+          for values in row[1].split(';').map(|v| v.trim().splitn(2, '=').collect_vec()) {
+            let key = values[0];
+            let value = values[1];
+            if value.starts_with("JSON:") {
+              let json = serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap();
+              message.metadata.insert(key.to_string(), json);
+            } else {
+              message.metadata.insert(key.to_string(), Value::String(value.to_string()));
+            };
+          }
+        }
+        _ => {}
+      }
+    }
+  }
+
+  let pact = MessagePact {
+    consumer: Consumer { name: "c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    messages: vec![ message ],
+    specification_version: PactSpecification::V3,
+    .. MessagePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V3).unwrap().to_string()));
+}
+
+#[given("a provider state callback is configured")]
+fn a_provider_state_callback_is_configured(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  world.provider_state_executor.set_fail_mode(false);
+  Ok(())
+}
+
+#[when("the verification is run")]
+async fn the_verification_is_run(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  world.verification_results = verify_provider_async(
+    world.provider_info.clone(),
+    world.sources.clone(),
+    FilterInfo::None,
+    vec![],
+    &VerificationOptions::<NullRequestFilterExecutor>::default(),
+    None,
+    &world.provider_state_executor,
+    None
+  ).await?;
+  Ok(())
+}
+
+#[then("the verification will be successful")]
+fn the_verification_will_be_successful(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  if world.verification_results.result {
+    Ok(())
+  } else {
+    Err(anyhow!("Verification failed"))
+  }
+}
+
+#[then("the verification will NOT be successful")]
+fn the_verification_will_not_be_successful(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  if world.verification_results.result {
+    Err(anyhow!("Was expecting the verification to fail"))
+  } else {
+    Ok(())
+  }
+}
+
+#[then("the provider state callback will be called before the verification is run")]
+fn the_provider_state_callback_will_be_called_before_the_verification_is_run(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called(true) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback was not called"))
+  }
+}
+
+#[then("the provider state callback will be called after the verification is run")]
+fn the_provider_state_callback_will_be_called_after_the_verification_is_run(world: &mut V3MessageWorld) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called(false) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback teardown was not called"))
+  }
+}
+
+#[then(expr = "the provider state callback will receive a setup call with {string} as the provider state parameter")]
+fn the_provider_state_callback_will_receive_a_setup_call_with_as_the_provider_state_parameter(
+  world: &mut V3MessageWorld,
+  state: String
+) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called_for_state(state.as_str(), true) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback was not called for state '{}'", state))
+  }
+}
+
+#[then(expr = "the provider state callback will receive a teardown call {string} as the provider state parameter")]
+fn the_provider_state_callback_will_receive_a_teardown_call_as_the_provider_state_parameter(
+  world: &mut V3MessageWorld,
+  state: String
+) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called_for_state(state.as_str(), false) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state teardown callback was not called for state '{}'", state))
+  }
+}
+
+#[then(expr = "the verification results will contain a {string} error")]
+fn the_verification_results_will_contain_a_error(world: &mut V3MessageWorld, err: String) -> anyhow::Result<()> {
+  if world.verification_results.errors.iter().any(|(_, r)| {
+    match r {
+      VerificationMismatchResult::Mismatches { mismatches, .. } => {
+        mismatches.iter().any(|mismatch| {
+          match mismatch {
+            Mismatch::MethodMismatch { .. } => false,
+            Mismatch::PathMismatch { .. } => false,
+            Mismatch::StatusMismatch { .. } => err == "Response status did not match",
+            Mismatch::QueryMismatch { .. } => false,
+            Mismatch::HeaderMismatch { .. } => err == "Headers had differences",
+            Mismatch::BodyTypeMismatch { .. } => false,
+            Mismatch::BodyMismatch { .. } => err == "Body had differences",
+            Mismatch::MetadataMismatch { .. } => err == "Metadata had differences"
+          }
+        })
+      }
+      VerificationMismatchResult::Error { error, .. } => match err.as_str() {
+        "State change request failed" => error == "One or more of the setup state change handlers has failed",
+        _ => error.as_str() == err
+      }
+    }
+  }) {
+    Ok(())
+  } else {
+    Err(anyhow!("Did not find error message in verification results"))
   }
 }
