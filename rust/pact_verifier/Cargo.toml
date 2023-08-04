@@ -36,7 +36,7 @@ lazy_static = "1.4.0"
 maplit = "1.0.2"
 mime = "0.3.16"
 pact_matching = { version = "~1.1.4", path = "../pact_matching", default-features = false }
-pact_models = { version = "~1.1.9", default-features = false }
+pact_models = { version = "~1.1.10", default-features = false }
 pact-plugin-driver = { version = "~0.4.5", optional = true, default-features = false }
 regex = "1.7.0"
 serde = "1.0.147"

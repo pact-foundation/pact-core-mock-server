@@ -538,9 +538,7 @@ async fn verify_message_pact_with_two_interactions() {
       i.request.method("POST");
       i.request.path("/");
 
-      i.response.ok().content_type("application/json").json_body(json_pattern!({
-        "result": "hello"
-      }));
+      i.response.ok().content_type("application/json").json_body(json_pattern!("Hello"));
 
       i
     })
@@ -649,21 +647,14 @@ async fn verify_message_pact_with_two_interactions() {
           "testResults": [
             {
               "interactionId": "message-one",
-              "mismatches": [
-                {
-                  "attribute":"body",
-                  "description":"Failed to parse the expected body: 'expected value at line 1 column 1'",
-                  "identifier":"$"
-                }
-              ],
-              "success": false
+              "success": true
             },
             {
               "interactionId": "message-two",
               "mismatches": [
                 {
                   "attribute":"body",
-                  "description":"Failed to parse the expected body: 'expected value at line 1 column 1'",
+                  "description":"Expected 'Hello' (String) to be equal to 'Hello2' (String)",
                   "identifier":"$"
                 }
               ],

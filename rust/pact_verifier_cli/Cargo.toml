@@ -29,7 +29,7 @@ env_logger = "0.10.0"
 junit-report = { version = "0.8.2", optional = true }
 log = "0.4.17"
 maplit = "1.0.2"
-pact_models = { version = "~1.1.9", default-features = false }
+pact_models = { version = "~1.1.10", default-features = false }
 pact_verifier = { version = "~1.0.2", path = "../pact_verifier", default-features = false }
 regex = "1.7.3"
 reqwest = { version = "0.11.16", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
