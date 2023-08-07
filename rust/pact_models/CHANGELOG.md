@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.11 - Maintenance Release
+
+* 86da370f - feat(pact_models): Add functions for dealing with different header key case with V4 req/res models (Ronald Holshausen, Mon Aug 7 11:49:22 2023 +1000)
+* 2b97c737 - bump version to 1.1.11 (Ronald Holshausen, Fri Aug 4 15:43:39 2023 +1000)
+
 # 1.1.10 - Bugfix Release
 
 * a03fc5f0 - fix: V3 message binary content was not being base64 decoded correctly when loaded from a Pact file (Ronald Holshausen, Fri Aug 4 15:41:38 2023 +1000)
