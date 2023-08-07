@@ -190,9 +190,9 @@ pub struct InteractionHandle {
 /// Request or Response enum
 pub enum InteractionPart {
   /// Request part
-  Request,
+  Request = 0,
   /// Response part
-  Response
+  Response = 1
 }
 
 impl PactHandle {
@@ -1110,6 +1110,8 @@ pub extern fn pactffi_with_header(
 /// ```
 /// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 ///
+/// NOTE: If you pass in a form with multiple values, the index will be ignored.
+///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
 #[no_mangle]
@@ -1124,11 +1126,6 @@ pub extern fn pactffi_with_header_v2(
     let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, mock_server_started, inner| {
       if let Some(reqres) = inner.as_v4_http_mut() {
-        let headers = match part {
-          InteractionPart::Request => reqres.request.headers.clone(),
-          InteractionPart::Response => reqres.response.headers.clone()
-        };
-
         let mut path = DocPath::root();
         path.push_field(name);
 
@@ -1152,40 +1149,94 @@ pub extern fn pactffi_with_header_v2(
         };
 
         debug!("parsed header value: {:?}", value);
-        let updated_headers = headers.map(|mut h| {
-          let entry = h.entry(name.to_string()).or_default();
-          match &value {
-            Either::Left(value) => {
-              if index > 0 {
-                if index >= entry.len() {
-                  entry.resize_with(index + 1, Default::default);
+        match &value {
+          Either::Left(value) => {
+            // Single value, either as a single JSON string or a simple String
+            trace!("Single header value received");
+            let headers = match part {
+              InteractionPart::Request => reqres.request.headers_mut(),
+              InteractionPart::Response => reqres.response.headers_mut()
+            };
+            // Lookup any exiting key in the map. May have a different case
+            trace!("Existing header keys = {:?}", headers.keys());
+            let name_lookup = name.to_lowercase();
+            let header_key = headers.iter()
+              .find(|(k, _v)| k.to_lowercase() == name_lookup)
+              .map(|(k, _v)| k.clone());
+            if index > 0 {
+              // Index is set, so we set that value to the string provided
+              trace!("Index {} is set >0, so we set that value to the string provided", index);
+              match &header_key {
+                Some(key) => {
+                  trace!("Existing key found '{}'", key);
+                  let values = headers.get_mut(key).unwrap();
+                  if index >= values.len() {
+                    values.resize_with(index + 1, Default::default);
+                  }
+                  values[index] = value.clone();
+                },
+                None => {
+                  // No existing key found, user may have called the API out of order
+                  trace!("No existing key found");
+                  let mut values = Vec::new();
+                  values.resize_with(index + 1, Default::default);
+                  values[index] = value.clone();
+                  headers.insert(name.to_string(), values);
                 }
-                entry[index] = value.clone();
-              } else {
-                entry.extend(parse_header(name, value));
-              }
-            }
-            Either::Right(values) => {
-              entry.extend_from_slice(values);
+              };
+            } else {
+              // Index is zero, so we need to try parse the header value into an array (See #300)
+              trace!("Index is 0");
+              match &header_key {
+                Some(key) => {
+                  // Exiting key, we need to merge with what is there
+                  trace!("Existing key found '{}'", key);
+                  let header_values = parse_header(key.as_str(), value.as_str());
+                  let values = headers.get_mut(key).unwrap();
+                  if values.is_empty() {
+                    // No existing values, easy case, we just put what we have
+                    values.extend_from_slice(header_values.as_slice());
+                  } else {
+                    if header_values.is_empty() {
+                      // User passed in an empty value, so we just set an empty value.
+                      trace!("Passed in value is empty");
+                      values[0] = String::default();
+                    } else if header_values.len() == 1 {
+                      trace!("Single passed in value '{}'", value);
+                      // User passed in a value that resolved to a single value, we just replace
+                      // the value at index 0. This is probably the most common case.
+                      values[0] = value.clone();
+                    } else {
+                      // User passed in a value that resolved to multiple values.
+                      // This is the confusing case, there are existing values, and more values
+                      // have been provided. Do we merge or replace them?
+                      // Assuming the user meant to replace them.
+                      trace!("Multiple passed in values {:?}", header_values);
+                      values.clear();
+                      values.extend_from_slice(header_values.as_slice());
+                    }
+                  };
+                },
+                None => {
+                  // No existing key, easy case, we just put what we have
+                  let header_values = parse_header(name, value.as_str());
+                  trace!("No existing key found, setting header '{}' = {:?}", name, header_values);
+                  headers.insert(name.to_string(), header_values);
+                }
+              };
             }
           }
-          h
-        }).or_else(|| {
-          let values = match &value {
-            Either::Left(value) => if index == 0 {
-              parse_header(name, value)
-            } else {
-              vec![value.clone()]
-            },
-            Either::Right(values) => values.clone()
-          };
-          Some(hashmap! { name.to_string() => values })
-        });
-
-        match part {
-          InteractionPart::Request => reqres.request.headers = updated_headers,
-          InteractionPart::Response => reqres.response.headers = updated_headers
+          Either::Right(values) => {
+            // Multiple values passed via a JSON array, so we just replace the values.
+            trace!("Multiple header values received");
+            let values: Vec<_> = values.iter().map(|v| v.as_str()).collect();
+            match part {
+              InteractionPart::Request => reqres.request.set_header(name, values.as_slice()),
+              InteractionPart::Response => reqres.response.set_header(name, values.as_slice())
+            };
+          }
         };
+
         !mock_server_started
       } else {
         error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
@@ -1194,6 +1245,50 @@ pub extern fn pactffi_with_header_v2(
     }).unwrap_or(false)
   } else {
     warn!("Ignoring header with empty or null name");
+    false
+  }
+}
+
+ffi_fn! {
+  /// Sets a header for the Interaction. Returns false if the interaction or Pact can't be
+  /// modified (i.e. the mock server for it has already started). Note that this function will
+  /// overwrite any previously set header values. Also, this function will not process the value in
+  /// any way, so matching rules and generators can not be configured with it.
+  ///
+  /// If matching rules are required to be set, use `pactffi_with_header_v2`.
+  ///
+  /// * `part` - The part of the interaction to add the header to (Request or Response).
+  /// * `name` - the header name.
+  /// * `value` - the header value.
+  ///
+  /// # Safety
+  /// The name and value parameters must be valid pointers to NULL terminated strings.
+  fn pactffi_set_header(
+    interaction: InteractionHandle,
+    part: InteractionPart,
+    name: *const c_char,
+    value: *const c_char
+  ) -> bool {
+    if let Some(name) = convert_cstr("name", name) {
+      let value = convert_cstr("value", value).unwrap_or_default();
+      interaction.with_interaction(&|_, mock_server_started, inner| {
+        if let Some(reqres) = inner.as_v4_http_mut() {
+          match part {
+            InteractionPart::Request => reqres.request.set_header(name, &[value]),
+            InteractionPart::Response => reqres.response.set_header(name, &[value])
+          };
+
+          !mock_server_started
+        } else {
+          error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+          false
+        }
+      }).unwrap_or(false)
+    } else {
+      warn!("Ignoring header with empty or null name");
+      false
+    }
+  } {
     false
   }
 }
@@ -2209,7 +2304,7 @@ mod tests {
   }
 
   #[test]
-  fn simple_header() {
+  fn pactffi_with_header_v2_simple_header() {
     let pact_handle = PactHandle::new("TestHC1", "TestHP");
     let description = CString::new("simple_header").unwrap();
     let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
@@ -2228,6 +2323,78 @@ mod tests {
       "x-id".to_string() => vec!["100".to_string()]
     }));
     expect!(interaction.request.matching_rules.rules.get(&Category::HEADER).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn pactffi_set_header_simple_header() {
+    let pact_handle = PactHandle::new("TestHC1", "TestHP");
+    let description = CString::new("simple_header").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_set_header(handle, InteractionPart::Request, name.as_ptr(), value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["100".to_string()]
+    }));
+  }
+
+  #[test]
+  fn pactffi_with_header_v2_different_case() {
+    let pact_handle = PactHandle::new("TestHC1", "TestHP");
+    let description = CString::new("simple_header").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let name = CString::new("X-Id").unwrap();
+    let value = CString::new("200").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["200".to_string()]
+    }));
+    expect!(interaction.request.matching_rules.rules.get(&Category::HEADER).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn pactffi_set_header_different_case() {
+    let pact_handle = PactHandle::new("TestHC1", "TestHP");
+    let description = CString::new("simple_header").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_set_header(handle, InteractionPart::Request, name.as_ptr(), value.as_ptr());
+
+    let name = CString::new("X-Id").unwrap();
+    let value = CString::new("300").unwrap();
+    pactffi_set_header(handle, InteractionPart::Request, name.as_ptr(), value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["300".to_string()]
+    }));
   }
 
   #[test]
@@ -2329,6 +2496,35 @@ mod tests {
         "text/plain".to_string(),
         "*/*".to_string()
       ]
+    }));
+  }
+
+  #[test]
+  fn pactffi_with_header_v2_incorrect_order() {
+    let pact_handle = PactHandle::new("TestHC1", "TestHP");
+    let description = CString::new("simple_header").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("200").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 1, value.as_ptr());
+
+    let name = CString::new("X-Id").unwrap();
+    let value = CString::new("300").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 2, value.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["100".to_string(), "200".to_string(), "300".to_string()]
     }));
   }
 
