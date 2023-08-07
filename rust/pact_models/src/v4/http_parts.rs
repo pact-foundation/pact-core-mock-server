@@ -1,5 +1,6 @@
 //! V4 specification models - HTTP parts for SynchronousHttp
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
@@ -135,6 +136,53 @@ impl HttpRequest {
   /// Otherwise, the body will be inspected.
   pub fn content_type(&self) -> Option<ContentType> {
     calc_content_type(&self.body, &self.headers)
+  }
+
+  /// Sets a header value. This will replace any existing header value. This will do a
+  /// case-insensitive search. Note that the original case of the header will be retained.
+  /// For example:
+  /// ```rust
+  /// use pact_models::v4::http_parts::HttpRequest;
+  /// let mut request = HttpRequest::default();
+  /// request.set_header("x-test", &["value"]);
+  /// request.set_header("X-Test", &["value2"]);
+  /// // Header will now be "x-test: value2"
+  /// ```
+  pub fn set_header<H: Into<String> + Clone>(&mut self, name: H, value: &[H]) {
+    let key = name.into();
+    let value: Vec<_> = value.iter().cloned().map(|v| v.into()).collect();
+    match self.header_entry(key) {
+      Entry::Occupied(mut entry) => {
+        *entry.get_mut() = value;
+      }
+      Entry::Vacant(entry) => {
+        entry.insert(value);
+      }
+    }
+  }
+
+  /// Returns the entry for a header key. This will do a case-insensitive search. Note that the
+  /// original case of the header will be retained.
+  fn header_entry<H: Into<String>>(&mut self, header_name: H) -> Entry<String, Vec<String>> {
+    let header_name = header_name.into();
+    if let Some(key) = self.lookup_header_key(header_name.as_str()) {
+      let headers = self.headers_mut();
+      headers.entry(key)
+    } else {
+      let headers = self.headers_mut();
+      headers.entry(header_name)
+    }
+  }
+
+  /// Case-insensitive search for a header name
+  fn lookup_header_key<H: Into<String>>(&self, header_name: H) -> Option<String> {
+    let name = header_name.into().to_lowercase();
+    match self.headers {
+      Some(ref h) => h.iter()
+        .find(|(k, _v)| k.to_lowercase() == name)
+        .map(|(k, _v)| k.clone()),
+      None => None
+    }
   }
 }
 
@@ -514,6 +562,53 @@ impl HttpResponse {
   /// If this response represents a success (status code < 400)
   pub fn is_success(&self) -> bool {
     self.status < 400
+  }
+
+  /// Sets a header value. This will replace any existing header value. This will do a
+  /// case-insensitive search. Note that the original case of the header will be retained.
+  /// For example:
+  /// ```rust
+  /// use pact_models::v4::http_parts::HttpResponse;
+  /// let mut response = HttpResponse::default();
+  /// response.set_header("x-test", &["value"]);
+  /// response.set_header("X-Test", &["value2"]);
+  /// // Header will now be "x-test: value2"
+  /// ```
+  pub fn set_header<H: Into<String> + Clone>(&mut self, name: H, value: &[H]) {
+    let key = name.into();
+    let value: Vec<_> = value.iter().cloned().map(|v| v.into()).collect();
+    match self.header_entry(key) {
+      Entry::Occupied(mut entry) => {
+        *entry.get_mut() = value;
+      }
+      Entry::Vacant(entry) => {
+        entry.insert(value);
+      }
+    }
+  }
+
+  /// Returns the entry for a header key. This will do a case-insensitive search. Note that the
+  /// original case of the header will be retained.
+  fn header_entry<H: Into<String>>(&mut self, header_name: H) -> Entry<String, Vec<String>> {
+    let header_name = header_name.into();
+    if let Some(key) = self.lookup_header_key(header_name.as_str()) {
+      let headers = self.headers_mut();
+      headers.entry(key)
+    } else {
+      let headers = self.headers_mut();
+      headers.entry(header_name)
+    }
+  }
+
+  /// Case-insensitive search for a header name
+  fn lookup_header_key<H: Into<String>>(&self, header_name: H) -> Option<String> {
+    let name = header_name.into().to_lowercase();
+    match self.headers {
+      Some(ref h) => h.iter()
+        .find(|(k, _v)| k.to_lowercase() == name)
+        .map(|(k, _v)| k.clone()),
+      None => None
+    }
   }
 }
 
@@ -1168,5 +1263,85 @@ mod tests {
     assert_ne!(r1, r7);
     assert_ne!(r2, r1);
     assert_ne!(r2, r7);
+  }
+
+  #[test]
+  fn http_request_set_header_with_no_headers_set() {
+    let mut request = HttpRequest::default();
+    request.set_header("x-test", &["value"]);
+
+    expect!(request.headers).to(be_some().value(hashmap! {
+      "x-test".to_string() => vec!["value".to_string()]
+    }));
+  }
+
+  #[test]
+  fn http_request_set_header_with_a_headers_set() {
+    let mut request = HttpRequest {
+      headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    request.set_header("Content-Type", &["application/xml"]);
+
+    expect!(request.headers).to(be_some().value(hashmap! {
+      "Content-Type".to_string() => vec!["application/xml".to_string()]
+    }));
+  }
+
+  #[test]
+  fn http_request_set_header_with_a_headers_set_and_different_case() {
+    let mut request = HttpRequest {
+      headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    request.set_header("content-type", &["application/xml"]);
+
+    expect!(request.headers).to(be_some().value(hashmap! {
+      "Content-Type".to_string() => vec!["application/xml".to_string()]
+    }));
+  }
+
+  #[test]
+  fn http_response_set_header_with_no_headers_set() {
+    let mut response = HttpResponse::default();
+    response.set_header("x-test", &["value"]);
+
+    expect!(response.headers).to(be_some().value(hashmap! {
+      "x-test".to_string() => vec!["value".to_string()]
+    }));
+  }
+
+  #[test]
+  fn http_response_set_header_with_a_headers_set() {
+    let mut response = HttpResponse {
+      headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+      }),
+      .. HttpResponse::default()
+    };
+    response.set_header("Content-Type", &["application/xml"]);
+
+    expect!(response.headers).to(be_some().value(hashmap! {
+      "Content-Type".to_string() => vec!["application/xml".to_string()]
+    }));
+  }
+
+  #[test]
+  fn http_response_set_header_with_a_headers_set_and_different_case() {
+    let mut response = HttpResponse {
+      headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+      }),
+      .. HttpResponse::default()
+    };
+    response.set_header("content-type", &["application/xml"]);
+
+    expect!(response.headers).to(be_some().value(hashmap! {
+      "Content-Type".to_string() => vec!["application/xml".to_string()]
+    }));
   }
 }
