@@ -980,7 +980,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             info!("Pact file requires plugins, will load those now");
             for plugin_details in pact.plugin_data() {
               let version = plugin_details.version.split('.')
-                .take(2)
+                .take(3)
                 .join(".");
               load_plugin(&PluginDependency {
                 name: plugin_details.name.clone(),
