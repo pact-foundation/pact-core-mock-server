@@ -118,7 +118,7 @@ use libc::{c_char, c_int, c_uint, c_ushort, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::{ContentType, JSON, TEXT, XML};
+use pact_models::content_types::{ContentType, detect_content_type_from_string, JSON, TEXT, XML};
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
@@ -1349,6 +1349,7 @@ pub extern fn pactffi_with_body(
     if let Some(reqres) = inner.as_v4_http_mut() {
       match part {
         InteractionPart::Request => {
+          trace!("Setting up the request body");
           if !reqres.request.has_header(&content_type_header) {
             match reqres.request.headers {
               Some(ref mut headers) => {
@@ -1364,15 +1365,31 @@ pub extern fn pactffi_with_body(
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.request.generators)),
                                   Some(ContentType::parse(content_type).unwrap()), None)
           } else if reqres.request.content_type().unwrap_or_default().is_xml() {
-            let category = reqres.request.matching_rules.add_category("body");
-            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
-                                  Some(XML.clone()), None)
+            // Try detect the intermediate JSON format
+            trace!("Content type is XML, try sniff the provided body format");
+            if let Some(ct) = detect_content_type_from_string(body) {
+              trace!("Detected body body format is {}", ct);
+              if ct.is_json() {
+                // Process the intermediate JSON into XML
+                trace!("Body is in JSON format, processing the intermediate JSON into XML");
+                let category = reqres.request.matching_rules.add_category("body");
+                OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
+                                      Some(XML.clone()), None)
+              } else {
+                // Assume raw XML
+                OptionalBody::from(body)
+              }
+            } else {
+              // Assume raw XML
+              OptionalBody::from(body)
+            }
           } else {
             OptionalBody::from(body)
           };
           reqres.request.body = body;
         },
         InteractionPart::Response => {
+          trace!("Setting up the response body");
           if !reqres.response.has_header(&content_type_header) {
             match reqres.response.headers {
               Some(ref mut headers) => {
@@ -1388,9 +1405,24 @@ pub extern fn pactffi_with_body(
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.response.generators)),
                                   Some(JSON.clone()), None)
           } else if reqres.response.content_type().unwrap_or_default().is_xml() {
-            let category = reqres.response.matching_rules.add_category("body");
-            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.response.generators).unwrap_or(vec![])),
-                                  Some(XML.clone()), None)
+            trace!("Content type is XML, try sniff the provided body format");
+            // Try detect the intermediate JSON format
+            if let Some(ct) = detect_content_type_from_string(body) {
+              trace!("Detected body body format is {}", ct);
+              if ct.is_json() {
+                // Process the intermediate XML into JSON
+                trace!("Body is in JSON format, processing the intermediate JSON into XML");
+                let category = reqres.response.matching_rules.add_category("body");
+                OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.response.generators).unwrap_or(vec![])),
+                                      Some(XML.clone()), None)
+              } else {
+                // Assume raw XML
+                OptionalBody::from(body)
+              }
+            } else {
+              // Assume raw XML
+              OptionalBody::from(body)
+            }
           } else {
             OptionalBody::from(body)
           };
@@ -2620,6 +2652,7 @@ mod tests {
     expect!(body3.len()).to(be_equal_to(json.len()));
     expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
   }
+
   #[test]
   fn pactffi_with_body_for_non_default_json_test() {
     let pact_handle = PactHandle::new("WithBodyC", "WithBodyP");
@@ -2820,5 +2853,57 @@ mod tests {
     expect!(keys).to(be_equal_to(vec!["two"]));
     let keys: Vec<&String> = state_3.params.keys().collect();
     expect!(keys).to(be_equal_to(vec!["one"]));
+  }
+
+  #[test]
+  fn pactffi_with_xml_body_test() {
+    let pact_handle = PactHandle::new("XMLC", "XMLP");
+    let description = CString::new("XML interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let ct = CString::new(XML.to_string()).unwrap();
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <projects>
+    <item>
+    <id>1</id>
+    <tasks>
+        <item>
+            <id>1</id>
+            <name>Do the laundry</name>
+            <done>true</done>
+        </item>
+        <item>
+            <id>2</id>
+            <name>Do the dishes</name>
+            <done>false</done>
+        </item>
+        <item>
+            <id>3</id>
+            <name>Do the backyard</name>
+            <done>false</done>
+        </item>
+        <item>
+            <id>4</id>
+            <name>Do nothing</name>
+            <done>false</done>
+        </item>
+    </tasks>
+    </item>
+    </projects>"#;
+    let body = CString::new(xml).unwrap();
+    let result = pactffi_with_body(i_handle, InteractionPart::Request, ct.as_ptr(), body.as_ptr());
+
+    let interaction = i_handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(result).to(be_true());
+
+    let body = interaction.request.body.value().unwrap();
+    expect!(body.len()).to(be_equal_to(xml.len()));
+    let headers = interaction.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&XML.to_string()));
   }
 }
