@@ -28,13 +28,24 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
     })
 }
 
-pub(crate) fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Result<(), Vec<String>> {
+pub(crate) fn match_parameter_header(
+  expected: &str,
+  actual: &str,
+  header: &str,
+  value_type: &str,
+  index: usize,
+  single_value: bool
+) -> Result<(), Vec<String>> {
   let expected_values: Vec<&str> = strip_whitespace(expected, ";");
   let actual_values: Vec<&str> = strip_whitespace(actual, ";");
 
   let expected_parameters = expected_values.as_slice().split_first().unwrap_or((&"", &[]));
   let actual_parameters = actual_values.as_slice().split_first().unwrap_or((&"", &[]));
-  let header_mismatch = format!("Expected {} '{}' to have value '{}' but was '{}'", value_type, header, expected, actual);
+  let header_mismatch = if single_value {
+    format!("Expected {} '{}' to have value '{}' but was '{}'", value_type, header, expected, actual)
+  } else {
+    format!("Expected {} '{}' at index {} to have value '{}' but was '{}'", value_type, header, index, expected, actual)
+  };
 
   let mut mismatches = vec![];
   if expected_parameters.0 == actual_parameters.0 {
@@ -89,7 +100,7 @@ pub(crate) fn match_header_value(
       result.map_err(|err| err.iter().map(|e| format!("{} for value at index {}", e, index)).collect())
     }
   } else if PARAMETERISED_HEADERS.contains(&key.to_lowercase().as_str()) {
-    match_parameter_header(expected, actual, key, "header")
+    match_parameter_header(expected, actual, key, "header", index, single_value)
   } else {
     Matches::matches_with(&expected.to_string(), &actual.to_string(), &MatchingRule::Equality, false)
       .map_err(|err| {
@@ -139,7 +150,9 @@ fn match_header_maps(
         // Special case when the headers only have 1 value to improve messaging
         if value.len() == 1 && actual_values.len() == 1 {
           let comparison_result = match_header_value(key, 0, value.first().unwrap(),
-            actual_values.first().unwrap(), context, true).err().unwrap_or_default();
+            actual_values.first().unwrap(), context, true)
+            .err()
+            .unwrap_or_default();
           mismatches.extend(comparison_result.iter().cloned());
         } else {
           let empty = String::new();
@@ -148,7 +161,9 @@ fn match_header_maps(
             .enumerate() {
             if let Some(actual_value) = actual_values.get(index) {
               let comparison_result = match_header_value(key, index, val,
-                actual_value, context, false).err().unwrap_or_default();
+                actual_value, context, false)
+                .err()
+                .unwrap_or_default();
               mismatches.extend(comparison_result.iter().cloned());
             } else {
               mismatches.push(Mismatch::HeaderMismatch {
@@ -200,6 +215,7 @@ mod tests {
   use maplit::*;
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
+  use pretty_assertions::assert_eq;
 
   use crate::{CoreMatchingContext, DiffConfig, HeaderMatchingContext, Mismatch};
   use crate::headers::{match_header_value, match_headers, parse_charset_parameters};
@@ -634,5 +650,15 @@ mod tests {
     let actual = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:52 GMT".to_string()]};
     let result = match_headers(Some(expected), Some(actual), &context);
     expect!(result.values().flatten()).to(be_empty());
+  }
+
+    // Issue #305
+  #[test_log::test]
+  fn content_type_header_mismatch_when_multiple_values() {
+    let result = match_header_value("CONTENT-TYPE", 1, "application/json;charset=UTF-8",
+      "application/xml;charset=UTF-8", &CoreMatchingContext::default(), false
+    );
+      let mismatches = result.unwrap_err();
+      assert_eq!(mismatches[0].description(), "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' at index 1 to have value 'application/json;charset=UTF-8' but was 'application/xml;charset=UTF-8'");
   }
 }

@@ -1756,8 +1756,8 @@ fn match_metadata_value(
     match_values(&path, &context.select_best_matcher(&path), expected, actual)
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
-    headers::match_parameter_header(expected.as_str().unwrap_or_default(),
-                                    actual.as_str().unwrap_or_default(), key, "metadata")
+    headers::match_parameter_header(expected.as_str().unwrap_or_default(), actual.as_str().unwrap_or_default(),
+      key, "metadata", 0, true)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
