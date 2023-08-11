@@ -44,7 +44,7 @@ fn a_request_configured_with_the_following_generators(world: &mut V3World, step:
     for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
       if let Some(field) = headers.get(index) {
         match field.as_str() {
-          "body" => setup_body(value, &mut request),
+          "body" => setup_body(value, &mut request, None),
           "generators" => {
             let json: Value = if value.starts_with("JSON:") {
               serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap()
@@ -77,7 +77,7 @@ fn a_response_configured_with_the_following_generators(world: &mut V3World, step
     for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
       if let Some(field) = headers.get(index) {
         match field.as_str() {
-          "body" => setup_body(value, &mut response),
+          "body" => setup_body(value, &mut response, None),
           "generators" => {
             let json: Value = if value.starts_with("JSON:") {
               serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap()

@@ -267,7 +267,7 @@ impl Matches<&str> for &str {
         if actual == "true" || actual == "false" {
           Ok(())
         } else {
-          Err(anyhow!("Expected '{}' to match a boolean", actual))
+          Err(anyhow!("Expected '{}' (String) to match a boolean", actual))
         }
       }
       MatchingRule::StatusCode(status) => {

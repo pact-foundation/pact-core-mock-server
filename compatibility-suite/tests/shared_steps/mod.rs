@@ -94,7 +94,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
 
     if let Some(index) = headers.get("body") {
       if let Some(body) = values.get(*index) {
-        setup_body(body, &mut interaction.request);
+        setup_body(body, &mut interaction.request, None);
       }
     }
 
@@ -136,7 +136,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
     if let Some(index) = headers.get("response body") {
       if let Some(body) = values.get(*index) {
         if !body.is_empty() {
-          setup_body(body, &mut interaction.response);
+          setup_body(body, &mut interaction.response, None);
         }
       }
     }
@@ -158,7 +158,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
   interactions
 }
 
-pub fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
+pub fn setup_body(body: &String, httppart: &mut dyn HttpPart, content_type: Option<&str>) {
   if !body.is_empty() {
     if body.starts_with("JSON:") {
       httppart.add_header("content-type", vec!["application/json"]);
@@ -185,7 +185,8 @@ pub fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
         *httppart.body_mut() = OptionalBody::Present(Bytes::from(element_text(body_node, "contents").unwrap_or_default()),
           ContentType::parse(content_type.as_str()).ok(), None);
       } else {
-        let content_type = determine_content_type(body, httppart);
+        let content_type = content_type.map(|ct| ContentType::from(ct))
+          .unwrap_or_else(|| determine_content_type(body, httppart));
         httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
 
         let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
@@ -198,7 +199,8 @@ pub fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
           Some(content_type), None);
       }
     } else {
-      let content_type = determine_content_type(body, httppart);
+      let content_type = content_type.map(|ct| ContentType::from(ct))
+        .unwrap_or_else(|| determine_content_type(body, httppart));
       httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
       let body = Bytes::from(body.clone());
       *httppart.body_mut() = OptionalBody::Present(body, Some(content_type), None);

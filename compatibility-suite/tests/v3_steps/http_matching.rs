@@ -47,27 +47,30 @@ fn a_request_is_received_with_a_header_of(world: &mut V3World, header: String, v
 fn an_expected_request_configured_with_the_following(world: &mut V3World, step: &Step) {
   if let Some(table) = step.table.as_ref() {
     let headers = table.rows.first().unwrap();
+    let mut data = hashmap!{};
     for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
       if let Some(field) = headers.get(index) {
-        match field.as_str() {
-          "body" => setup_body(value, &mut world.expected_request),
-          "matching rules" => {
-            let json: Value = if value.starts_with("JSON:") {
-              serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap()
-            } else {
-              let f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
-                .expect(format!("could not load fixture '{}'", value).as_str());
-              let reader = BufReader::new(f);
-              serde_json::from_reader(reader).unwrap()
-            };
-            world.expected_request.matching_rules = matchers_from_json(&json!({
+        data.insert(field.as_str(), value);
+      }
+    }
+
+    if let Some(body) = data.get("body") {
+      setup_body(body, &mut world.expected_request, data.get("content type").map(|ct| ct.as_str()));
+    }
+
+    if let Some(value) = data.get("matching rules") {
+      let json: Value = if value.starts_with("JSON:") {
+        serde_json::from_str(value.strip_prefix("JSON:").unwrap_or(value).trim()).unwrap()
+      } else {
+        let f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
+          .expect(format!("could not load fixture '{}'", value).as_str());
+        let reader = BufReader::new(f);
+        serde_json::from_reader(reader).unwrap()
+      };
+      world.expected_request.matching_rules = matchers_from_json(&json!({
               "matchingRules": json
             }), &None)
-              .expect("Matching rules fixture is not valid JSON");
-          }
-          _ => {}
-        }
-      }
+        .expect("Matching rules fixture is not valid JSON");
     }
   }
 }
@@ -77,13 +80,15 @@ fn a_request_is_received_with_the_following(world: &mut V3World, step: &Step) {
   let mut request = Request::default();
   if let Some(table) = step.table.as_ref() {
     let headers = table.rows.first().unwrap();
+    let mut data = hashmap!{};
     for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
       if let Some(field) = headers.get(index) {
-        match field.as_str() {
-          "body" => setup_body(value, &mut request),
-          _ => {}
-        }
+        data.insert(field.as_str(), value);
       }
+    }
+
+    if let Some(body) = data.get("body") {
+      setup_body(body, &mut request, data.get("content type").map(|ct| ct.as_str()));
     }
   }
   world.received_requests.push(request);
@@ -98,7 +103,7 @@ fn the_following_requests_are_received(world: &mut V3World, step: &Step) {
       for (index, value) in row.iter().enumerate() {
         if let Some(field) = headers.get(index) {
           match field.as_str() {
-            "body" => setup_body(value, &mut request),
+            "body" => setup_body(value, &mut request, None),
             _ => {}
           }
         }

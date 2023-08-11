@@ -264,9 +264,9 @@ impl Matches<&Value> for Value {
         Value::String(val) => if val == "true" || val == "false" {
           Ok(())
         } else {
-          Err(anyhow!("Expected {} to match a boolean", value_of(actual)))
+          Err(anyhow!("Expected {} ({}) to match a boolean", value_of(actual), type_of(actual)))
         }
-        _ => Err(anyhow!("Expected {} to match a boolean", value_of(actual)))
+        _ => Err(anyhow!("Expected {} ({}) to match a boolean", value_of(actual), type_of(actual)))
       }
       MatchingRule::NotEmpty => match actual {
         Value::Null => Err(anyhow!("Expected non-empty but got a NULL")),

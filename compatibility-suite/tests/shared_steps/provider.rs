@@ -320,7 +320,7 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction_with_t
             }
           },
           "body" => {
-            setup_body(value, &mut interaction.response);
+            setup_body(value, &mut interaction.response, None);
           },
           _ => {}
         }

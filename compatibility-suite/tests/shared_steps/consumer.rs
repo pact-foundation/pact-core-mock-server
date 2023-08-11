@@ -112,7 +112,7 @@ async fn the_mock_server_is_started_with_interaction_but_with_the_following_chan
               }).collect();
             request_response_interaction.request.headers = Some(headers);
           },
-          "body" => setup_body(value, &mut request_response_interaction.request),
+          "body" => setup_body(value, &mut request_response_interaction.request, None),
           _ => {}
         }
       }
@@ -223,7 +223,7 @@ async fn request_is_made_to_the_mock_server_with_the_following_changes(
               }).collect();
             request.headers = Some(headers);
           },
-          "body" => setup_body(value, &mut request),
+          "body" => setup_body(value, &mut request, None),
           "raw headers" => {
             raw_headers.extend(value.split(',').map(|h| {
               h.trim()

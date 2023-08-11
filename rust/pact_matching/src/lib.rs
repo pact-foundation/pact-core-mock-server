@@ -979,7 +979,8 @@ impl Mismatch {
         Mismatch::StatusMismatch { mismatch, .. } => mismatch.clone(),
         Mismatch::QueryMismatch { mismatch, .. } => mismatch.clone(),
         Mismatch::HeaderMismatch { mismatch, .. } => mismatch.clone(),
-        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("Expected a body of '{}' but the actual content type was '{}'", e, a),
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } =>
+          format!("Expected a body of '{}' but the actual content type was '{}'", e, a),
         Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", path, mismatch),
         Mismatch::MetadataMismatch { mismatch, .. } => mismatch.clone()
       }
@@ -995,7 +996,8 @@ impl Mismatch {
           Red.paint(e.to_string()), Green.paint(a.to_string()), Style::new().bold().paint(p.clone())),
         Mismatch::HeaderMismatch { expected: e, actual: a, key: k, .. } => format!("Expected header '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string())),
-        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected a body of '{}' but the actual content type was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } =>
+          format!("expected a body of '{}' but the actual content type was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
         Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", Style::new().bold().paint(path.clone()), mismatch),
         Mismatch::MetadataMismatch { expected: e, actual: a, key: k, .. } => format!("Expected message metadata '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string()))

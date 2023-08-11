@@ -1155,7 +1155,7 @@ mod tests {
     }.rules_for_category("body").unwrap();
     let result = match_xml(&expected.clone(), &actual.clone(),
                            &CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules, &hashmap!{}));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected \'101\' to match a boolean".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected \'101\' (String) to match a boolean".to_string()));
     expect!(result).to(be_err().value(vec![
       Mismatch::BodyMismatch {
         path: "$.foo['@somethingElse']".into(),
