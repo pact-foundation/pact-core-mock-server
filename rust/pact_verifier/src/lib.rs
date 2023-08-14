@@ -1257,9 +1257,9 @@ async fn fetch_pact(
           buffer
         },
         Err(err) => {
-          error!("Could not load pacts from pact broker '{}': {}", broker_url, err);
+          error!("No pacts found in pact broker '{}': {}", broker_url, err);
           vec![
-            Err(anyhow!(err).context(format!("Could not load pacts from pact broker '{}'", broker_url)))
+            Err(anyhow!(err).context(format!("No pacts found in pact broker '{}'", broker_url)))
           ]
         }
       }
@@ -1300,9 +1300,9 @@ async fn fetch_pact(
           buffer
         },
         Err(err) => {
-          error!("Could not load pacts from pact broker '{}': {}", broker_url, err);
+          error!("No pacts found in pact broker '{}': {}", broker_url, err);
           vec![
-            Err(err.context(format!("Could not load pacts from pact broker '{}'", broker_url)))
+            Err(err.context(format!("No pacts found in pact broker '{}'", broker_url)))
           ]
         }
       }
