@@ -1,25 +1,25 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::panic::catch_unwind;
 use std::path::PathBuf;
-use anyhow::anyhow;
+use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use maplit::hashmap;
+use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, JSON, XML};
 use pact_models::generators::Generators;
+use pact_models::matchingrules::matchers_from_json;
 use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
 use pact_models::pact::{Pact, read_pact};
-use pact_models::{Consumer, PactSpecification, Provider};
-use pact_models::matchingrules::matchers_from_json;
 use pact_models::path_exp::DocPath;
 use pact_models::provider_states::ProviderState;
 use pact_models::xml_utils::parse_bytes;
@@ -30,9 +30,9 @@ use pact_matching::Mismatch;
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderTransport, VerificationOptions, verify_provider_async};
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
-use crate::shared_steps::{determine_content_type, element_text, IndexType};
+use crate::shared_steps::{assert_value_type, determine_content_type, element_text, IndexType};
 use crate::shared_steps::provider::MockProviderStateExecutor;
-use crate::v3_steps::generators::{as_json_pointer, assert_value_type};
+use crate::v3_steps::generators::as_json_pointer;
 
 lazy_static!{
   pub static ref MESSAGES: Arc<Mutex<HashMap<String, Message>>> = Arc::new(Mutex::new(hashmap![]));

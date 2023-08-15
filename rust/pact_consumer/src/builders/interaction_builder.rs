@@ -18,6 +18,8 @@ pub struct InteractionBuilder {
     provider_states: Vec<ProviderState>,
     comments: Vec<String>,
     test_name: Option<String>,
+    key: Option<String>,
+    pending: Option<bool>,
 
     /// Protocol transport for this interaction
     transport: Option<String>,
@@ -44,11 +46,27 @@ impl InteractionBuilder {
       provider_states: vec![],
       comments: vec![],
       test_name: None,
+      key: None,
+      pending: None,
       transport: None,
       request: RequestBuilder::default(),
       response: ResponseBuilder::default(),
       plugin_configuration: Default::default()
     }
+  }
+
+  /// Specify a unique key for this interaction. This key will be used to determine equality of
+  /// the interaction, so must be unique.
+  pub fn with_key<G: Into<String>>(&mut self, key: G) -> &mut Self {
+    self.key = Some(key.into());
+          self
+  }
+
+  /// Sets this interaction as pending. This will permantly mark the interaction as pending in the
+  /// Pact file, and it will not cause a verification failure.
+  pub fn pending(&mut self, pending: bool) -> &mut Self {
+    self.pending = Some(pending);
+    self
   }
 
     /// Specify a "provider state" for this interaction. This is normally use to
@@ -119,7 +137,7 @@ impl InteractionBuilder {
     let markup = self.request.interaction_markup().merge(self.response.interaction_markup());
     SynchronousHttp {
       id: None,
-      key: None,
+      key: self.key.clone(),
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       request: self.request.build_v4(),
@@ -128,7 +146,7 @@ impl InteractionBuilder {
         "text".to_string() => json!(self.comments),
         "testname".to_string() => json!(self.test_name)
       },
-      pending: false,
+      pending: self.pending.unwrap_or(false),
       plugin_config: self.plugin_config(),
       interaction_markup: markup,
       transport: self.transport.clone()

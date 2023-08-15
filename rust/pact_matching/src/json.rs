@@ -271,17 +271,17 @@ impl Matches<&Value> for Value {
       MatchingRule::NotEmpty => match actual {
         Value::Null => Err(anyhow!("Expected non-empty but got a NULL")),
         Value::String(s) => if s.is_empty() {
-          Err(anyhow!("Expected an non-empty string"))
+          Err(anyhow!("Expected '' (String) to not be empty"))
         } else {
           Ok(())
         }
         Value::Array(a) => if a.is_empty() {
-          Err(anyhow!("Expected an non-empty array"))
+          Err(anyhow!("Expected [] (Array) to not be empty"))
         } else {
           Ok(())
         }
         Value::Object(o) => if o.is_empty() {
-          Err(anyhow!("Expected an non-empty object"))
+          Err(anyhow!("Expected {{}} (Object) to not be empty"))
         } else {
           Ok(())
         }
@@ -405,8 +405,8 @@ pub fn compare_json(
         path: path.to_string(),
         expected: Some(json_to_string(expected).into()),
         actual: Some(json_to_string(actual).into()),
-        mismatch: format!("Type mismatch: Expected {} {} but received {} {}",
-                          type_of(expected), expected, type_of(actual), actual),
+        mismatch: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
+          value_of(actual), type_of(actual), value_of(expected), type_of(expected))
       } ])
     }
     (&Value::Array(ref elist), &Value::Array(ref alist)) => compare_lists(path, elist, alist, context),
@@ -415,8 +415,8 @@ pub fn compare_json(
         path: path.to_string(),
         expected: Some(json_to_string(expected).into()),
         actual: Some(json_to_string(actual).into()),
-        mismatch: format!("Type mismatch: Expected {} {} but received {} {}",
-                          type_of(expected), json_to_string(expected), type_of(actual), json_to_string(actual)),
+        mismatch: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
+          value_of(actual), type_of(actual), value_of(expected), type_of(expected)),
       } ])
     }
     (_, _) => compare_values(path, expected, actual, context)
@@ -625,7 +625,7 @@ mod tests {
     let expected = request!(r#"{}"#);
     let actual = request!(r#"[]"#);
     let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected Object {} but received Array []"));
+    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected [] (Array) to be the same type as {} (Object)"));
     expect!(result).to(be_err().value(vec![Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: expected.body.value(),
@@ -639,7 +639,7 @@ mod tests {
     let expected = request!(r#"[{}]"#);
     let actual = request!(r#"{}"#);
     let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected Array [{}] but received Object {}"));
+    expect!(mismatch_message(&result)).to(be_equal_to("Type mismatch: Expected {} (Object) to be the same type as [{}] (Array)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$".to_string(),
       expected: expected.body.value(),

@@ -70,7 +70,7 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
       }
       MatchingRule::NotEmpty => {
         if actual.is_empty() {
-          Err(anyhow!("Expected an non-empty list"))
+          Err(anyhow!("Expected {} (Array) to not be empty", actual.for_mismatch()))
         } else {
           Ok(())
         }
@@ -152,7 +152,7 @@ impl Matches<&[u8]> for Vec<u8> {
       }
       MatchingRule::NotEmpty => {
         if actual.is_empty() {
-          Err(anyhow!("Expected an non-empty list"))
+          Err(anyhow!("Expected [] (0 bytes) to not be empty"))
         } else {
           Ok(())
         }

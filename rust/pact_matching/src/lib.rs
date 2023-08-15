@@ -1587,9 +1587,10 @@ pub async fn match_request<'a>(
 }
 
 /// Matches the actual response status to the expected one.
+#[instrument(level = "trace")]
 pub fn match_status(expected: u16, actual: u16, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = DocPath::empty();
-  if context.matcher_is_defined(&path) {
+  let result = if context.matcher_is_defined(&path) {
     match_values(&path, &context.select_best_matcher(&path), expected, actual)
       .map_err(|messages| messages.iter().map(|message| {
         Mismatch::StatusMismatch {
@@ -1606,7 +1607,9 @@ pub fn match_status(expected: u16, actual: u16, context: &dyn MatchingContext) -
     }])
   } else {
     Ok(())
-  }
+  };
+  trace!(?result, "matching response status");
+  result
 }
 
 /// Matches the actual and expected responses.
@@ -1650,6 +1653,8 @@ pub async fn match_response<'a>(
   for values in result.values() {
     mismatches.extend_from_slice(values.as_slice());
   }
+
+    trace!(?mismatches, "match response");
 
   mismatches
 }

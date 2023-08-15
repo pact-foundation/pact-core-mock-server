@@ -278,7 +278,7 @@ impl Matches<&str> for &str {
       }
       MatchingRule::NotEmpty => {
         if actual.is_empty() {
-          Err(anyhow!("Expected an non-empty string"))
+          Err(anyhow!("Expected '' (String) to not be empty"))
         } else {
           Ok(())
         }
@@ -754,7 +754,7 @@ impl Matches<&Bytes> for Bytes {
       MatchingRule::ContentType(content_type) => match_content_type(actual, content_type),
       MatchingRule::NotEmpty => {
         if actual.is_empty() {
-          Err(anyhow!("Expected an non-empty string of bytes"))
+          Err(anyhow!("Expected [] (0 bytes) to not be empty"))
         } else {
           Ok(())
         }
@@ -778,7 +778,7 @@ pub fn match_values<E, A>(path: &DocPath, matching_rules: &RuleList, expected: E
     let results = matching_rules.rules.iter().map(|rule| {
       expected.matches_with(actual.clone(), rule, matching_rules.cascaded)
     }).collect::<Vec<anyhow::Result<()>>>();
-    match matching_rules.rule_logic {
+    let result = match matching_rules.rule_logic {
       RuleLogic::And => {
         if results.iter().all(|result| result.is_ok()) {
           Ok(())
@@ -795,7 +795,9 @@ pub fn match_values<E, A>(path: &DocPath, matching_rules: &RuleList, expected: E
             .map(|result| result.as_ref().unwrap_err().to_string()).collect())
         }
       }
-    }
+    };
+    trace!(?result, "match_values: {} -> {}", std::any::type_name::<E>(), std::any::type_name::<A>());
+    result
   }
 }
 
@@ -811,11 +813,13 @@ fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()
     HttpStatus::NonError => status_code < 400,
     HttpStatus::Error => status_code >= 400
   };
-  if matches {
+  let result = if matches {
     Ok(())
   } else {
     Err(anyhow!("Expected status code {} to be a {}", status_code, status))
-  }
+  };
+  trace!(status_code, ?status, matches, ?result, "matching status code");
+  result
 }
 
 /// Basic matching implementation for string slices

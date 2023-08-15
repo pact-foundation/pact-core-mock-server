@@ -3,10 +3,9 @@ use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 
-use anyhow::{anyhow, Error};
+use anyhow::anyhow;
 use cucumber::{given, then, when};
 use cucumber::gherkin::Step;
-use lazy_static::lazy_static;
 use maplit::hashmap;
 use pact_models::generators::{Generators, GeneratorTestMode};
 use pact_models::json_utils::json_to_string;
@@ -15,22 +14,11 @@ use pact_models::request::Request;
 use pact_models::response::Response;
 use regex::Regex;
 use serde_json::Value;
-use uuid::Uuid;
 
 use pact_matching::{generate_request, generate_response};
 
-use crate::shared_steps::setup_body;
+use crate::shared_steps::{assert_value_type, setup_body};
 use crate::v3_steps::V3World;
-
-lazy_static! {
-  static ref INT_REGEX: Regex = Regex::new(r"\d+").unwrap();
-  static ref DEC_REGEX: Regex = Regex::new(r"\d+\.\d+").unwrap();
-  static ref HEX_REGEX: Regex = Regex::new(r"[a-fA-F0-9]+").unwrap();
-  static ref STR_REGEX: Regex = Regex::new(r"\d{1,8}").unwrap();
-  static ref DATE_REGEX: Regex = Regex::new(r"\d{4}-\d{2}-\d{2}").unwrap();
-  static ref TIME_REGEX: Regex = Regex::new(r"\d{2}:\d{2}:\d{2}").unwrap();
-  static ref DATETIME_REGEX: Regex = Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,9}").unwrap();
-}
 
 #[given(expr = "a request configured with the following generators:")]
 fn a_request_configured_with_the_following_generators(world: &mut V3World, step: &Step) {
@@ -192,85 +180,6 @@ fn the_body_value_for_will_have_been_replaced_with_a_value(
   }
 
   assert_value_type(value_type, element)
-}
-
-pub fn assert_value_type(value_type: String, element: &Value) -> Result<(), Error> {
-  match value_type.as_str() {
-    "integer" => {
-      if !INT_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting an integer, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "decimal number" => {
-      if !DEC_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting a decimal number, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "hexadecimal number" => {
-      if !HEX_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting a hexadecimal number, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "random string" => {
-      if !element.is_string() {
-        Err(anyhow!("Was expecting a string, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "string from the regex" => {
-      if !element.is_string() {
-        Err(anyhow!("Was expecting a string, but got {}", element))
-      } else if !STR_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting {} to match \\d{{1,8}}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "date" => {
-      if !DATE_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting a date, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "time" => {
-      if !TIME_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting a time, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "date-time" => {
-      if !DATETIME_REGEX.is_match(json_to_string(element).as_str()) {
-        Err(anyhow!("Was expecting a date-time, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "UUID" => {
-      if Uuid::parse_str(json_to_string(element).as_str()).is_err() {
-        Err(anyhow!("Was expecting an UUID, but got {}", element))
-      } else {
-        Ok(())
-      }
-    }
-    "boolean" => {
-      let string = json_to_string(element);
-      if string == "true" || string == "false" {
-        Ok(())
-      } else {
-        Err(anyhow!("Was expecting a boolean, but got {}", element))
-      }
-    }
-    _ => Err(anyhow!("Invalid type: {}", value_type))
-  }
 }
 
 // TODO: Replace this with version from pact_models
