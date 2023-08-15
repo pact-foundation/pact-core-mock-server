@@ -65,8 +65,8 @@ Feature: V4 era Matching Rules
       | body          | matching rules            |
       | file: rat.jpg | notempty2-matcher-v4.json |
     And a request is received with the following:
-      | content type | body |
-      | image/jpeg   |      |
+      | content type | body  |
+      | image/jpeg   | EMPTY |
     When the request is compared to the expected one
     Then the comparison should NOT be OK
     And the mismatches will contain a mismatch with error "$" -> "Expected [] (0 bytes) to not be empty"
