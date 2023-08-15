@@ -173,50 +173,57 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
 }
 
 pub fn setup_body(body: &String, httppart: &mut dyn HttpPart, content_type: Option<&str>) {
-  if body.starts_with("JSON:") {
-    httppart.add_header("content-type", vec!["application/json"]);
-    *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).trim().to_string()),
-      Some(JSON.clone()), None);
-  } else if body.starts_with("XML:") {
-    httppart.add_header("content-type", vec!["application/xml"]);
-    *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).trim().to_string()),
-    Some(XML.clone()), None);
-  } else if body.starts_with("file:") {
-    if body.ends_with("-body.xml") {
-      let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
-      let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
-        .expect(format!("could not load fixture '{}'", body).as_str());
-      let mut buffer = Vec::new();
-      f.read_to_end(&mut buffer)
-        .expect(format!("could not read fixture '{}'", body).as_str());
-      let fixture = parse_bytes(buffer.as_slice())
-        .expect(format!("could not parse fixture as XML: '{}'", body).as_str());
-      let root = fixture.as_document().root();
-      let body_node = root.children().iter().find_map(|n| n.element()).unwrap();
-      let content_type = element_text(body_node, "contentType").unwrap_or("text/plain".to_string());
-      httppart.add_header("content-type", vec![content_type.as_str()]);
-      *httppart.body_mut() = OptionalBody::Present(Bytes::from(element_text(body_node, "contents").unwrap_or_default()),
-        ContentType::parse(content_type.as_str()).ok(), None);
-    } else {
-      let content_type = content_type.map(|ct| ContentType::from(ct))
-        .unwrap_or_else(|| determine_content_type(body, httppart));
-      httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
+  if !body.is_empty() {
+    if body.starts_with("JSON:") {
+      httppart.add_header("content-type", vec!["application/json"]);
+      *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).trim().to_string()),
+        Some(JSON.clone()), None);
+    } else if body.starts_with("XML:") {
+      httppart.add_header("content-type", vec!["application/xml"]);
+      *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).trim().to_string()),
+      Some(XML.clone()), None);
+    } else if body.starts_with("file:") {
+      if body.ends_with("-body.xml") {
+        let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
+        let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
+          .expect(format!("could not load fixture '{}'", body).as_str());
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer)
+          .expect(format!("could not read fixture '{}'", body).as_str());
+        let fixture = parse_bytes(buffer.as_slice())
+          .expect(format!("could not parse fixture as XML: '{}'", body).as_str());
+        let root = fixture.as_document().root();
+        let body_node = root.children().iter().find_map(|n| n.element()).unwrap();
+        let content_type = element_text(body_node, "contentType").unwrap_or("text/plain".to_string());
+        httppart.add_header("content-type", vec![content_type.as_str()]);
+        *httppart.body_mut() = OptionalBody::Present(Bytes::from(element_text(body_node, "contents").unwrap_or_default()),
+          ContentType::parse(content_type.as_str()).ok(), None);
+      } else {
+        let content_type = content_type.map(|ct| ContentType::from(ct))
+          .unwrap_or_else(|| determine_content_type(body, httppart));
+        httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
 
-      let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
-      let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
-        .expect(format!("could not load fixture '{}'", body).as_str());
-      let mut buffer = Vec::new();
-      f.read_to_end(&mut buffer)
-        .expect(format!("could not read fixture '{}'", body).as_str());
-      *httppart.body_mut() = OptionalBody::Present(Bytes::from(buffer),
-        Some(content_type), None);
+        let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
+        let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
+          .expect(format!("could not load fixture '{}'", body).as_str());
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer)
+          .expect(format!("could not read fixture '{}'", body).as_str());
+        *httppart.body_mut() = OptionalBody::Present(Bytes::from(buffer),
+          Some(content_type), None);
+      }
+    } else {
+      let body = if body == "EMPTY" {
+        "".to_string()
+      } else {
+        body.clone()
+      };
+      let content_type = content_type.map(|ct| ContentType::from(ct))
+        .unwrap_or_else(|| determine_content_type(&body, httppart));
+      httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
+      let body = Bytes::from(body);
+      *httppart.body_mut() = OptionalBody::Present(body, Some(content_type), None);
     }
-  } else {
-    let content_type = content_type.map(|ct| ContentType::from(ct))
-      .unwrap_or_else(|| determine_content_type(body, httppart));
-    httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
-    let body = Bytes::from(body.clone());
-    *httppart.body_mut() = OptionalBody::Present(body, Some(content_type), None);
   }
 }
 
