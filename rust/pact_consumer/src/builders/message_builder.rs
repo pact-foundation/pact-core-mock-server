@@ -57,6 +57,8 @@ pub struct MessageInteractionBuilder {
   provider_states: Vec<ProviderState>,
   comments: Vec<String>,
   test_name: Option<String>,
+  key: Option<String>,
+  pending: Option<bool>,
   /// Contents of the message. This will include the payload as well as any metadata
   pub message_contents: InteractionContents,
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
@@ -72,6 +74,8 @@ impl MessageInteractionBuilder {
       provider_states: vec![],
       comments: vec![],
       test_name: None,
+      key: None,
+      pending: None,
       message_contents: Default::default(),
       contents_plugin: None,
       plugin_config: Default::default()
@@ -130,6 +134,20 @@ impl MessageInteractionBuilder {
     self
   }
 
+  /// Specify a unique key for this interaction. This key will be used to determine equality of
+  /// the interaction, so must be unique.
+  pub fn with_key<G: Into<String>>(&mut self, key: G) -> &mut Self {
+    self.key = Some(key.into());
+    self
+  }
+
+  /// Sets this interaction as pending. This will permantly mark the interaction as pending in the
+  /// Pact file, and it will not cause a verification failure.
+  pub fn pending(&mut self, pending: bool) -> &mut Self {
+    self.pending = Some(pending);
+    self
+  }
+
   /// The interaction we've built (in V4 format).
   pub fn build(&self) -> AsynchronousMessage {
     debug!("Building V4 AsynchronousMessage interaction: {:?}", self);
@@ -159,7 +177,7 @@ impl MessageInteractionBuilder {
 
     AsynchronousMessage {
       id: None,
-      key: None,
+      key: self.key.clone(),
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       contents: MessageContents {
@@ -172,7 +190,7 @@ impl MessageInteractionBuilder {
         "text".to_string() => json!(self.comments),
         "testname".to_string() => json!(self.test_name)
       },
-      pending: false,
+      pending: self.pending.unwrap_or(false),
       plugin_config,
       interaction_markup,
       transport: None
