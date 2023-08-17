@@ -29,7 +29,7 @@ lazy_static!{
   pub static ref MESSAGES: Arc<Mutex<HashMap<String, AsynchronousMessage>>> = Arc::new(Mutex::new(hashmap![]));
 }
 
-fn setup_body(body: &String, message: &mut MessageContents) {
+pub fn setup_body(body: &String, message: &mut MessageContents) {
   if !body.is_empty() {
     if body.starts_with("JSON:") {
       message.metadata.insert("contentType".to_string(), json!("application/json"));
@@ -54,7 +54,7 @@ fn setup_body(body: &String, message: &mut MessageContents) {
         let content_type = element_text(body_node, "contentType").unwrap_or("text/plain".to_string());
         message.metadata.insert("contentType".to_string(), json!(content_type));
         message.contents = OptionalBody::Present(Bytes::from(element_text(body_node, "contents").unwrap_or_default()),
-                                                          ContentType::parse(content_type.as_str()).ok(), None);
+          ContentType::parse(content_type.as_str()).ok(), None);
       } else {
         let content_type = determine_content_type(body, message);
         message.metadata.insert("contentType".to_string(), json!(content_type.to_string()));
@@ -66,7 +66,7 @@ fn setup_body(body: &String, message: &mut MessageContents) {
         f.read_to_end(&mut buffer)
           .expect(format!("could not read fixture '{}'", body).as_str());
         message.contents = OptionalBody::Present(Bytes::from(buffer),
-                                                          Some(content_type), None);
+          Some(content_type), None);
       }
     } else {
       let content_type = determine_content_type(body, message);

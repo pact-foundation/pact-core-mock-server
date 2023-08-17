@@ -12,9 +12,15 @@ use pact_models::PactSpecification;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::interaction::V4Interaction;
 use pact_models::v4::pact::V4Pact;
+use pact_models::v4::sync_message::SynchronousMessage;
 use serde_json::Value;
 
-use pact_consumer::builders::{InteractionBuilder, MessageInteractionBuilder, PactBuilder};
+use pact_consumer::builders::{
+  InteractionBuilder,
+  MessageInteractionBuilder,
+  PactBuilder,
+  SyncMessageInteractionBuilder
+};
 use pact_matching::{Mismatch, RequestMatchResult};
 use pact_mock_server::mock_server::MockServer;
 use pact_verifier::{PactSource, ProviderInfo};
@@ -27,6 +33,7 @@ mod generators;
 mod http_matching;
 mod message_consumer;
 pub(crate) mod message_provider;
+mod sync_message_consumer;
 
 #[derive(Debug, World)]
 pub struct V4World {
@@ -40,6 +47,7 @@ pub struct V4World {
   pub builder: PactBuilder,
   pub integration_builder: Option<InteractionBuilder>,
   pub message_builder: Option<MessageInteractionBuilder>,
+  pub sync_message_builder: Option<SyncMessageInteractionBuilder>,
   pub pact: V4Pact,
   pub pact_json: Value,
   pub interactions: Vec<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>>,
@@ -54,7 +62,8 @@ pub struct V4World {
   pub expected_request: HttpRequest,
   pub received_requests: Vec<HttpRequest>,
   pub request_results: Vec<RequestMatchResult>,
-  pub message_proxy_port: u16
+  pub message_proxy_port: u16,
+  pub received_sync_messages: Vec<SynchronousMessage>
 }
 
 impl Default for V4World {
@@ -70,6 +79,7 @@ impl Default for V4World {
       builder: PactBuilder::new_v4("C", "P"),
       integration_builder: None,
       message_builder: None,
+      sync_message_builder: None,
       pact: Default::default(),
       pact_json: Default::default(),
       interactions: vec![],
@@ -85,6 +95,7 @@ impl Default for V4World {
       received_requests: vec![],
       request_results: vec![],
       message_proxy_port: 0,
+      received_sync_messages: vec![],
     }
   }
 }
@@ -95,6 +106,9 @@ fn the_pact_file_for_the_test_is_generated(world: &mut V4World) {
     world.builder.push_interaction(&integration_builder.build_v4());
   }
   if let Some(message_builder) = world.message_builder.as_ref() {
+    world.builder.push_interaction(&message_builder.build());
+  }
+  if let Some(message_builder) = world.sync_message_builder.as_ref() {
     world.builder.push_interaction(&message_builder.build());
   }
   world.pact = world.builder.build().as_v4_pact().unwrap();

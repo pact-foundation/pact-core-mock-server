@@ -1,10 +1,12 @@
 //! Builder for constructing synchronous message interactions
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use bytes::Bytes;
 use maplit::hashmap;
 use pact_models::content_types::ContentType;
-#[cfg(not(feature = "plugins"))] use pact_models::generators::Generators;
+use pact_models::generators::Generators;
 use pact_models::json_utils::json_to_string;
 use pact_models::path_exp::DocPath;
 #[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
@@ -56,8 +58,10 @@ pub struct SyncMessageInteractionBuilder {
   provider_states: Vec<ProviderState>,
   comments: Vec<String>,
   test_name: Option<String>,
-  request_contents: InteractionContents,
-  response_contents: Vec<InteractionContents>,
+  key: Option<String>,
+  pending: Option<bool>,
+  request_contents: InteractionContents, // TODO: This should not be using this struct, as it leaks plugin specific API
+  response_contents: Vec<InteractionContents>, // TODO: This should not be using this struct, as it leaks plugin specific API
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
@@ -70,6 +74,8 @@ impl SyncMessageInteractionBuilder {
       provider_states: vec![],
       comments: vec![],
       test_name: None,
+      key: None,
+      pending: None,
       request_contents: Default::default(),
       response_contents: vec![],
       contents_plugin: None,
@@ -81,6 +87,26 @@ impl SyncMessageInteractionBuilder {
   /// set up database fixtures when using a pact to test a provider.
   pub fn given<G: Into<String>>(&mut self, given: G) -> &mut Self {
     self.provider_states.push(ProviderState::default(&given.into()));
+    self
+  }
+
+  /// Specify a "provider state" for this interaction with some defined parameters. This is
+  /// normally use to set up database fixtures when using a pact to test a provider.
+  ///
+  /// The paramaters must be provided as a serde_json::Value Object.
+  pub fn given_with_params<G: Into<String>>(&mut self, given: G, params: &Value) -> &mut Self {
+    let params = if let Some(params) = params.as_object() {
+      params.iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
+    } else {
+      HashMap::default()
+    };
+
+    self.provider_states.push(ProviderState {
+      name: given.into(),
+      params
+    });
     self
   }
 
@@ -97,6 +123,20 @@ impl SyncMessageInteractionBuilder {
   /// page, and potentially in the test output.
   pub fn test_name<G: Into<String>>(&mut self, name: G) -> &mut Self {
     self.test_name = Some(name.into());
+    self
+  }
+
+  /// Specify a unique key for this interaction. This key will be used to determine equality of
+  /// the interaction, so must be unique.
+  pub fn with_key<G: Into<String>>(&mut self, key: G) -> &mut Self {
+    self.key = Some(key.into());
+    self
+  }
+
+  /// Sets this interaction as pending. This will permantly mark the interaction as pending in the
+  /// Pact file, and it will not cause a verification failure.
+  pub fn pending(&mut self, pending: bool) -> &mut Self {
+    self.pending = Some(pending);
     self
   }
 
@@ -138,7 +178,7 @@ impl SyncMessageInteractionBuilder {
 
     SynchronousMessage {
       id: None,
-      key: None,
+      key: self.key.clone(),
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       request: MessageContents {
@@ -162,7 +202,7 @@ impl SyncMessageInteractionBuilder {
         "text".to_string() => json!(self.comments),
         "testname".to_string() => json!(self.test_name)
       },
-      pending: false,
+      pending: self.pending.unwrap_or(false),
       plugin_config,
       interaction_markup,
       transport: None
@@ -411,6 +451,48 @@ impl SyncMessageInteractionBuilder {
     self
   }
 
+  /// Specify the message request payload and content type
+  pub fn request_body<B:  Into<Bytes>>(&mut self, body: B, content_type: Option<String>) -> &mut Self {
+    let message_body = OptionalBody::Present(
+      body.into(),
+      content_type.as_ref().map(|ct| ct.into()),
+      None
+    );
+    self.request_contents.body = message_body;
+    let metadata = self.request_contents.metadata
+      .get_or_insert_with(|| hashmap!{});
+    if let Some(content_type) = content_type {
+      match metadata.entry("contentType".to_string()) {
+        Entry::Occupied(_) => {}
+        Entry::Vacant(entry) => {
+          entry.insert(Value::String(content_type.clone()));
+        }
+      }
+    }
+    self
+  }
+
+  ///  Sets the request message contents
+  pub fn request_contents(&mut self, contents: &MessageContents) -> &mut Self {
+    self.request_contents.body = contents.contents.clone();
+    let metadata = self.request_contents.metadata.get_or_insert_with(|| hashmap! {});
+    metadata.extend(contents.metadata.iter().map(|(k, v)| (k.clone(), v.clone())));
+
+    if let Some(category) = contents.matching_rules.rules_for_category("body") {
+      let rules = self.request_contents.rules.get_or_insert_with(|| MatchingRuleCategory::empty("body"));
+      rules.add_rules(category);
+    }
+
+    if let Some(category) = contents.matching_rules.rules_for_category("metadata") {
+      let rules = self.request_contents.metadata_rules.get_or_insert_with(|| MatchingRuleCategory::empty("metadata"));
+      rules.add_rules(category);
+    }
+
+    let generators = self.request_contents.generators.get_or_insert_with(|| Generators::default());
+    generators.add_generators(contents.generators.clone());
+    self
+  }
+
   /// Specify the body as `JsonPattern`, possibly including special matching
   /// rules. You can call this method multiple times, each will add a new response message to the
   /// interaction.
@@ -437,6 +519,53 @@ impl SyncMessageInteractionBuilder {
         .. InteractionContents::default()
       });
     }
+    self
+  }
+
+  /// Specify the message response payload and content type. You can call this method multiple
+  /// times, each will add a new response message to the interaction.
+  pub fn response_body<B:  Into<Bytes>>(&mut self, body: B, content_type: Option<String>) -> &mut Self {
+    let message_body = OptionalBody::Present(
+      body.into(),
+      content_type.as_ref().map(|ct| ct.into()),
+      None
+    );
+    let mut metadata = hashmap!{};
+    if let Some(content_type) = content_type {
+      metadata.insert(" contentType".to_string(), Value::String(content_type.clone()));
+    }
+    let response = InteractionContents {
+      part_name: "response".to_string(),
+      body: message_body,
+      rules: None,
+      generators: None,
+      metadata: Some(metadata),
+      metadata_rules: None,
+      plugin_config: Default::default(),
+      interaction_markup: "".to_string(),
+      interaction_markup_type: "".to_string(),
+    };
+
+        self.response_contents.push(response);
+    self
+  }
+
+  ///  Sets the response message contents. You can call this method multiple
+  /// times, each will add a new response message to the interaction.
+  pub fn response_contents(&mut self, contents: &MessageContents) -> &mut Self {
+    let response = InteractionContents {
+      part_name: "response".to_string(),
+      body: contents.contents.clone(),
+      rules: contents.matching_rules.rules_for_category("body"),
+      generators: Some(contents.generators.clone()),
+      metadata: Some(contents.metadata.clone()),
+      metadata_rules: contents.matching_rules.rules_for_category("metadata"),
+      plugin_config: Default::default(),
+      interaction_markup: "".to_string(),
+      interaction_markup_type: "".to_string(),
+    };
+
+    self.response_contents.push(response);
     self
   }
 }

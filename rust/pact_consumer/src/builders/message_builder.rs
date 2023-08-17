@@ -60,7 +60,7 @@ pub struct MessageInteractionBuilder {
   key: Option<String>,
   pending: Option<bool>,
   /// Contents of the message. This will include the payload as well as any metadata
-  pub message_contents: InteractionContents,
+  pub message_contents: InteractionContents,  // TODO: This should not be using this struct, as it leaks plugin specific API
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
@@ -375,7 +375,7 @@ impl MessageInteractionBuilder {
     self
   }
 
-  /// Specify the message metadata and content type
+  /// Specify the message payload and content type
   pub fn body<B:  Into<Bytes>>(&mut self, body: B, content_type: Option<String>) -> &mut Self {
     let message_body = OptionalBody::Present(
       body.into(),

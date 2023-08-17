@@ -3,6 +3,7 @@ use std::env;
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
+use itertools::Itertools;
 
 use maplit::hashmap;
 use pact_models::generators::GeneratorTestMode;
@@ -16,7 +17,7 @@ use pact_models::v4::V4InteractionType;
 use tokio::runtime::Handle;
 use tracing::{debug, error, info, warn};
 
-use pact_matching::generators::generate_message;
+use pact_matching::generators::{apply_generators_to_sync_message, generate_message};
 
 /// Iterator over the messages build with the PactBuilder
 pub struct MessageIterator<MT> {
@@ -40,12 +41,49 @@ pub fn asynchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) ->
 
 /// Construct a new iterator over the synchronous messages in the pact
 pub fn synchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) -> MessageIterator<SynchronousMessage> {
+  let original_messages = pact.filter_interactions(V4InteractionType::Synchronous_Messages)
+    .iter()
+    .map(|item| item.as_v4_sync_message().unwrap())
+    .collect_vec();
+
+  let (sx, rx) = channel();
+  match Handle::try_current() {
+    Ok(handle) => handle.spawn(async move {
+      let mut messages = VecDeque::new();
+      for message in original_messages {
+        let (req, res) = apply_generators_to_sync_message(&message, &GeneratorTestMode::Consumer, &hashmap! {}, &vec![], &hashmap! {}).await;
+                messages.push_back(SynchronousMessage {
+                  request: req,
+                  response: res,
+                  ..      message
+                });
+      }
+      let _ = sx.send(messages);
+    }),
+    Err(err) => {
+      warn!("Could not access the Tokio runtime, will start a new one: {}", err);
+      tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Could not start a Tokio runtime for running async tasks")
+        .spawn(async move {
+          let mut messages = VecDeque::new();
+          for message in original_messages {
+            let (req, res) = apply_generators_to_sync_message(&message, &GeneratorTestMode::Consumer, &hashmap! {}, &vec![], &hashmap! {}).await;
+            messages.push_back(SynchronousMessage {
+              request: req,
+              response: res,
+              ..       message
+            });
+          }
+          let _ = sx.send(messages);
+        })
+    }
+  };
+
   MessageIterator {
     pact: pact.boxed(),
-    message_list: pact.filter_interactions(V4InteractionType::Synchronous_Messages)
-      .iter()
-      .map(|item| item.as_v4_sync_message().unwrap())
-      .collect(),
+    message_list: rx.recv().expect("Did not receive any messages"),
     output_dir: output_dir.clone()
   }
 }
