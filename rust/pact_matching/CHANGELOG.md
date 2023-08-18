@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.5 - Maintenance Release
+
+* ea98f458 - feat(compatibility-suite): Implemented V4 HTTP scenarios (Ronald Holshausen, Tue Aug 15 15:09:24 2023 +1000)
+* f168617d - chore(compatibility-suite): Update suite and correct V3 steps (Ronald Holshausen, Fri Aug 11 11:38:09 2023 +1000)
+* 5b91796b - fix(pact_matching): Correct the mismatch error with content-type header when there are multiple values #305 (Ronald Holshausen, Tue Aug 8 10:39:43 2023 +1000)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* 1299a622 - fix(pact_matching): Support generators for V3 Message interactions (Ronald Holshausen, Wed Aug 2 16:43:51 2023 +1000)
+* a5ce79d4 - bump version to 1.1.5 (Ronald Holshausen, Thu Jul 27 10:51:04 2023 +1000)
+
 # 1.1.4 - Bugfix Release
 
 * ac885b89 - fix: Date/Time matchers should fall back to ISO 8601 formats if no format string is provided (Ronald Holshausen, Thu Jul 27 10:42:17 2023 +1000)
