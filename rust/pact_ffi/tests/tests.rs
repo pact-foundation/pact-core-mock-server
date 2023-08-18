@@ -484,7 +484,7 @@ fn test_missing_plugin() {
   pactffi_verifier_shutdown(handle);
 
   expect!(result).to(be_equal_to(2));
-  expect!(output.to_string_lossy().contains("Verification execution failed: Plugin missing-csv:0.0 was not found")).to(be_true());
+  expect!(output.to_string_lossy().contains("Verification execution failed: Plugin missing-csv:0.0.3 was not found")).to(be_true());
 }
 
 // Issue #299
