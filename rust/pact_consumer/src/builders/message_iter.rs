@@ -48,29 +48,33 @@ pub fn synchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) -> 
 
   let (sx, rx) = channel();
   match Handle::try_current() {
-    Ok(handle) => handle.spawn(async move {
-      let mut messages = VecDeque::new();
-      for message in original_messages {
-        let (req, res) = apply_generators_to_sync_message(&message, &GeneratorTestMode::Consumer, &hashmap! {}, &vec![], &hashmap! {}).await;
-                messages.push_back(SynchronousMessage {
-                  request: req,
-                  response: res,
-                  ..      message
-                });
-      }
-      let _ = sx.send(messages);
-    }),
+    Ok(handle) => {
+      let messages_to_generate = original_messages.clone();
+      handle.spawn(async move {
+        let mut messages = vec![];
+        for message in messages_to_generate {
+          let (req, res) = apply_generators_to_sync_message(&message, &GeneratorTestMode::Consumer, &hashmap! {}, &vec![], &hashmap! {}).await;
+          messages.push(SynchronousMessage {
+            request: req,
+            response: res,
+            ..      message
+          });
+        }
+        let _ = sx.send(messages);
+      })
+    },
     Err(err) => {
       warn!("Could not access the Tokio runtime, will start a new one: {}", err);
+      let messages_to_generate = original_messages.clone();
       tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("Could not start a Tokio runtime for running async tasks")
         .spawn(async move {
-          let mut messages = VecDeque::new();
-          for message in original_messages {
+          let mut messages = vec![];
+          for message in messages_to_generate {
             let (req, res) = apply_generators_to_sync_message(&message, &GeneratorTestMode::Consumer, &hashmap! {}, &vec![], &hashmap! {}).await;
-            messages.push_back(SynchronousMessage {
+            messages.push(SynchronousMessage {
               request: req,
               response: res,
               ..       message
@@ -81,9 +85,17 @@ pub fn synchronous_messages_iter(pact: V4Pact, output_dir: &Option<PathBuf>) -> 
     }
   };
 
+  let message_list = match rx.recv() {
+    Ok(messages) => messages,
+    Err(err) => {
+      error!("Was not able to apply generators to the messages: {}", err);
+      original_messages
+    }
+  };
+
   MessageIterator {
     pact: pact.boxed(),
-    message_list: rx.recv().expect("Did not receive any messages"),
+    message_list: message_list.iter().cloned().collect(),
     output_dir: output_dir.clone()
   }
 }
