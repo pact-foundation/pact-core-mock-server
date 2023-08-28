@@ -217,14 +217,15 @@ pub fn request_multipart(
     request.set_header(CONTENT_TYPE_HEADER, &[multipart.as_str()]);
     request.body = body;
 
-    let mut path = DocPath::root();
-    path.push_field(part_name);
-    request.matching_rules.add_category("body")
-      .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
     request.matching_rules.add_category("header")
       .add_rule(DocPath::new_unwrap("Content-Type"),
                 MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), RuleLogic::And);
   }
+
+  let mut path = DocPath::root();
+  path.push_field(part_name);
+  request.matching_rules.add_category("body")
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
 }
 
 fn add_part_to_multipart(body: &OptionalBody, new_part: &OptionalBody, boundary: &str) -> Option<Bytes> {
@@ -287,14 +288,15 @@ pub fn response_multipart(
     response.set_header(CONTENT_TYPE_HEADER, &[multipart.as_str()]);
     response.body = body;
 
-    let mut path = DocPath::root();
-    path.push_field(part_name);
-    response.matching_rules.add_category("body")
-      .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
     response.matching_rules.add_category("header")
       .add_rule(DocPath::new_unwrap("Content-Type"),
                 MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), RuleLogic::And);
   }
+
+  let mut path = DocPath::root();
+  path.push_field(part_name);
+  response.matching_rules.add_category("body")
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
 }
 
 /// Representation of a multipart body

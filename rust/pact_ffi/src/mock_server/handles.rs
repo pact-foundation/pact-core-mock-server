@@ -1618,6 +1618,9 @@ pub extern fn pactffi_with_binary_file(
 /// * `file` - path to the example file
 /// * `part_name` - name for the mime part
 ///
+/// This function can be called multiple times. In that case, each subsequent call will be
+/// appended to the existing multipart body as a new part.
+///
 /// # Safety
 ///
 /// The content type, file path and part name must be valid pointers to UTF-8 encoded NULL-terminated strings.
