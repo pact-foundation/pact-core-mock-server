@@ -13,6 +13,7 @@ members = [
 exclude = [
     "pact_wasm"
 ]
+resolver = "2"
 
 [patch.crates-io]
 onig = { git = "https://github.com/rust-onig/rust-onig", default-features = false }
