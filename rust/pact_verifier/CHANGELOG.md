@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.3 - Bugfix Release
+
+* 3ec99c41 - chore: Upgrade pact_matching to 1.1.5 (Ronald Holshausen, Fri Aug 18 15:40:02 2023 +1000)
+* 40009089 - Merge pull request #308 from tienvx/fix-wrong-plugin-version (Ronald Holshausen, Fri Aug 18 14:01:37 2023 +1000)
+* 87e49674 - chore: update message (Beth Skurrie, Tue Aug 15 09:31:39 2023 +1000)
+* a2706eee - chore: update 'could not load pacts' message to 'no pacts found' (Beth Skurrie, Tue Aug 15 09:26:44 2023 +1000)
+* 6df8ce82 - fix(pact_verifier): Fix missing PATCH version in plugin's version (tienvx, Mon Aug 7 18:14:51 2023 +0700)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* e191e072 - bump version to 1.0.3 (Ronald Holshausen, Thu Jul 27 15:03:17 2023 +1000)
+
 # 1.0.2 - Bugfix Release
 
 * 8f88192e - chore: Upgrade pact_matching to 1.1.4 (Ronald Holshausen, Thu Jul 27 14:35:27 2023 +1000)
