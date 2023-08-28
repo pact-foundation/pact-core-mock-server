@@ -223,6 +223,10 @@ impl PactHandle {
   }
 
   /// Invokes the closure with the inner Pact model
+  ///
+  /// # Errors
+  /// This function acquires a lock on the PACT_HANDLES mutex. If the closure panics, this mutex
+  /// will be poisoned. So panics must be avoided.
   pub(crate) fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     trace!("with_pact - ref = {}, keys = {:?}", self.pact_ref, handles.keys());
@@ -247,6 +251,10 @@ impl InteractionHandle {
   }
 
   /// Invokes the closure with the inner Pact model
+  ///
+  /// # Errors
+  /// This function acquires a lock on the PACT_HANDLES mutex. If the closure panics, this mutex
+  /// will be poisoned. So panics must be avoided.
   pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let index = (self.interaction_ref >> 16) as u16;
@@ -254,6 +262,10 @@ impl InteractionHandle {
   }
 
   /// Invokes the closure with the inner Interaction model
+  ///
+  /// # Errors
+  /// This function acquires a lock on the PACT_HANDLES mutex. If the closure panics, this mutex
+  /// will be poisoned. So panics must be avoided.
   pub fn with_interaction<R>(&self, f: &dyn Fn(u16, bool, &mut dyn V4Interaction) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let index = (self.interaction_ref >> 16) as u16;

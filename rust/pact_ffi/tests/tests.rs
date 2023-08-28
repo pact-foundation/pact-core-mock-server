@@ -137,12 +137,16 @@ fn create_multipart_file() {
   let description = CString::new("create_multipart_file").unwrap();
   let interaction = pactffi_new_interaction(pact_handle, description.as_ptr());
   let content_type = CString::new("application/json").unwrap();
+  let content_type2 = CString::new("text/plain").unwrap();
   let file = CString::new("tests/multipart-test-file.json").unwrap();
+  let file2 = CString::new("tests/note.text").unwrap();
   let part_name = CString::new("file").unwrap();
+  let part_name2 = CString::new("note").unwrap();
 
   pactffi_with_multipart_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr());
+  pactffi_with_multipart_file(interaction.clone(), InteractionPart::Request, content_type2.as_ptr(), file2.as_ptr(), part_name2.as_ptr());
 
-  interaction.with_interaction(&|_, _, i| {
+  let (boundary, headers, body) = interaction.with_interaction(&|_, _, i| {
     let interaction = i.as_v4_http().unwrap();
     let boundary = match &interaction.request.headers {
       Some(hashmap) => {
@@ -156,22 +160,24 @@ fn create_multipart_file() {
       None => ""
     };
 
-    expect!(interaction.request.headers.as_ref()).to(be_some().value(&hashmap!{
-      "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
-    }));
-
     let actual_req_body_str = match &interaction.request.body {
       OptionalBody::Present(body, _, _) => body.clone(),
       _ => Bytes::new(),
     };
 
-    let expected_req_body = Bytes::from(format!(
-      "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n--{boundary}--\r\n",
-      boundary = boundary
-    ));
+    (boundary.to_string(), interaction.request.headers.clone(), actual_req_body_str)
+  }).unwrap();
 
-    expect!(actual_req_body_str).to(be_equal_to(expected_req_body));
-  });
+  expect!(headers).to(be_some().value(hashmap!{
+    "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
+  }));
+
+  let expected_req_body = Bytes::from(format!(
+    "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n\
+--{boundary}\r\nContent-Disposition: form-data; name=\"note\"; filename=\"note.text\"\r\nContent-Type: text/plain\r\n\r\nThis is a note. Truth.\n\r\n--{boundary}--\r\n",
+    boundary = boundary
+  ));
+  assert_eq!(expected_req_body, body);
 }
 
 #[test_log::test]
