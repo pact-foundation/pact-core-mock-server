@@ -174,7 +174,7 @@ fn create_multipart_file() {
 
   let expected_req_body = Bytes::from(format!(
     "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n\
---{boundary}\r\nContent-Disposition: form-data; name=\"note\"; filename=\"note.text\"\r\nContent-Type: text/plain\r\n\r\nThis is a note. Truth.\n\r\n--{boundary}--\r\n",
+     --{boundary}\r\nContent-Disposition: form-data; name=\"note\"; filename=\"note.text\"\r\nContent-Type: text/plain\r\n\r\nThis is a note. Truth.\r\n--{boundary}--\r\n",
     boundary = boundary
   ));
   assert_eq!(expected_req_body, body);
