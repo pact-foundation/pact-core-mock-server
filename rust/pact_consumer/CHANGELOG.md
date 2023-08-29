@@ -1,5 +1,23 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.4 - Bugfix Release
+
+* d592cd8b - chore: Upgrade pact_mock_server to 1.2.3 (Ronald Holshausen, Tue Aug 29 09:25:14 2023 +1000)
+* 3ec99c41 - chore: Upgrade pact_matching to 1.1.5 (Ronald Holshausen, Fri Aug 18 15:40:02 2023 +1000)
+* db59c865 - fix: test test_req_res_message_client was failing on Windows with a channel error (Ronald Holshausen, Fri Aug 18 11:17:15 2023 +1000)
+* 3438d4e5 - feat: Add Synchronous Messages feature (Ronald Holshausen, Fri Aug 18 09:59:21 2023 +1000)
+* 92fc950e - feat(compatibility-suite): Add V4 message scenarios (Ronald Holshausen, Wed Aug 16 14:09:49 2023 +1000)
+* ea98f458 - feat(compatibility-suite): Implemented V4 HTTP scenarios (Ronald Holshausen, Tue Aug 15 15:09:24 2023 +1000)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* ad36106a - feat(pact-consumer): Message DSL was missing support for V3 messages and provider state parameters (Ronald Holshausen, Wed Aug 2 16:45:21 2023 +1000)
+* 0586fcf1 - chore: Upgrade pact_mock_server to 1.2.2 (Ronald Holshausen, Thu Jul 27 14:45:02 2023 +1000)
+* 8f88192e - chore: Upgrade pact_matching to 1.1.4 (Ronald Holshausen, Thu Jul 27 14:35:27 2023 +1000)
+* 4a01919a - chore: Upgrade pact_models to 1.1.9 (Ronald Holshausen, Thu Jul 27 10:24:00 2023 +1000)
+* 9f31eb88 - feat(compatibility-suite): Added remaining V3 features; Got generator steps passing (Ronald Holshausen, Tue Jul 25 15:35:39 2023 +1000)
+* 71fba00c - feat(pact_comsumer): Added support for using EachKey and EachValue matchers (Ronald Holshausen, Mon Jul 17 11:33:08 2023 +1000)
+* a239f786 - bump version to 1.0.4 (Ronald Holshausen, Thu Jul 13 09:28:32 2023 +1000)
+
 # 1.0.3 - Bugfix Release
 
 * e08119ab - fix(pact-consumer): Some code for the datetime feature was not being excluded when the feature was turned off #290 (Ronald Holshausen, Thu Jul 13 09:22:24 2023 +1000)
