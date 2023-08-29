@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.8 - Bugfix Release
+
+* a3025b14 - chore(pact_ffi): Disable aarch64-unknown-linux-gnu target from release build (Ronald Holshausen, Tue Aug 29 14:53:10 2023 +1000)
+* c924b9ce - chore: Upgrade pact_verifier to 1.0.3 (Ronald Holshausen, Tue Aug 29 10:04:18 2023 +1000)
+* d592cd8b - chore: Upgrade pact_mock_server to 1.2.3 (Ronald Holshausen, Tue Aug 29 09:25:14 2023 +1000)
+* 37fa901c - fix(FFI): Stupid Windows #314 (Ronald Holshausen, Mon Aug 28 15:54:08 2023 +1000)
+* 7fc7bbc7 - fix(FFI): When appending parts to an existing multipart body, matching rules should still be configured for the new part #314 (Ronald Holshausen, Mon Aug 28 15:36:57 2023 +1000)
+* bae6b5a9 - fix(FFI): Allow pactffi_with_multipart_file to append parts to an existing multipart body #314 (Ronald Holshausen, Mon Aug 28 15:32:25 2023 +1000)
+* 3ec99c41 - chore: Upgrade pact_matching to 1.1.5 (Ronald Holshausen, Fri Aug 18 15:40:02 2023 +1000)
+* 6df8ce82 - fix(pact_verifier): Fix missing PATCH version in plugin's version (tienvx, Mon Aug 7 18:14:51 2023 +0700)
+* e6484f39 - fix(FFI): Check for the intermediate JSON format when setting the body contents with XML #305 (Ronald Holshausen, Mon Aug 7 16:44:47 2023 +1000)
+* 66648b4c - fix(FFI): Guard against header names being passed in different case #305 (Ronald Holshausen, Mon Aug 7 16:06:11 2023 +1000)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* ef920ba7 - bump version to 0.4.8 (Ronald Holshausen, Thu Jul 27 15:28:46 2023 +1000)
+
 # 0.4.7 - Bugfix Release
 
 * 04af3923 - chore: Upgrade pact_verifier to 1.0.2 (Ronald Holshausen, Thu Jul 27 15:17:57 2023 +1000)
