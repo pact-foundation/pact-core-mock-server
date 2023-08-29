@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.1 - Maintenance Release
+
+* c924b9ce - chore: Upgrade pact_verifier to 1.0.3 (Ronald Holshausen, Tue Aug 29 10:04:18 2023 +1000)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* 04af3923 - chore: Upgrade pact_verifier to 1.0.2 (Ronald Holshausen, Thu Jul 27 15:17:57 2023 +1000)
+* 4a01919a - chore: Upgrade pact_models to 1.1.9 (Ronald Holshausen, Thu Jul 27 10:24:00 2023 +1000)
+* 64a862ee - chore:(pact_verifier_cli): correct linux release script (Ronald Holshausen, Wed Jul 12 13:49:34 2023 +1000)
+* 87017434 - bump version to 1.0.1 (Ronald Holshausen, Wed Jul 12 12:07:52 2023 +1000)
+
 # 1.0.0 - 1.0.0 Release
 
 * b9e034b2 - feat: Add crate feature for JUnit report output (Ronald Holshausen, Wed Jul 12 11:50:08 2023 +1000)
