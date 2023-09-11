@@ -289,6 +289,7 @@ impl Matches<&str> for &str {
           Err(err) => Err(anyhow!("'{}' is not a valid semantic version - {}", actual, err))
         }
       }
+      MatchingRule::ContentType(content_type) => match_content_type(actual.as_bytes(), content_type),
       _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
       } else {

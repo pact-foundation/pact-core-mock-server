@@ -386,4 +386,19 @@ mod tests {
     let string = unsafe { CString::from_raw(err_result as *mut c_char) };
     expect!(string.to_string_lossy()).to(be_equal_to("Failed to parse actual JSON: EOF while parsing a string at line 1 column 11"));
   }
+
+  #[test_log::test]
+  fn pactffi_matches_string_value_using_content_type_matching_rule_test() {
+    let rule = MatchingRule::ContentType("text/plain".to_string());
+    let rule_ptr = &rule as *const MatchingRule;
+    let value = CString::new("testing").unwrap();
+
+    let exact_value = CString::new("testing").unwrap();
+    let exact_result = pactffi_matches_string_value(rule_ptr, value.as_ptr(), exact_value.as_ptr(), 0);
+    expect!(exact_result.is_null()).to(be_true());
+
+    let different_value = CString::new("testing_123").unwrap();
+    let different_result = pactffi_matches_string_value(rule_ptr, value.as_ptr(), different_value.as_ptr(), 0);
+    expect!(different_result.is_null()).to(be_true());
+  }
 }
