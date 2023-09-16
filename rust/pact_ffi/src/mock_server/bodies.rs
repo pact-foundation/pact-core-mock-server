@@ -6,6 +6,7 @@ use anyhow::anyhow;
 use bytes::{Bytes, BytesMut};
 use lazy_static::lazy_static;
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentTypeHint;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleLogic};
@@ -18,7 +19,7 @@ use tracing::{debug, error, trace, warn};
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
 lazy_static! {
-  static ref MULTIPART_MARKER: Regex = Regex::new("\\-\\-(\\w+)\r\n").unwrap();
+  static ref MULTIPART_MARKER: Regex = Regex::new("\\-\\-([a-zA-Z0-9'\\(\\)+_,-.\\/:=? ]*)\r\n").unwrap();
 }
 
 /// Process an array with embedded matching rules and generators
@@ -205,11 +206,7 @@ pub fn request_multipart(
     // Exiting part with the same boundary marker found, just add the new part to the end
     // This assumes that the previous call will have correctly setup headers and matching rules etc.
     debug!("Found existing multipart with the same boundary marker, will append to it");
-    let ct_hint = match &request.body {
-      OptionalBody::Present(_, _, hint) => *hint,
-      _ => None
-    };
-    request.body = OptionalBody::Present(parts, request.body.content_type(), ct_hint);
+    request.body = OptionalBody::Present(parts, request.body.content_type(), get_content_type_hint(&request.body));
   } else {
     // Either no existing multipart exists, or there is one with a different marker, so we
     // overwrite it.
@@ -231,23 +228,41 @@ pub fn request_multipart(
 fn add_part_to_multipart(body: &OptionalBody, new_part: &OptionalBody, boundary: &str) -> Option<Bytes> {
   if let Some(boundary_marker) = contains_existing_multipart(body) {
     let existing_parts = body.value().unwrap_or_default();
-    let marker = format!("--{}\r\n", boundary_marker);
     let end_marker = format!("--{}--\r\n", boundary_marker);
     let base = existing_parts.strip_suffix(end_marker.as_bytes()).unwrap_or(&existing_parts);
-
-    let marker_to_replace = format!("--{}\r\n", boundary);
-    let end_marker_to_replace = format!("--{}--\r\n", boundary);
-    let new_part = new_part.value().unwrap_or_default();
-    let new_part = new_part.strip_prefix(marker_to_replace.as_bytes()).unwrap_or(&new_part);
-    let new_part = new_part.strip_suffix(end_marker_to_replace.as_bytes()).unwrap_or(&new_part);
+    let new_part = part_body_replace_marker(new_part, boundary, &boundary_marker.as_str());
 
     let mut bytes = BytesMut::from(base);
-    bytes.extend(marker.as_bytes());
     bytes.extend(new_part);
-    bytes.extend(end_marker.as_bytes());
     Some(bytes.freeze())
   } else {
     None
+  }
+}
+
+/// Replace multipart marker in body
+pub fn part_body_replace_marker(body: &OptionalBody, boundary: &str, new_boundary: &str) -> Bytes {
+  let marker = format!("--{}\r\n", new_boundary);
+  let end_marker = format!("--{}--\r\n", new_boundary);
+
+  let marker_to_replace = format!("--{}\r\n", boundary);
+  let end_marker_to_replace = format!("--{}--\r\n", boundary);
+  let body = body.value().unwrap_or_default();
+  let body = body.strip_prefix(marker_to_replace.as_bytes()).unwrap_or(&body);
+  let body = body.strip_suffix(end_marker_to_replace.as_bytes()).unwrap_or(&body);
+
+  let mut bytes = BytesMut::new();
+  bytes.extend(marker.as_bytes());
+  bytes.extend(body);
+  bytes.extend(end_marker.as_bytes());
+  bytes.freeze()
+}
+
+/// Get content type hint from body
+pub fn get_content_type_hint(body: &OptionalBody) -> Option<ContentTypeHint> {
+  match &body {
+    OptionalBody::Present(_, _, hint) => *hint,
+    _ => None
   }
 }
 
@@ -276,11 +291,7 @@ pub fn response_multipart(
     // Exiting part with the same boundary marker found, just add the new part to the end
     // This assumes that the previous call will have correctly setup headers and matching rules etc.
     debug!("Found existing multipart with the same boundary marker, will append to it");
-    let ct_hint = match &response.body {
-      OptionalBody::Present(_, _, hint) => *hint,
-      _ => None
-    };
-    response.body = OptionalBody::Present(parts, response.body.content_type(), ct_hint);
+    response.body = OptionalBody::Present(parts, response.body.content_type(), get_content_type_hint(&response.body));
   } else {
     // Either no existing multipart exists, or there is one with a different marker, so we
     // overwrite it.

@@ -43,6 +43,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_body,
   pactffi_with_header,
   pactffi_with_multipart_file,
+  pactffi_with_multipart_file_v2,
   pactffi_with_query_parameter_v2,
   pactffi_with_request,
   pactffi_write_message_pact_file
@@ -166,6 +167,48 @@ fn create_multipart_file() {
     };
 
     (boundary.to_string(), interaction.request.headers.clone(), actual_req_body_str)
+  }).unwrap();
+
+  expect!(headers).to(be_some().value(hashmap!{
+    "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
+  }));
+
+  let expected_req_body = Bytes::from(format!(
+    "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n\
+     --{boundary}\r\nContent-Disposition: form-data; name=\"note\"; filename=\"note.text\"\r\nContent-Type: text/plain\r\n\r\nThis is a note. Truth.\r\n--{boundary}--\r\n",
+    boundary = boundary
+  ));
+  assert_eq!(expected_req_body, body);
+}
+
+#[test]
+fn create_multipart_file_v2() {
+  let consumer_name = CString::new("consumer").unwrap();
+  let provider_name = CString::new("provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("create_multipart_file").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle, description.as_ptr());
+  let content_type = CString::new("application/json").unwrap();
+  let content_type2 = CString::new("text/plain").unwrap();
+  let file = CString::new("tests/multipart-test-file.json").unwrap();
+  let file2 = CString::new("tests/note.text").unwrap();
+  let part_name = CString::new("file").unwrap();
+  let part_name2 = CString::new("note").unwrap();
+  let boundary = "test boundary";
+  let boundary_cstring = CString::new(boundary).unwrap();
+
+  pactffi_with_multipart_file_v2(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr(), boundary_cstring.as_ptr());
+  pactffi_with_multipart_file_v2(interaction.clone(), InteractionPart::Request, content_type2.as_ptr(), file2.as_ptr(), part_name2.as_ptr(), boundary_cstring.as_ptr());
+
+  let ( headers, body) = interaction.with_interaction(&|_, _, i| {
+    let interaction = i.as_v4_http().unwrap();
+
+    let actual_req_body_str = match &interaction.request.body {
+      OptionalBody::Present(body, _, _) => body.clone(),
+      _ => Bytes::new(),
+    };
+
+    (interaction.request.headers.clone(), actual_req_body_str)
   }).unwrap();
 
   expect!(headers).to(be_some().value(hashmap!{
