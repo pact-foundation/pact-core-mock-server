@@ -151,7 +151,9 @@ use crate::mock_server::bodies::{
   process_json,
   process_object,
   request_multipart,
-  response_multipart
+  response_multipart,
+  get_content_type_hint,
+  part_body_replace_marker
 };
 use crate::models::iterators::{PactMessageIterator, PactSyncHttpIterator, PactSyncMessageIterator};
 use crate::ptr;
@@ -1617,6 +1619,7 @@ pub extern fn pactffi_with_binary_file(
 /// * `content_type` - Expected content type of the file.
 /// * `file` - path to the example file
 /// * `part_name` - name for the mime part
+/// * `boundary` - boundary for the multipart separation
 ///
 /// This function can be called multiple times. In that case, each subsequent call will be
 /// appended to the existing multipart body as a new part.
@@ -1629,18 +1632,20 @@ pub extern fn pactffi_with_binary_file(
 ///
 /// # Error Handling
 ///
+/// If the boundary is a NULL pointer, a random string will be used.
 /// If the file path is a NULL pointer, it will set the body contents as as an empty mime-part.
 /// If the file path does not point to a valid file, or is not able to be read, it will return an
 /// error result. If the content type is a null pointer, or can't be parsed, it will return an error result.
 /// Returns an error if the interaction or Pact can't be modified (i.e. the mock server for it has
 /// already started), the interaction is not an HTTP interaction or some other error occurs.
 #[no_mangle]
-pub extern fn pactffi_with_multipart_file(
+pub extern fn pactffi_with_multipart_file_v2(
   interaction: InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
   file: *const c_char,
-  part_name: *const c_char
+  part_name: *const c_char,
+  boundary: *const c_char
 ) -> StringResult {
   let part_name = convert_cstr("part_name", part_name).unwrap_or("file");
   match convert_cstr("content_type", content_type) {
@@ -1649,9 +1654,19 @@ pub extern fn pactffi_with_multipart_file(
         match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
             if let Some(reqres) = inner.as_v4_http_mut() {
+              let (body, boundary) = match convert_cstr("boundary", boundary) {
+                Some(boundary) => {
+                  let part = part_body_replace_marker(&body.body, body.boundary.as_str(), boundary);
+                  let body = OptionalBody::Present(part, body.body.content_type(), get_content_type_hint(&body.body));
+                  (body, boundary)
+                },
+                None => {
+                  (body.body, body.boundary.as_str())
+                }
+              };
               match part {
-                InteractionPart::Request => request_multipart(&mut reqres.request, &body.boundary, body.body, content_type, part_name),
-                InteractionPart::Response => response_multipart(&mut reqres.response, &body.boundary, body.body, content_type, part_name)
+                InteractionPart::Request => request_multipart(&mut reqres.request, boundary, body, content_type, part_name),
+                InteractionPart::Response => response_multipart(&mut reqres.response, boundary, body, content_type, part_name)
               };
               if mock_server_started {
                 Err("with_multipart_file: This Pact can not be modified, as the mock server has already started".to_string())
@@ -1686,6 +1701,43 @@ pub extern fn pactffi_with_multipart_file(
       StringResult::Failed(error.into_raw())
     }
   }
+}
+
+/// Adds a binary file as the body as a MIME multipart with the expected content type and example contents. Will use
+/// a mime type matcher to match the body. Returns an error if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started) or an error occurs.
+///
+/// * `interaction` - Interaction handle to set the body for.
+/// * `part` - Request or response part.
+/// * `content_type` - Expected content type of the file.
+/// * `file` - path to the example file
+/// * `part_name` - name for the mime part
+///
+/// This function can be called multiple times. In that case, each subsequent call will be
+/// appended to the existing multipart body as a new part.
+///
+/// # Safety
+///
+/// The content type, file path and part name must be valid pointers to UTF-8 encoded NULL-terminated strings.
+/// Passing invalid pointers or pointers to strings that are not NULL terminated will lead to undefined
+/// behaviour.
+///
+/// # Error Handling
+///
+/// If the file path is a NULL pointer, it will set the body contents as as an empty mime-part.
+/// If the file path does not point to a valid file, or is not able to be read, it will return an
+/// error result. If the content type is a null pointer, or can't be parsed, it will return an error result.
+/// Returns an error if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started), the interaction is not an HTTP interaction or some other error occurs.
+#[no_mangle]
+pub extern fn pactffi_with_multipart_file(
+  interaction: InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  file: *const c_char,
+  part_name: *const c_char
+) -> StringResult {
+  pactffi_with_multipart_file_v2(interaction, part, content_type, file, part_name, std::ptr::null())
 }
 
 fn convert_ptr_to_body(body: *const u8, size: size_t) -> OptionalBody {
