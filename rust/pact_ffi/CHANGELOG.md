@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.9 - Bugfix Release
+
+* 04bad264 - chore: Upgrade pact_matching to 1.1.6 (Ronald Holshausen, Fri Sep 22 11:03:38 2023 +1000)
+* 9f8dde99 - fix: Nested array contains matchers where not having their values propogated to the outer matcher #324 (Ronald Holshausen, Fri Sep 22 10:18:56 2023 +1000)
+* 0bbb66e3 - Merge pull request #323 from tienvx/ffi-with-multipart-file-v2 (Ronald Holshausen, Thu Sep 21 12:13:07 2023 +1000)
+* b6cb715a - Merge pull request #319 from tienvx/match-string-value-using-content-type (Ronald Holshausen, Thu Sep 21 12:05:15 2023 +1000)
+* e7b5cced - Merge pull request #321 from YOU54F/chore/enable_aarch64-unknown-linux-gnu (Ronald Holshausen, Thu Sep 21 08:31:57 2023 +1000)
+* 53a08108 - feat: Add ffi function pactffi_with_multipart_file_v2 (tien.xuan.vo, Sat Sep 16 16:08:53 2023 +0700)
+* b11e2808 - chore: renable aarch64-unknown-linux-gnu (Yousaf Nabi, Fri Sep 15 20:13:13 2023 +0100)
+* 63b7cf9d - fix: Allow matching string values using content type matching rule (tien.xuan.vo, Mon Sep 11 18:32:24 2023 +0700)
+* 89a18dab - bump version to 0.4.9 (Ronald Holshausen, Tue Aug 29 14:57:35 2023 +1000)
+
 # 0.4.8 - Bugfix Release
 
 * a3025b14 - chore(pact_ffi): Disable aarch64-unknown-linux-gnu target from release build (Ronald Holshausen, Tue Aug 29 14:53:10 2023 +1000)
