@@ -671,3 +671,82 @@ fn each_key_matcher() {
     "Expected 'not valid' to match '[a-z]{3,}[0-9]'"
   ], messages);
 }
+
+// Issue #324
+#[test_log::test]
+fn array_contains_matcher() {
+  let consumer_name = CString::new("array_contains_matcher-consumer").unwrap();
+  let provider_name = CString::new("array_contains_matcher-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("array_contains_matcher").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+
+  let content_type = CString::new("application/json").unwrap();
+  let path = CString::new("/book").unwrap();
+  let json = json!({
+    "pact:matcher:type": "array-contains",
+    "variants": [
+      {
+        "users": {
+          "pact:matcher:type": "array-contains",
+          "variants": [
+            {
+              "id": {
+                "value": 1
+              }
+            },
+            {
+              "id": {
+                "value": 2
+              }
+            },
+          ]
+        }
+      },
+    ]
+  });
+  let body = CString::new(json.to_string()).unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let method = CString::new("GET").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_body(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), body.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let result = client.get(format!("http://127.0.0.1:{}/book", port).as_str())
+    .header("Content-Type", "application/json")
+    .send();
+
+  pactffi_cleanup_mock_server(port);
+
+  match result {
+    Ok(ref res) => {
+      expect!(res.status()).to(be_eq(200));
+    },
+    Err(err) => {
+      panic!("expected 200 response but request failed: {}", err);
+    }
+  };
+
+  let json: Value = result.unwrap().json().unwrap();
+  let users = json.as_array().unwrap().first().unwrap().as_object()
+    .unwrap().get("users").unwrap();
+
+  if users.is_null() {
+    panic!("'users' field is null in JSON");
+  }
+  expect!(users).to(be_equal_to(&json!([
+    {
+      "id": { "value": 1 }
+    },
+    {
+      "id": { "value": 2 }
+    },
+  ])));
+}

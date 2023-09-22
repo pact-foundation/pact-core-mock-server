@@ -1028,8 +1028,10 @@ pub extern fn pactffi_with_header(
   index: size_t,
   value: *const c_char
 ) -> bool {
+  trace!(">>> pactffi_with_header({:?}, {:?}, {:?}, {:?}, {:?})", interaction, part, name, index, value);
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
+    trace!(?name, ?value, "pactffi_with_header");
     interaction.with_interaction(&|_, mock_server_started, inner| {
       if let Some(reqres) = inner.as_v4_http_mut() {
         let headers = match part {
@@ -1355,6 +1357,7 @@ pub extern fn pactffi_with_body(
   content_type: *const c_char,
   body: *const c_char
 ) -> bool {
+  trace!(">>> pactffi_with_body({:?}, {:?}, {:?}, {:?})", interaction, part, content_type, body);
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
   let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();

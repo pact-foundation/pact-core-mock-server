@@ -54,108 +54,122 @@ pub fn process_object(
   matching_rules: &mut MatchingRuleCategory,
   generators: &mut Generators,
   path: DocPath,
-  skip_matchers: bool
+  type_matcher: bool
 ) -> Value {
-  trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, skip_matchers={skip_matchers})");
+  trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, type_matcher={type_matcher})");
   debug!("Path = {path}");
   let result = if let Some(matcher_type) = obj.get("pact:matcher:type") {
     debug!("detected pact:matcher:type, will configure a matcher");
-    if !skip_matchers {
-      let matcher_type = json_to_string(matcher_type);
-      let matching_rule = match matcher_type.as_str() {
-        "arrayContains" | "array-contains" => match obj.get("variants") {
-          Some(Value::Array(variants)) => {
-            let values = variants.iter().enumerate().map(|(index, variant)| {
-              let mut category = MatchingRuleCategory::empty("body");
-              let mut generators = Generators::default();
-              match variant {
-                Value::Object(map) => {
-                  process_object(map, &mut category, &mut generators, DocPath::root(), false);
-                }
-                _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
-              }
-              (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
-            }).collect();
-            Ok(MatchingRule::ArrayContains(values))
-          }
-          _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
-        },
-        _ => {
-          let attributes = Value::Object(obj.clone());
-          MatchingRule::create(matcher_type.as_str(), &attributes)
-        }
-      };
-
-      trace!("matching_rule = {matching_rule:?}");
-      match &matching_rule {
-        Ok(rule) => matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And),
-        Err(err) => error!("Failed to parse matching rule from JSON - {}", err)
-      };
-      if let Some(gen) = obj.get("pact:generator:type") {
-        debug!("detected pact:generator:type, will configure a generators");
-        if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
-          let category = match matching_rules.name {
-            Category::BODY => &GeneratorCategory::BODY,
-            Category::HEADER => &GeneratorCategory::HEADER,
-            Category::PATH => &GeneratorCategory::PATH,
-            Category::QUERY => &GeneratorCategory::QUERY,
-            _ => {
-              warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
-              &GeneratorCategory::BODY
-            }
-          };
-          generators.add_generator_with_subcategory(category, path.clone(), generator);
-        }
-      }
-      let (value, skip_matchers) = if let Ok(rule) = &matching_rule {
-        match rule {
-          MatchingRule::ArrayContains(_) => (obj.get("variants"), true),
-          _ => (obj.get("value"), false)
-        }
-      } else {
-        (obj.get("value"), false)
-      };
-      match value {
-        Some(val) => match val {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, path, skip_matchers),
-          Value::Array(array) => process_array(array, matching_rules, generators, path, true, skip_matchers),
-          _ => val.clone()
-        },
-        None => Value::Null
-      }
-    } else {
-      debug!("Skipping the matching rule (skip_matchers == true)");
-      match obj.get("value") {
-        Some(val) => match val {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, path, skip_matchers),
-          Value::Array(array) => process_array(array, matching_rules, generators, path, false, skip_matchers),
-          _ => val.clone()
-        },
-        None => Value::Null
-      }
-    }
+    process_matcher(obj, matching_rules, generators, &path, type_matcher, matcher_type)
   } else {
     debug!("Configuring a normal object");
     Value::Object(obj.iter()
       .filter(|(key, _)| !key.starts_with("pact:"))
       .map(|(key, val)| {
-        let path_vec = path.to_vec();
-        let path_slice = path_vec.iter().map(|p| p.as_str()).collect::<Vec<_>>();
-        let matchers_for_path = matching_rules.resolve_matchers_for_path(path_slice.as_slice());
-        let item_path = if matchers_for_path.values_matcher_defined() {
+        let item_path = if type_matcher {
           path.join("*")
         } else {
           path.join(key)
         };
         (key.clone(), match val {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
-          Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
+          Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false),
+          Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, false),
           _ => val.clone()
         })
     }).collect())
   };
   trace!("-> result = {result:?}");
   result
+}
+
+// Process a matching rule definition from the JSON and returns the reified JSON
+fn process_matcher(
+  obj: &Map<String, Value>,
+  matching_rules: &mut MatchingRuleCategory,
+  generators: &mut Generators,
+  path: &DocPath,
+  skip_matchers: bool,
+  matcher_type: &Value
+) -> Value {
+  let matcher_type = json_to_string(matcher_type);
+  let matching_rule = match matcher_type.as_str() {
+    "arrayContains" | "array-contains" => {
+      match obj.get("variants") {
+        Some(Value::Array(variants)) => {
+          let mut json_values = vec![];
+
+          let values = variants.iter().enumerate().map(|(index, variant)| {
+            let mut category = MatchingRuleCategory::empty("body");
+            let mut generators = Generators::default();
+            let value = match variant {
+              Value::Object(map) => {
+                process_object(map, &mut category, &mut generators, DocPath::root(), false)
+              }
+              _ => {
+                warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant);
+                Value::Null
+              }
+            };
+            json_values.push(value);
+            (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
+          }).collect();
+
+          Ok((Some(MatchingRule::ArrayContains(values)), Value::Array(json_values)))
+        }
+        _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
+      }
+    },
+    _ => {
+      let attributes = Value::Object(obj.clone());
+      let (rule, is_values_matcher) = match MatchingRule::create(matcher_type.as_str(), &attributes) {
+        Ok(rule) => (Some(rule.clone()), rule.is_values_matcher()),
+        Err(err) => {
+          error!("Failed to parse matching rule from JSON - {}", err);
+          (None, false)
+        }
+      };
+      let json_value = match obj.get("value") {
+        Some(inner) => match inner {
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path.clone(), is_values_matcher),
+          Value::Array(array) => process_array(array, matching_rules, generators, path.clone(), true, skip_matchers),
+          _ => inner.clone()
+        },
+        None => Value::Null
+      };
+      Ok((rule, json_value))
+    }
+  };
+
+  if let Some(gen) = obj.get("pact:generator:type") {
+    debug!("detected pact:generator:type, will configure a generators");
+    if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
+      let category = match matching_rules.name {
+        Category::BODY => &GeneratorCategory::BODY,
+        Category::HEADER => &GeneratorCategory::HEADER,
+        Category::PATH => &GeneratorCategory::PATH,
+        Category::QUERY => &GeneratorCategory::QUERY,
+        _ => {
+          warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
+          &GeneratorCategory::BODY
+        }
+      };
+      generators.add_generator_with_subcategory(category, path.clone(), generator);
+    }
+  }
+
+  trace!("matching_rule = {matching_rule:?}");
+  match &matching_rule {
+    Ok((rule, value)) => {
+      if let Some(rule) = rule {
+        matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+      }
+      value.clone()
+    },
+    Err(err) => {
+      error!("Failed to parse matching rule from JSON - {}", err);
+      Value::Null
+    }
+  }
 }
 
 /// Builds a `MatchingRule` from a `Value` struct used by language integrations
