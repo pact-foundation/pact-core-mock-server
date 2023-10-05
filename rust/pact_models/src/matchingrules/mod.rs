@@ -1017,7 +1017,7 @@ impl PartialEq for MatchingRuleCategory {
 
 impl PartialOrd for MatchingRuleCategory {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    self.name.partial_cmp(&other.name)
+    Some(self.cmp(other))
   }
 }
 

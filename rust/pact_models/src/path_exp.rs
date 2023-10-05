@@ -386,7 +386,7 @@ impl PartialEq for DocPath {
 
 impl PartialOrd for DocPath {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    self.expr.partial_cmp(&other.expr)
+    Some(self.cmp(other))
   }
 }
 
