@@ -23,33 +23,7 @@ use tracing::debug;
 use crate::prelude::{JsonPattern, Pattern};
 #[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
 
-#[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug, Default)]
-struct InteractionContents {
-  /// Description of what part this interaction belongs to (in the case of there being more than
-  /// one, for instance, request/response messages)
-  #[allow(dead_code)] pub part_name: String,
-
-  /// Body/Contents of the interaction
-  pub body: OptionalBody,
-
-  /// Matching rules to apply
-  pub rules: Option<MatchingRuleCategory>,
-
-  /// Generators to apply
-  pub generators: Option<Generators>,
-
-  /// Message metadata
-  pub metadata: Option<HashMap<String, Value>>
-}
-
-#[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug)]
-struct PactPluginManifest {}
-
-#[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug)]
-struct PluginConfiguration {}
+#[cfg(not(feature = "plugins"))] use crate::builders::message_builder::{InteractionContents, PactPluginManifest, PluginConfiguration};
 
 #[derive(Clone, Debug)]
 /// Synchronous message interaction builder. Normally created via PactBuilder::sync_message_interaction.
@@ -60,8 +34,10 @@ pub struct SyncMessageInteractionBuilder {
   test_name: Option<String>,
   key: Option<String>,
   pending: Option<bool>,
-  request_contents: InteractionContents, // TODO: This should not be using this struct, as it leaks plugin specific API
-  response_contents: Vec<InteractionContents>, // TODO: This should not be using this struct, as it leaks plugin specific API
+  /// Request contents of the message. This will include the payload as well as any metadata
+  pub request_contents: InteractionContents, // TODO: This should not be using this struct, as it leaks plugin specific API
+  /// Response contents of the message. This will include the payloads as well as any metadata
+  pub response_contents: Vec<InteractionContents>, // TODO: This should not be using this struct, as it leaks plugin specific API
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }

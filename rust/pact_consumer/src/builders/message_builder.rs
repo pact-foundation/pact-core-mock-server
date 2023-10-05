@@ -28,7 +28,12 @@ use crate::prelude::Pattern;
 
 #[cfg(not(feature = "plugins"))]
 #[derive(Clone, Debug, Default)]
-struct InteractionContents {
+/// Placeholder struct when plugins are disabled
+pub struct InteractionContents {
+  /// Description of what part this interaction belongs to (in the case of there being more than
+  /// one, for instance, request/response messages)
+  #[allow(dead_code)] pub part_name: String,
+
   /// Body/Contents of the interaction
   pub body: OptionalBody,
 
@@ -39,16 +44,30 @@ struct InteractionContents {
   pub generators: Option<Generators>,
 
   /// Message metadata
-  pub metadata: Option<HashMap<String, Value>>
+  pub metadata: Option<HashMap<String, Value>>,
+
+  /// Matching rules to apply to message metadata
+  pub metadata_rules: Option<MatchingRuleCategory>,
+
+  /// Plugin configuration data to apply to the interaction
+  pub plugin_config: PluginConfiguration,
+
+  /// Markup for the interaction to display in any UI
+  pub interaction_markup: String,
+
+  /// The type of the markup (CommonMark or HTML)
+  pub interaction_markup_type: String
 }
 
 #[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug)]
-struct PactPluginManifest {}
+#[derive(Clone, Debug, Default)]
+/// Placeholder struct when plugins are disabled
+pub struct PactPluginManifest {}
 
 #[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug)]
-struct PluginConfiguration {}
+#[derive(Clone, Debug, Default)]
+/// Placeholder struct when plugins are disabled
+pub struct PluginConfiguration {}
 
 #[derive(Clone, Debug)]
 /// Asynchronous message interaction builder. Normally created via PactBuilder::message_interaction.
