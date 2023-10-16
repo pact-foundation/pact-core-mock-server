@@ -11,11 +11,13 @@ use itertools::Itertools;
 use libc::c_char;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
+use pact_models::PactSpecification;
 use pretty_assertions::assert_eq;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use serde_json::{json, Value};
+use rstest::rstest;
 
 #[allow(deprecated)]
 use pact_ffi::mock_server::{
@@ -37,6 +39,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_new_message,
   pactffi_new_message_pact,
   pactffi_new_pact,
+  pactffi_with_specification,
   pactffi_response_status,
   pactffi_upon_receiving,
   pactffi_with_binary_file,
@@ -428,11 +431,20 @@ fn fixture_path(path: &str) -> PathBuf {
 }
 
 #[cfg(not(windows))]
-#[test_log::test]
-fn pactffi_with_binary_file_feature_test() {
+#[rstest(
+  specification,                                          expected_value,
+  case::specification_unknown(PactSpecification::Unknown, false),
+  case::specification_v1(PactSpecification::V1,           false),
+  case::specification_v1_1(PactSpecification::V1_1,       false),
+  case::specification_v2(PactSpecification::V2,           false),
+  case::specification_v3(PactSpecification::V3,           true),
+  case::specification_v4(PactSpecification::V4,           true),
+)]
+fn pactffi_with_binary_file_feature_test(specification: PactSpecification, expected_value: bool) {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("image-provider").unwrap();
   let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  pactffi_with_specification(pact_handle, specification);
 
   let description = CString::new("request_with_matchers").unwrap();
   let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
@@ -483,6 +495,11 @@ fn pactffi_with_binary_file_feature_test() {
   pactffi_cleanup_mock_server(port);
 
   expect!(mismatches).to(be_equal_to("[]"));
+
+  let actual_value = interaction.with_interaction(
+    &|_, _, inner| inner.as_v4_http().unwrap().request.matching_rules.add_category("body").is_not_empty()
+  ).unwrap_or(false);
+  expect!(actual_value).to(be_equal_to(expected_value));
 }
 
 #[test_log::test]
