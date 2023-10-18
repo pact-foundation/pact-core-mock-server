@@ -1539,6 +1539,9 @@ pub extern fn pactffi_with_binary_file(
   size: size_t
 ) -> bool {
   let content_type_header = "Content-Type".to_string();
+  let support_content_type_matching_rule = interaction.with_pact(
+    &|_, pact| pact.specification_version >= PactSpecification::V3
+  ).unwrap_or(false);
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
       interaction.with_interaction(&|_, mock_server_started, inner| {
@@ -1556,8 +1559,7 @@ pub extern fn pactffi_with_binary_file(
                   }
                 }
               };
-              reqres.request.matching_rules.add_category("body").add_rule(
-                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut reqres.request.matching_rules, content_type);
             },
             InteractionPart::Response => {
               reqres.response.body = convert_ptr_to_body(body, size);
@@ -1571,30 +1573,26 @@ pub extern fn pactffi_with_binary_file(
                   }
                 }
               }
-              reqres.response.matching_rules.add_category("body").add_rule(
-                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut reqres.response.matching_rules, content_type);
             }
           };
           !mock_server_started
         } else if let Some(message) = inner.as_v4_async_message_mut() {
           message.contents.contents = convert_ptr_to_body(body, size);
-          message.contents.matching_rules.add_category("body").add_rule(
-            DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+          add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut message.contents.matching_rules, content_type);
           message.contents.metadata.insert("contentType".to_string(), json!(content_type));
           true
         } else if let Some(sync_message) = inner.as_v4_sync_message_mut() {
           match part {
             InteractionPart::Request => {
               sync_message.request.contents = convert_ptr_to_body(body, size);
-              sync_message.request.matching_rules.add_category("body").add_rule(
-                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut sync_message.request.matching_rules, content_type);
               sync_message.request.metadata.insert("contentType".to_string(), json!(content_type));
             },
             InteractionPart::Response => {
               let mut response = MessageContents::default();
               response.contents = convert_ptr_to_body(body, size);
-              response.matching_rules.add_category("body").add_rule(
-                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut response.matching_rules, content_type);
               response.metadata.insert("contentType".to_string(), json!(content_type));
               sync_message.response.push(response);
             }
@@ -1610,6 +1608,13 @@ pub extern fn pactffi_with_binary_file(
       error!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)");
       false
     }
+  }
+}
+
+fn add_content_type_matching_rule_to_body(is_supported: bool, matching_rules: &mut MatchingRules, content_type: &str) {
+  if is_supported {
+    matching_rules.add_category("body").add_rule(
+      DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
   }
 }
 
