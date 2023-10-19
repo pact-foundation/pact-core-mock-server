@@ -8,7 +8,7 @@ use std::cell::RefCell;
 thread_local! {
     // The last error to have been reported by the FFI code.
     /// cbindgen:ignore
-    static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
+    pub(crate) static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
 }
 
 /// Update the last error with a new error message.

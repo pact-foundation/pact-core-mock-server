@@ -1,10 +1,12 @@
 //! The FFI functions exposed for getting the last error.
 
+use std::slice;
+
+use libc::{c_char, c_int};
+
 use crate::error::last_error::get_error_msg;
 use crate::error::status::Status;
 use crate::util::write::write_to_c_buf;
-use libc::{c_char, c_int};
-use std::slice;
 
 /// Provide the error message from `LAST_ERROR` to the calling C code.
 ///
@@ -60,10 +62,41 @@ pub extern "C" fn pactffi_get_error_message(
     let last_err = get_error_msg().unwrap_or_else(String::new);
 
     // Try to write the error to the buffer.
-    let status = match write_to_c_buf(&last_err, buffer) {
-        Ok(_) => Status::Success,
-        Err(err) => Status::from(err),
-    };
+    match write_to_c_buf(&last_err, buffer) {
+      Ok(bytes) => bytes as c_int,
+      Err(err) => Status::from(err) as c_int
+    }
+}
 
-    status as c_int
+#[cfg(test)]
+mod tests {
+  use std::ffi::CStr;
+  use expectest::prelude::*;
+
+  use crate::error::{pactffi_get_error_message, set_error_msg};
+  use crate::error::last_error::LAST_ERROR;
+
+  #[test]
+  fn get_error_message_test() {
+    let mut buffer = Vec::with_capacity(16);
+    let pointer = buffer.as_mut_ptr();
+
+    set_error_msg("".into());
+    let result = pactffi_get_error_message(pointer, 16);
+    expect!(result).to(be_equal_to(1));
+    let c_str = unsafe { CStr::from_ptr(pointer) };
+    expect!(c_str.to_str().unwrap()).to(be_equal_to(""));
+
+    set_error_msg("error".into());
+    let result = pactffi_get_error_message(pointer, 16);
+    expect!(result).to(be_equal_to(6));
+    let c_str = unsafe { CStr::from_ptr(pointer) };
+    expect!(c_str.to_str().unwrap()).to(be_equal_to("error"));
+
+    LAST_ERROR.set(None);
+    let result = pactffi_get_error_message(pointer, 16);
+    expect!(result).to(be_equal_to(1));
+    let c_str = unsafe { CStr::from_ptr(pointer) };
+    expect!(c_str.to_str().unwrap()).to(be_equal_to(""));
+  }
 }

@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 pub(crate) fn write_to_c_buf(
     src: &str,
     dst: &mut [u8],
-) -> Result<(), WriteBufError> {
+) -> Result<usize, WriteBufError> {
     // Ensure the string has the null terminator.
     let src = CString::new(src.as_bytes())?;
     let src = src.as_bytes_with_nul();
@@ -23,9 +23,9 @@ pub(crate) fn write_to_c_buf(
     check_len(src, dst)?;
 
     // Perform a zeroized write to the destination buffer.
-    dst.zeroized_write(src)?;
+    let bytes = dst.zeroized_write(src)?;
 
-    Ok(())
+    Ok(bytes)
 }
 
 /// An error arising out of an attempted safe write to a C buffer.
@@ -62,19 +62,19 @@ fn check_len(src: &[u8], dst: &[u8]) -> Result<(), WriteBufError> {
 trait ZeroizedWrite: Write {
     // Because the write is zeroized, no length written is returned,
     // as it will always be the full length of the buffer being written to.
-    fn zeroized_write(self, buf: &[u8]) -> io::Result<()>;
+    fn zeroized_write(self, buf: &[u8]) -> io::Result<usize>;
 }
 
 impl<'a> ZeroizedWrite for &'a mut [u8] {
-    fn zeroized_write(mut self, buf: &[u8]) -> io::Result<()> {
+    fn zeroized_write(mut self, buf: &[u8]) -> io::Result<usize> {
         // Write the buffer.
-        self.write_all(buf)?;
+        let bytes = self.write(buf)?;
 
         // Check if there's a remainder and zeroize if there is.
         if let Some(remainder) = self.get_mut(buf.len()..) {
             remainder.iter_mut().zeroize();
         }
 
-        Ok(())
+        Ok(bytes)
     }
 }

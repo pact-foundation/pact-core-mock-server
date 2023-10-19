@@ -7,13 +7,7 @@ use crate::util::write::WriteBufError;
 
 /// The status code returned by `get_error_message` to the C caller.
 pub(crate) enum Status {
-    /// Writing the buffer succeeded.
-    ///
-    /// Note that because the entirety of the buffer is zeroized, there's
-    /// no need to indicate how many bytes were written.
-    Success = 0,
-
-    /// The buffer passed in was a null pointer.
+   /// The buffer passed in was a null pointer.
     NullBuffer = -1,
 
     /// The buffer was too small for the error message.
