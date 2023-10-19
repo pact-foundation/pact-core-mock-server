@@ -8,7 +8,7 @@
 #define CHK(ptr) {\
     char msg[ERROR_MSG_LEN];\
     int error = pactffi_get_error_message(msg, ERROR_MSG_LEN);\
-    if (error != 0) {\
+    if (error < 0) {\
         printf("%s\n", msg);\
         exit(EXIT_FAILURE);\
     }\
