@@ -93,7 +93,7 @@ mod tests {
     let c_str = unsafe { CStr::from_ptr(pointer) };
     expect!(c_str.to_str().unwrap()).to(be_equal_to("error"));
 
-    LAST_ERROR.set(None);
+    LAST_ERROR.with(|v| v.replace(None));
     let result = pactffi_get_error_message(pointer, 16);
     expect!(result).to(be_equal_to(1));
     let c_str = unsafe { CStr::from_ptr(pointer) };
