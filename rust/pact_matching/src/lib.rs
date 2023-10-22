@@ -410,10 +410,10 @@ pub mod metrics;
 pub mod generators;
 
 #[cfg(feature = "xml")] mod xml;
-mod binary_utils;
-mod headers;
-mod query;
-mod form_urlencoded;
+pub mod binary_utils;
+pub mod headers;
+pub mod query;
+pub mod form_urlencoded;
 
 #[cfg(not(feature = "plugins"))]
 #[derive(Clone, Debug, PartialEq)]
