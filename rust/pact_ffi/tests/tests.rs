@@ -767,3 +767,48 @@ fn array_contains_matcher() {
     },
   ])));
 }
+
+// Issue #332
+#[test_log::test]
+#[allow(deprecated)]
+fn multiple_query_values_with_regex_matcher() {
+  let consumer_name = CString::new("http-consumer-query").unwrap();
+  let provider_name = CString::new("http-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("request_with_query_matcher").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+  let path = CString::new("/request").unwrap();
+  let query_param_matcher = CString::new("{\"value\":[\"1\"],\"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}").unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let method = CString::new("GET").unwrap();
+  let query =  CString::new("foo").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_query_parameter_v2(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let result = client.get(format!("http://127.0.0.1:{}/request?foo=1&foo=443&foo=112", port).as_str())
+    .send();
+
+  match result {
+    Ok(res) => {
+      expect!(res.status()).to(be_eq(200));
+    },
+    Err(_) => {
+      panic!("expected 200 response but request failed");
+    }
+  };
+
+  let mismatches = unsafe {
+    CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
+  };
+
+  pactffi_cleanup_mock_server(port);
+
+  expect!(mismatches).to(be_equal_to("[]"));
+}

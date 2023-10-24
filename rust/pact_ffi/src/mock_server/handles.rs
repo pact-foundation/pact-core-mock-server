@@ -777,6 +777,7 @@ pub extern fn pactffi_with_query_parameter_v2(
 ) -> bool {
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
+    trace!(?interaction, name, index, value, "pactffi_with_query_parameter_v2 called");
     interaction.with_interaction(&|_, mock_server_started, inner| {
       if let Some(reqres) = inner.as_v4_http_mut() {
         let mut path = DocPath::root();
@@ -785,7 +786,7 @@ pub extern fn pactffi_with_query_parameter_v2(
         let value = from_integration_json_v2(
           &mut reqres.request.matching_rules,
           &mut reqres.request.generators,
-          &value.to_string(),
+          value,
           path,
           "query",
           index
@@ -886,6 +887,7 @@ fn from_integration_json_v2(
   category: &str,
   index: usize
 ) -> Either<String, Vec<String>> {
+  trace!(value, %path, category, index, "from_integration_json_v2 called");
   let matching_rules = rules.add_category(category);
   let mut path = path.clone();
 
@@ -954,7 +956,10 @@ fn from_integration_json_v2(
       },
       _ => Either::Left(value.to_string())
     },
-    Err(_) => Either::Left(value.to_string())
+    Err(err) => {
+      error!("Failed to parse the value: {}", err);
+      Either::Left(value.to_string())
+    }
   }
 }
 
