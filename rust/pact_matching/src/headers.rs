@@ -599,7 +599,7 @@ mod tests {
   }
 
   #[test_log::test]
-  fn match_query_with_min_type_matching_rules() {
+  fn match_header_with_min_type_matching_rules() {
     let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
     let actual = hashmap! { "id".to_string() => vec![
       "1".to_string(),

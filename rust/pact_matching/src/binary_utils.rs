@@ -1,3 +1,5 @@
+//! Functions for matching binary data
+
 #[cfg(feature = "multipart")] use std::collections::HashMap;
 #[cfg(feature = "multipart")] use std::convert::Infallible;
 #[cfg(feature = "multipart")] use std::convert::TryInto;
@@ -30,6 +32,8 @@ use crate::{MatchingContext, Mismatch};
 use crate::matchers::Matches;
 #[cfg(feature = "multipart")] use crate::matchers::match_values;
 
+/// Compares the binary data using a magic test and comparing the resulting detected content
+/// type against the expected content type
 pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::Result<()>
   where S: Into<String> {
   let result = tree_magic_mini::from_u8(data);
@@ -50,13 +54,14 @@ pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::R
   }
 }
 
-pub fn convert_data(data: &Value) -> Vec<u8> {
+pub(crate) fn convert_data(data: &Value) -> Vec<u8> {
   match data {
     Value::String(s) => BASE64.decode(s.as_str()).unwrap_or_else(|_| s.clone().into_bytes()),
     _ => data.to_string().into_bytes()
   }
 }
 
+/// Matches two binary data streams
 pub fn match_octet_stream(
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),
@@ -218,6 +223,7 @@ impl MimeFile {
   }
 }
 
+/// Matches MIME multipart formatted bodies
 pub fn match_mime_multipart(
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),

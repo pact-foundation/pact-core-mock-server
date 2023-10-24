@@ -1,3 +1,5 @@
+//! Functions for matching `multipart/form` bodies
+
 use itertools::Itertools;
 use pact_models::bodies::OptionalBody;
 use pact_models::http_parts::HttpPart;
