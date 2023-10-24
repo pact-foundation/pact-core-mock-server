@@ -652,13 +652,52 @@ mod tests {
     expect!(result.values().flatten()).to(be_empty());
   }
 
-    // Issue #305
+  // Issue #305
   #[test_log::test]
   fn content_type_header_mismatch_when_multiple_values() {
     let result = match_header_value("CONTENT-TYPE", 1, "application/json;charset=UTF-8",
       "application/xml;charset=UTF-8", &CoreMatchingContext::default(), false
     );
-      let mismatches = result.unwrap_err();
-      assert_eq!(mismatches[0].description(), "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' at index 1 to have value 'application/json;charset=UTF-8' but was 'application/xml;charset=UTF-8'");
+    let mismatches = result.unwrap_err();
+    assert_eq!(mismatches[0].description(), "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' at index 1 to have value 'application/json;charset=UTF-8' but was 'application/xml;charset=UTF-8'");
+  }
+
+  // Issue #331
+  #[test_log::test]
+  fn match_header_with_a_values_matcher() {
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "X-IMPROVED" => [ MatchingRule::Values ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    ));
+    let expected = hashmap! {
+      "X-IMPROVED".to_string() => vec![
+        "like".to_string(),
+        "regex".to_string(),
+        "values".to_string(),
+        "arrayContaining".to_string()
+      ]
+    };
+    let actual = hashmap! {
+      "X-IMPROVED".to_string() => vec![
+        "regex".to_string(),
+        "like".to_string(),
+        "values".to_string(),
+        "arrayContaining".to_string()
+      ]
+    };
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to_not(be_empty());
+
+    let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
+    expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::HeaderMismatch {
+      key: "X-IMPROVED".to_string(),
+      expected: "like".to_string(),
+      actual: "regex".to_string(),
+      mismatch: "Mismatch with header 'X-IMPROVED': Unable to match 'like' using Values for value at index 0".to_string(),
+    }));
   }
 }
