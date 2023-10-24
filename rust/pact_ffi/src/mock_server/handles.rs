@@ -765,6 +765,13 @@ pub extern fn pactffi_with_query_parameter(
 /// ```
 /// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 ///
+/// If you want the matching rules to apply to all values (and not just the one with the given
+/// index), make sure to set the value to be an array.
+///
+/// ```c
+/// const char* value = "{\"value\":[\"2\"], \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
+/// pactffi_with_query_parameter_v2(handle, "id", 0, value);
+/// ```
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
 /// ```
