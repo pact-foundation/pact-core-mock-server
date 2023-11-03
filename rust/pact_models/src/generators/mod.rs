@@ -1000,40 +1000,18 @@ impl GenerateValue<Value> for Generator {
     matcher: &Box<dyn VariantMatcher + Send + Sync>
   ) -> anyhow::Result<Value> {
     debug!(context = ?context, "Generating value from {:?}", self);
+    let mut rnd = rand::thread_rng();
     let result = match self {
-      Generator::RandomInt(min, max) => {
-        let rand_int = rand::thread_rng().gen_range(*min..max.saturating_add(1));
-        match value {
-          Value::String(_) => Ok(json!(format!("{}", rand_int))),
-          Value::Number(_) => Ok(json!(rand_int)),
-          _ => Err(anyhow!("Could not generate a random int from {}", value))
-        }
+      Generator::RandomInt(min, max) => Ok(json!(format!("{}", rnd.gen_range(*min..max.saturating_add(1))))),
+      Generator::Uuid(format) => match format.unwrap_or_default() {
+        UuidFormat::Simple => Ok(json!(Uuid::new_v4().as_simple().to_string())),
+        UuidFormat::LowerCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string())),
+        UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string().to_uppercase())),
+        UuidFormat::Urn => Ok(json!(Uuid::new_v4().as_urn().to_string()))
       },
-      Generator::Uuid(format) => match value {
-        Value::String(_) => match format.unwrap_or_default() {
-          UuidFormat::Simple => Ok(json!(Uuid::new_v4().as_simple().to_string())),
-          UuidFormat::LowerCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string())),
-          UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string().to_uppercase())),
-          UuidFormat::Urn => Ok(json!(Uuid::new_v4().as_urn().to_string()))
-        },
-        _ => Err(anyhow!("Could not generate a UUID from {}", value))
-      },
-      Generator::RandomDecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
-        Value::Number(_) => match generate_decimal(*digits as usize).parse::<f64>() {
-          Ok(val) => Ok(json!(val)),
-          Err(err) => Err(anyhow!("Could not generate a random decimal from {} - {}", value, err))
-        },
-        _ => Err(anyhow!("Could not generate a random decimal from {}", value))
-      },
-      Generator::RandomHexadecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
-        _ => Err(anyhow!("Could not generate a random hexadecimal from {}", value))
-      },
-      Generator::RandomString(size) => match value {
-        Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
-        _ => Err(anyhow!("Could not generate a random string from {}", value))
-      },
+      Generator::RandomDecimal(digits) => Ok(json!(generate_decimal(*digits as usize))),
+      Generator::RandomHexadecimal(digits) => Ok(json!(generate_hexadecimal(*digits as usize))),
+      Generator::RandomString(size) => Ok(json!(generate_ascii_string(*size as usize))),
       Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
