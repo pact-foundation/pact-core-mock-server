@@ -1006,7 +1006,7 @@ impl GenerateValue<Value> for Generator {
         match value {
           Value::String(_) => Ok(json!(format!("{}", rand_int))),
           Value::Number(_) => Ok(json!(rand_int)),
-          _ => Err(anyhow!("Could not generate a random int from {}", value))
+          _ => Ok(json!(rand_int))
         }
       },
       Generator::Uuid(format) => match value {
@@ -1016,7 +1016,7 @@ impl GenerateValue<Value> for Generator {
           UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string().to_uppercase())),
           UuidFormat::Urn => Ok(json!(Uuid::new_v4().as_urn().to_string()))
         },
-        _ => Err(anyhow!("Could not generate a UUID from {}", value))
+        _ => Ok(json!(Uuid::new_v4().as_hyphenated().to_string()))
       },
       Generator::RandomDecimal(digits) => match value {
         Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
@@ -1024,16 +1024,10 @@ impl GenerateValue<Value> for Generator {
           Ok(val) => Ok(json!(val)),
           Err(err) => Err(anyhow!("Could not generate a random decimal from {} - {}", value, err))
         },
-        _ => Err(anyhow!("Could not generate a random decimal from {}", value))
+        _ => Ok(json!(generate_decimal(*digits as usize)))
       },
-      Generator::RandomHexadecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
-        _ => Err(anyhow!("Could not generate a random hexadecimal from {}", value))
-      },
-      Generator::RandomString(size) => match value {
-        Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
-        _ => Err(anyhow!("Could not generate a random string from {}", value))
-      },
+      Generator::RandomHexadecimal(digits) => Ok(json!(generate_hexadecimal(*digits as usize))),
+      Generator::RandomString(size) => Ok(json!(generate_ascii_string(*size as usize))),
       Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
