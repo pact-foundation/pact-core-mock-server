@@ -30,7 +30,7 @@ hyper-rustls = { version = "0.24.0", optional = true }
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
-pact_matching = { version =  "~1.1.6", path = "../pact_matching", default-features = false }
+pact_matching = { version =  "~1.1.7", path = "../pact_matching", default-features = false }
 pact_models = { version = "~1.1.12", default-features = false }
 pact-plugin-driver = { version = "~0.4.5", optional = true, default-features = false }
 rustls = { version = "0.21.0", optional = true }
