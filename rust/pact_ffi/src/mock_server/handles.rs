@@ -410,6 +410,19 @@ pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *con
   PactHandle::new(consumer, provider)
 }
 
+ffi_fn! {
+  /// Returns a mutable pointer to a Pact model which has been cloned from the Pact handle's inner
+  /// Pact model. The returned Pact model must be freed with the `pactffi_pact_model_delete`
+  /// function when no longer needed.
+  fn pactffi_pact_handle_to_pointer(pact: PactHandle) -> *mut crate::models::Pact {
+    pact.with_pact(&|_, inner| {
+      ptr::raw_to(crate::models::Pact::new(inner.pact.boxed()))
+    }).unwrap_or(std::ptr::null_mut())
+  } {
+    std::ptr::null_mut()
+  }
+}
+
 /// Creates a new HTTP Interaction and returns a handle to it.
 ///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
@@ -992,6 +1005,17 @@ pub extern fn pactffi_with_specification(pact: PactHandle, version: PactSpecific
     inner.specification_version = version.into();
     !inner.mock_server_started
   }).unwrap_or(false)
+}
+
+ffi_fn! {
+  /// Returns the Pact specification enum that the Pact is for.
+  fn pactffi_handle_get_pact_spec_version(pact: PactHandle) -> PactSpecification {
+    pact.with_pact(&|_, inner| {
+      inner.specification_version
+    }).unwrap_or(PactSpecification::Unknown)
+  } {
+    PactSpecification::Unknown
+  }
 }
 
 /// Sets the additional metadata on the Pact file. Common uses are to add the client library details such as the name and version
