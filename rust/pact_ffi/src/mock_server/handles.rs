@@ -2210,7 +2210,11 @@ ffi_fn! {
 /// * `description` - The message description. It needs to be unique for each Message.
 ///
 /// Returns a new `MessageHandle`.
+///
+/// Note: This function is deprecated in favour of `new_message_interaction` which returns an
+/// InteractionHandle that can be used for both HTTP and message interactions.
 #[no_mangle]
+#[deprecated(note = "Replaced with new_message_interaction")]
 pub extern fn pactffi_new_async_message(pact: PactHandle, description: *const c_char) -> MessageHandle {
   if let Some(description) = convert_cstr("description", description) {
     pact.with_pact(&|_, inner| {
