@@ -9,7 +9,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-20.04, windows-latest, macos-latest]
+        operating-system: [ubuntu-20.04, windows-latest, macos-11]
     env:
       pact_do_not_track: true
     steps:
