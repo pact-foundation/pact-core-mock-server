@@ -107,7 +107,7 @@ fn output_dir(path: &str) -> PathBuf {
     }
     Err(_) => {
       let path = Path::new(path);
-      fs::create_dir_all(path.clone()).unwrap_or(());
+      fs::create_dir_all(path).unwrap_or(());
       path.canonicalize().unwrap()
     }
   }
