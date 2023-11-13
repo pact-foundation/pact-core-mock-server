@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.10 - Bugfix Release
+
+* 3f0ae7f1 - chore: Upgrade pact_matching to 1.1.7 (Ronald Holshausen, Tue Nov 14 03:10:25 2023 +1100)
+* 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
+* a4200b07 - feat(FFI): Add with_binary_body method to set a pure binary body on an interaction #336 (Ronald Holshausen, Mon Nov 13 16:38:08 2023 +1100)
+* 944f67dc - chore: add deprecation warning for new_async_message #334 (Ronald Holshausen, Mon Nov 13 15:24:11 2023 +1100)
+* c172bcb5 - feat: Add functions for Pact handle -> pointer compatibility #333 (Ronald Holshausen, Mon Nov 13 14:41:51 2023 +1100)
+* 7a1d6b37 - chore(FFI): Update the doc comment for multiple query parameter values with a matcher #332 (Ronald Holshausen, Wed Oct 25 08:48:35 2023 +1100)
+* 3240fa91 - chore(FFI): add a test for multiple query parameter values with a matcher #332 (Ronald Holshausen, Wed Oct 25 06:55:15 2023 +1100)
+* dc104c03 - fix(FFI): fix for FFI C examples #328 (Ronald Holshausen, Fri Oct 20 10:55:46 2023 +1100)
+* 7b05bd66 - fix(FFI): fix for musl build #328 (Ronald Holshausen, Fri Oct 20 10:36:23 2023 +1100)
+* 9a389f46 - fix(FFI): return the number of bytes written by pactffi_get_error_message #328 (Ronald Holshausen, Fri Oct 20 09:59:02 2023 +1100)
+* 335d52dc - fix: Only specification v3 or higher support binary body's content type matching rule (tien.xuan.vo, Mon Oct 16 22:11:54 2023 +0700)
+* c0201a77 - bump version to 0.4.10 (Ronald Holshausen, Fri Sep 22 11:25:07 2023 +1000)
+
 # 0.4.9 - Bugfix Release
 
 * 04bad264 - chore: Upgrade pact_matching to 1.1.6 (Ronald Holshausen, Fri Sep 22 11:03:38 2023 +1000)
