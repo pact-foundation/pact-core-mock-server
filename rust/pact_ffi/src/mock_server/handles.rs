@@ -1541,6 +1541,103 @@ pub extern fn pactffi_with_body(
   }).unwrap_or(false)
 }
 
+/// Adds the body for the interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
+///
+/// * `part` - The part of the interaction to add the body to (Request or Response).
+/// * `content_type` - The content type of the body. Defaults to `application/octet-stream` if it
+///   is NULL. Will be ignored if a content type header is already set.
+/// * `body` - Body contents as a pointer to a byte array
+/// * `size` - Number of bytes in the body
+///
+/// For HTTP and async message interactions, this will overwrite the body. With asynchronous messages, the
+/// part parameter will be ignored. With synchronous messages, the request contents will be overwritten,
+/// while a new response will be appended to the message.
+///
+/// # Safety
+///
+/// This function is safe to use as long as the following conditions are true:
+/// The content type must either be a NULL pointer, or point to valid UTF-8 encoded NULL-terminated
+/// string. The body pointer must be valid for reads of `size` bytes, and it must be properly
+/// aligned and consecutive (that just means it must point a continuous array of at least `size`
+/// bytes that can be read in a single operation and not to non-continuous structures like linked
+/// lists, etc.).
+///
+/// # Error Handling
+///
+/// If the body is a NULL pointer, it will set the body contents as empty. If the content
+/// type is a null pointer, it will set the content type as `application/octet-stream`.
+/// Returns false if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started) or an error has occurred.
+#[no_mangle]
+pub extern fn pactffi_with_binary_body(
+  interaction: InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  body: *const u8,
+  size: size_t
+) -> bool {
+  trace!(">>> pactffi_with_body({:?}, {:?}, {:?}, {:?}, {})", interaction, part, content_type, body, size);
+  let content_type = convert_cstr("content_type", content_type)
+    .unwrap_or("application/octet-stream");
+  let content_type_header = "Content-Type".to_string();
+
+  interaction.with_interaction(&|_, mock_server_started, inner| {
+    if let Some(reqres) = inner.as_v4_http_mut() {
+      match part {
+        InteractionPart::Request => {
+          reqres.request.body = convert_ptr_to_body(body, size, ContentType::parse(content_type).ok());
+          if !reqres.request.has_header(&content_type_header) {
+            match reqres.request.headers {
+              Some(ref mut headers) => {
+                headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
+              },
+              None => {
+                reqres.request.headers = Some(hashmap! { content_type_header.clone() => vec![content_type.to_string()]});
+              }
+            }
+          };
+        },
+        InteractionPart::Response => {
+          reqres.response.body = convert_ptr_to_body(body, size, ContentType::parse(content_type).ok());
+          if !reqres.response.has_header(&content_type_header) {
+            match reqres.response.headers {
+              Some(ref mut headers) => {
+                headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
+              },
+              None => {
+                reqres.response.headers = Some(hashmap! { content_type_header.clone() => vec![content_type.to_string()]});
+              }
+            }
+          }
+        }
+      };
+      !mock_server_started
+    } else if let Some(message) = inner.as_v4_async_message_mut() {
+      message.contents.contents = convert_ptr_to_body(body, size, ContentType::parse(content_type).ok());
+      message.contents.metadata.insert("contentType".to_string(), json!(content_type));
+      true
+    } else if let Some(sync_message) = inner.as_v4_sync_message_mut() {
+      match part {
+        InteractionPart::Request => {
+          sync_message.request.contents = convert_ptr_to_body(body, size, ContentType::parse(content_type).ok());
+          sync_message.request.metadata.insert("contentType".to_string(), json!(content_type));
+        },
+        InteractionPart::Response => {
+          let mut response = MessageContents::default();
+          response.contents = convert_ptr_to_body(body, size, ContentType::parse(content_type).ok());
+          response.metadata.insert("contentType".to_string(), json!(content_type));
+          sync_message.response.push(response);
+        }
+      };
+      true
+    } else {
+      error!("Interaction is an unknown type, is {}", inner.type_of());
+      false
+    }
+  }).unwrap_or(false)
+}
+
 /// Adds a binary file as the body with the expected content type and example contents. Will use
 /// a mime type matcher to match the body. Returns false if the interaction or Pact can't be
 /// modified (i.e. the mock server for it has already started)
@@ -1584,7 +1681,7 @@ pub extern fn pactffi_with_binary_file(
         if let Some(reqres) = inner.as_v4_http_mut() {
           match part {
             InteractionPart::Request => {
-              reqres.request.body = convert_ptr_to_body(body, size);
+              reqres.request.body = convert_ptr_to_body(body, size, None);
               if !reqres.request.has_header(&content_type_header) {
                 match reqres.request.headers {
                   Some(ref mut headers) => {
@@ -1598,7 +1695,7 @@ pub extern fn pactffi_with_binary_file(
               add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut reqres.request.matching_rules, content_type);
             },
             InteractionPart::Response => {
-              reqres.response.body = convert_ptr_to_body(body, size);
+              reqres.response.body = convert_ptr_to_body(body, size, None);
               if !reqres.response.has_header(&content_type_header) {
                 match reqres.response.headers {
                   Some(ref mut headers) => {
@@ -1614,20 +1711,20 @@ pub extern fn pactffi_with_binary_file(
           };
           !mock_server_started
         } else if let Some(message) = inner.as_v4_async_message_mut() {
-          message.contents.contents = convert_ptr_to_body(body, size);
+          message.contents.contents = convert_ptr_to_body(body, size, None);
           add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut message.contents.matching_rules, content_type);
           message.contents.metadata.insert("contentType".to_string(), json!(content_type));
           true
         } else if let Some(sync_message) = inner.as_v4_sync_message_mut() {
           match part {
             InteractionPart::Request => {
-              sync_message.request.contents = convert_ptr_to_body(body, size);
+              sync_message.request.contents = convert_ptr_to_body(body, size, None);
               add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut sync_message.request.matching_rules, content_type);
               sync_message.request.metadata.insert("contentType".to_string(), json!(content_type));
             },
             InteractionPart::Response => {
               let mut response = MessageContents::default();
-              response.contents = convert_ptr_to_body(body, size);
+              response.contents = convert_ptr_to_body(body, size, None);
               add_content_type_matching_rule_to_body(support_content_type_matching_rule, &mut response.matching_rules, content_type);
               response.metadata.insert("contentType".to_string(), json!(content_type));
               sync_message.response.push(response);
@@ -1784,13 +1881,13 @@ pub extern fn pactffi_with_multipart_file(
   pactffi_with_multipart_file_v2(interaction, part, content_type, file, part_name, std::ptr::null())
 }
 
-fn convert_ptr_to_body(body: *const u8, size: size_t) -> OptionalBody {
+fn convert_ptr_to_body(body: *const u8, size: size_t, content_type: Option<ContentType>) -> OptionalBody {
   if body.is_null() {
     OptionalBody::Null
   } else if size == 0 {
     OptionalBody::Empty
   } else {
-    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None, None)
+    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), content_type, None)
   }
 }
 
@@ -2283,6 +2380,7 @@ mod tests {
     let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
 
     let description2 = CString::new("second interaction").unwrap();
+    #[allow(deprecated)]
     let i_handle2 = pactffi_new_async_message(pact_handle, description2.as_ptr());
 
     expect!(i_handle.interaction_ref).to(be_equal_to(((pact_handle.pact_ref as u32) << 16) + 1));
@@ -2866,6 +2964,91 @@ mod tests {
     let body3 = interaction3.request.contents.value().unwrap();
     expect!(body3.len()).to(be_equal_to(json.len()));
     expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
+  }
+
+  const GIF_1PX: [u8; 35] = [
+    0o107, 0o111, 0o106, 0o070, 0o067, 0o141, 0o001, 0o000, 0o001, 0o000, 0o200, 0o000, 0o000, 0o377, 0o377, 0o377,
+    0o377, 0o377, 0o377, 0o054, 0o000, 0o000, 0o000, 0o000, 0o001, 0o000, 0o001, 0o000, 0o000, 0o002, 0o002, 0o104,
+    0o001, 0o000, 0o073
+  ];
+
+  #[test]
+  fn pactffi_with_binary_body_test() {
+    let pact_handle = PactHandle::new("WithBodyC", "WithBodyP");
+    let description = CString::new("binary interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let gif_ct = CString::new("image/gif".to_string()).unwrap();
+    let value = GIF_1PX.as_ptr();
+    let result = pactffi_with_binary_body(i_handle, InteractionPart::Request, gif_ct.as_ptr(), value, GIF_1PX.len());
+
+    let description2 = CString::new("second binary interaction").unwrap();
+    let i_handle2 = pactffi_new_interaction(pact_handle, description2.as_ptr());
+    let result2 = pactffi_with_binary_body(i_handle2, InteractionPart::Request, std::ptr::null(), value, GIF_1PX.len());
+
+    let description3 = CString::new("third binary interaction").unwrap();
+    let i_handle3 = pactffi_new_interaction(pact_handle, description3.as_ptr());
+    let result3 = pactffi_with_binary_body(i_handle3, InteractionPart::Request, std::ptr::null(), std::ptr::null(), GIF_1PX.len());
+
+    let description4 = CString::new("message binary interaction").unwrap();
+    let i_handle4 = pactffi_new_message_interaction(pact_handle, description4.as_ptr());
+    let result4 = pactffi_with_binary_body(i_handle4, InteractionPart::Request, gif_ct.as_ptr(), value, GIF_1PX.len());
+
+    let description5 = CString::new("sync message interaction").unwrap();
+    let i_handle5 = pactffi_new_sync_message_interaction(pact_handle, description5.as_ptr());
+    let result5 = pactffi_with_binary_body(i_handle5, InteractionPart::Request, gif_ct.as_ptr(), value, GIF_1PX.len());
+
+    let interaction1 = i_handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction2 = i_handle2.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction3 = i_handle3.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction4 = i_handle4.with_interaction(&|_, _, inner| {
+      inner.as_v4_async_message().unwrap()
+    }).unwrap();
+    let interaction5 = i_handle5.with_interaction(&|_, _, inner| {
+      inner.as_v4_sync_message().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(result).to(be_true());
+    expect!(result2).to(be_true());
+    expect!(result3).to(be_true());
+    expect!(result4).to(be_true());
+    expect!(result5).to(be_true());
+
+    let body1 = interaction1.request.body.value().unwrap();
+    expect!(body1.len()).to(be_equal_to(GIF_1PX.len()));
+    let gif_ct = ContentType::parse("image/gif").unwrap();
+    expect!(interaction1.request.body.content_type().unwrap()).to(be_equal_to(gif_ct.clone()));
+    let headers = interaction1.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&gif_ct.to_string()));
+
+    let body2 = interaction2.request.body.value().unwrap();
+    expect!(body2.len()).to(be_equal_to(GIF_1PX.len()));
+    let bin_ct = ContentType::parse("application/octet-stream").unwrap();
+    expect!(interaction2.request.body.content_type().unwrap()).to(be_equal_to(bin_ct.clone()));
+    let headers = interaction2.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&bin_ct.to_string()));
+
+    expect!(interaction3.request.body).to(be_equal_to(OptionalBody::Null));
+
+    let body4 = interaction4.contents.contents.value().unwrap();
+    expect!(body4.len()).to(be_equal_to(GIF_1PX.len()));
+    expect!(interaction4.contents.contents.content_type().unwrap()).to(be_equal_to(gif_ct.clone()));
+    let headers = &interaction4.contents.metadata;
+    expect!(headers.get("contentType").unwrap()).to(be_equal_to(&json!(gif_ct.to_string())));
+
+    let body5 = interaction5.request.contents.value().unwrap();
+    expect!(body5.len()).to(be_equal_to(GIF_1PX.len()));
+    expect!(interaction5.request.contents.content_type().unwrap()).to(be_equal_to(gif_ct.clone()));
+    let headers = &interaction5.request.metadata;
+    expect!(headers.get("contentType").unwrap()).to(be_equal_to(&json!(gif_ct.to_string())));
   }
 
   #[test]
