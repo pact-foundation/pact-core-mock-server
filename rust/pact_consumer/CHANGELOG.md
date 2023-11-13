@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.5 - Maintenance Release
+
+* f8110971 - chore: cleanup compiler warning (Ronald Holshausen, Tue Nov 14 03:18:42 2023 +1100)
+* 3f0ae7f1 - chore: Upgrade pact_matching to 1.1.7 (Ronald Holshausen, Tue Nov 14 03:10:25 2023 +1100)
+* 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
+* 99462514 - chore: fix compilation issue compiling Rust without default features #326 (Ronald Holshausen, Fri Oct 6 09:27:59 2023 +1100)
+* 04bad264 - chore: Upgrade pact_matching to 1.1.6 (Ronald Holshausen, Fri Sep 22 11:03:38 2023 +1000)
+* 88dd9d61 - bump version to 1.0.5 (Ronald Holshausen, Tue Aug 29 14:35:03 2023 +1000)
+
 # 1.0.4 - Bugfix Release
 
 * d592cd8b - chore: Upgrade pact_mock_server to 1.2.3 (Ronald Holshausen, Tue Aug 29 09:25:14 2023 +1000)
