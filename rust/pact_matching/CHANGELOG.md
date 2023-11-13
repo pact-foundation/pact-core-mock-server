@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.7 - Maintenance Release
+
+* 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
+* 5402b6af - chore: Add a test for using Values matcher with headers #331 (Ronald Holshausen, Wed Oct 25 04:12:07 2023 +1100)
+* dc0ae305 - chore: Add missing doc comments to the public modules (Ronald Holshausen, Wed Oct 25 04:11:34 2023 +1100)
+* 985cb590 - chore: header module is not public (Ronald Holshausen, Mon Oct 23 03:07:28 2023 +1100)
+* bfcd4d94 - bump version to 1.1.7 (Ronald Holshausen, Fri Sep 22 10:58:19 2023 +1000)
+
 # 1.1.6 - Bugfix Release
 
 * 63b7cf9d - fix: Allow matching string values using content type matching rule (tien.xuan.vo, Mon Sep 11 18:32:24 2023 +0700)
