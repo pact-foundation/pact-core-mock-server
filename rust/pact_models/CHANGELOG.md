@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.12 - Bugfix Release
+
+* 07a1e7c2 - fix: Fallback to always generate a value to fix 'Could not generate a random TYPE from null' (tien.xuan.vo, Wed Nov 8 08:12:29 2023 +0700)
+* 3af7357f - feat: Force generators works regardless of value's type (tien.xuan.vo, Fri Nov 3 09:58:17 2023 +0700)
+* 10174b28 - chore: fix clippy errors (Ronald Holshausen, Fri Oct 6 09:54:49 2023 +1100)
+* c5c49849 - bump version to 1.1.12 (Ronald Holshausen, Mon Aug 7 12:04:15 2023 +1000)
+
 # 1.1.11 - Maintenance Release
 
 * 86da370f - feat(pact_models): Add functions for dealing with different header key case with V4 req/res models (Ronald Holshausen, Mon Aug 7 11:49:22 2023 +1000)
