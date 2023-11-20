@@ -2137,6 +2137,67 @@ pub extern fn pactffi_message_with_metadata(message_handle: MessageHandle, key: 
   }
 }
 
+/// Adds expected metadata to the Message
+///
+/// * `key` - metadata key
+/// * `value` - metadata value, supports JSON structures with matchers and generators
+#[no_mangle]
+pub extern fn pactffi_message_with_metadata_v2(message_handle: MessageHandle, key: *const c_char, value: *const c_char) {
+  if let Some(key) = convert_cstr("key", key) {
+    let value = convert_cstr("value", value).unwrap_or_default();
+
+    message_handle.with_message(&|_, inner, _| {
+      if let Some(message) = inner.as_v4_async_message_mut() {
+        let matching_rules = message.contents.matching_rules.add_category(Category::METADATA);
+        let generators = &mut message.contents.generators;
+        let value = match serde_json::from_str(value) {
+          Ok(json) => match json {
+            Value::Object(ref obj) => {
+              if let Some(matcher_type) = obj.get("pact:matcher:type") {
+                debug!("detected pact:matcher:type, will configure a matcher");
+                let matcher_type = json_to_string(matcher_type);
+                let attributes = Value::Object(obj.clone());
+                let rule = MatchingRule::create(matcher_type.as_str(), &attributes).unwrap();
+                matching_rules.add_rule(DocPath::new(key).unwrap(), rule.clone(), RuleLogic::And);
+              }
+              if let Some(gen) = obj.get("pact:generator:type") {
+                debug!("detected pact:generator:type, will configure a generators");
+                if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
+                  generators.add_generator_with_subcategory(&GeneratorCategory::METADATA, DocPath::new(key).unwrap(), generator);
+                }
+              }
+              match obj.get("value") {
+                Some(inner) => match inner {
+                  Value::Array(_) => {
+                    warn!("Array value is not supported");
+                    Value::Null
+                  }
+                  Value::Object(_) => {
+                    warn!("Object value is not supported");
+                    Value::Null
+                  }
+                  _ => inner.clone()
+                },
+                None => Value::Null
+              }
+            },
+            Value::String(string) => Value::String(string.to_string()),
+            _ => {
+              warn!("Only support object or string");
+              Value::String(value.to_string())
+            }
+          },
+          Err(err) => {
+            warn!("Failed to parse metadata from JSON - {}", err);
+            Value::String(value.to_string())
+          }
+        };
+        message.contents.metadata.insert(key.to_string(), value);
+      }
+    });
+  }
+}
+
 /// Reifies the given message
 ///
 /// Reification is the process of stripping away any matchers, and returning the original contents.
