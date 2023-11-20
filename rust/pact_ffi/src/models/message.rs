@@ -540,11 +540,13 @@ ffi_fn! {
     /// If no further data is present, returns NULL.
     fn pactffi_message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
         let iter = as_mut!(iter);
+        let generated_metadata;
 
         let metadata = match iter.message {
             Either::Left(message) => {
                 let message = as_ref!(message);
-                &message.metadata
+                generated_metadata = block_on(generate_message(message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{})).metadata;
+                &generated_metadata
             }
             Either::Right(contents) => {
                 let contents = as_ref!(contents);
