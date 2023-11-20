@@ -138,6 +138,10 @@ use pact_models::v4::synch_http::SynchronousHttp;
 use serde_json::{json, Value};
 use tracing::*;
 
+use pact_matching::generators::generate_message;
+use pact_models::generators::GeneratorTestMode;
+use futures::executor::block_on;
+
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::error::set_error_msg;
 use crate::mock_server::{StringResult, xml};
@@ -2145,7 +2149,9 @@ pub extern fn pactffi_message_reify(message_handle: MessageHandle) -> *const c_c
       match message.contents.contents {
         OptionalBody::Null => "null".to_string(),
         OptionalBody::Present(_, _, _) => if spec_version <= pact_models::PactSpecification::V3 {
-          message.as_message().unwrap_or_default().to_json(&spec_version).to_string()
+          let message = message.as_message().unwrap_or_default();
+          let message = block_on(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}));
+          message.to_json(&spec_version).to_string()
         } else {
           message.to_json().to_string()
         },
