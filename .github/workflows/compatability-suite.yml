@@ -33,3 +33,13 @@ jobs:
       - name: Run Cucumber
         run: cargo test --test v3*
         working-directory: compatibility-suite
+  v4:
+    runs-on: ubuntu-latest
+    env:
+      pact_do_not_track: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Cucumber
+        run: cargo test --test v4*
+        working-directory: compatibility-suite
