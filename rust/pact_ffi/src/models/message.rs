@@ -26,6 +26,11 @@ use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
 use crate::util::string::optional_str;
 
+use pact_matching::generators::generate_message;
+use pact_models::generators::GeneratorTestMode;
+use maplit::hashmap;
+use futures::executor::block_on;
+
 /*===============================================================================================
  * # Re-Exports
  *---------------------------------------------------------------------------------------------*/
@@ -160,6 +165,7 @@ ffi_fn! {
     /// a NULL message and a missing message body.
     fn pactffi_message_get_contents(message: *const Message) -> *const c_char {
         let message = as_ref!(message);
+        let message = block_on(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}));
 
         match message.contents {
             // If it's missing, return a null pointer.

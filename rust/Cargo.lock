@@ -1834,6 +1834,7 @@ dependencies = [
  "either",
  "env_logger 0.10.1",
  "expectest",
+ "futures",
  "home",
  "itertools",
  "lazy_static",
