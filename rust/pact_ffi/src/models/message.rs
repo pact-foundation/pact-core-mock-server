@@ -153,9 +153,9 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The returned string must be deleted with `pactffi_string_delete`.
-    ///
-    /// The returned string can outlive the message.
+    /// The returned string must be deleted with `pactffi_string_delete` and can outlive the message.
+    /// This function must only ever be called from a foreign language. Calling it from a Rust function
+    /// that has a Tokio runtime in its call stack can result in a deadlock.
     ///
     /// # Error Handling
     ///
