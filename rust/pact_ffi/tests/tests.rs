@@ -18,6 +18,7 @@ use reqwest::header::CONTENT_TYPE;
 use tempfile::TempDir;
 use serde_json::{json, Value};
 use rstest::rstest;
+use regex::Regex;
 
 #[allow(deprecated)]
 use pact_ffi::mock_server::{
@@ -35,6 +36,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_message_reify,
   pactffi_message_with_contents,
   pactffi_message_with_metadata,
+  pactffi_message_with_metadata_v2,
   pactffi_new_interaction,
   pactffi_new_message,
   pactffi_new_message_pact,
@@ -405,6 +407,35 @@ fn message_xml_consumer_feature_test() {
   let res: *const c_char = pactffi_message_reify(message_handle.clone());
   let reified: &CStr = unsafe { CStr::from_ptr(res) };
   expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":\"<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>\",\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.ns1:projects.ns1:project\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@done']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/xml\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
+  expect!(res).to(be_eq(0));
+}
+
+#[test]
+fn message_consumer_with_matchers_and_generators_test() {
+  let consumer_name = CString::new("message-consumer").unwrap();
+  let provider_name = CString::new("message-provider").unwrap();
+  let description = CString::new("message_request_with_matchers_and_generators").unwrap();
+  let content_type = CString::new("application/json").unwrap();
+  let metadata_key = CString::new("message-queue-name").unwrap();
+  let metadata_val = CString::new("{\"pact:generator:type\":\"RandomString\",\"value\":\"some text\",\"pact:matcher:type\":\"type\"}").unwrap();
+  let request_body_with_matchers = CString::new("{\"id\": {\"pact:generator:type\":\"RandomInt\",\"min\":1,\"pact:matcher:type\":\"integer\"}}").unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
+  let given = CString::new("a functioning FFI interface").unwrap();
+  let receive_description = CString::new("a request to test the FFI interface").unwrap();
+
+  let message_pact_handle = pactffi_new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let message_handle = pactffi_new_message(message_pact_handle.clone(), description.as_ptr());
+  pactffi_message_given(message_handle.clone(), given.as_ptr());
+  pactffi_message_expects_to_receive(message_handle.clone(), receive_description.as_ptr());
+  let body_bytes = request_body_with_matchers.as_bytes();
+  pactffi_message_with_contents(message_handle.clone(), content_type.as_ptr(), body_bytes.as_ptr(), body_bytes.len());
+  pactffi_message_with_metadata_v2(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
+  let res: *const c_char = pactffi_message_reify(message_handle.clone());
+  let reified = unsafe { CStr::from_ptr(res) }.to_str().unwrap();
+  let message = serde_json::from_str(reified).unwrap_or(json!({}));
+  expect!(Regex::new("\\d+").unwrap().is_match(message.get("contents").unwrap().get("id").unwrap().to_string().as_str())).to(be_true());
+  expect!(Regex::new("[\\d\\w]+").unwrap().is_match(message.get("metadata").unwrap().get("message-queue-name").unwrap().to_string().as_str())).to(be_true());
   let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }
