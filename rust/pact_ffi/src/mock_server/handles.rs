@@ -2140,7 +2140,12 @@ pub extern fn pactffi_message_with_metadata(message_handle: MessageHandle, key: 
 /// Reifies the given message
 ///
 /// Reification is the process of stripping away any matchers, and returning the original contents.
-/// NOTE: the returned string needs to be deallocated with the `free_string` function
+///
+/// # Safety
+///
+/// The returned string needs to be deallocated with the `free_string` function.
+/// This function must only ever be called from a foreign language. Calling it from a Rust function
+/// that has a Tokio runtime in its call stack can result in a deadlock.
 #[no_mangle]
 pub extern fn pactffi_message_reify(message_handle: MessageHandle) -> *const c_char {
   let res = message_handle.with_message(&|_, inner, spec_version| {
