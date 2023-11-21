@@ -148,6 +148,7 @@ fn process_matcher(
         Category::HEADER => &GeneratorCategory::HEADER,
         Category::PATH => &GeneratorCategory::PATH,
         Category::QUERY => &GeneratorCategory::QUERY,
+        Category::METADATA => &GeneratorCategory::METADATA,
         _ => {
           warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
           &GeneratorCategory::BODY
