@@ -26,6 +26,11 @@ use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
 use crate::util::string::optional_str;
 
+use pact_matching::generators::generate_message;
+use pact_models::generators::GeneratorTestMode;
+use maplit::hashmap;
+use futures::executor::block_on;
+
 /*===============================================================================================
  * # Re-Exports
  *---------------------------------------------------------------------------------------------*/
@@ -148,9 +153,9 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The returned string must be deleted with `pactffi_string_delete`.
-    ///
-    /// The returned string can outlive the message.
+    /// The returned string must be deleted with `pactffi_string_delete` and can outlive the message.
+    /// This function must only ever be called from a foreign language. Calling it from a Rust function
+    /// that has a Tokio runtime in its call stack can result in a deadlock.
     ///
     /// # Error Handling
     ///
@@ -160,6 +165,7 @@ ffi_fn! {
     /// a NULL message and a missing message body.
     fn pactffi_message_get_contents(message: *const Message) -> *const c_char {
         let message = as_ref!(message);
+        let message = block_on(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}));
 
         match message.contents {
             // If it's missing, return a null pointer.
