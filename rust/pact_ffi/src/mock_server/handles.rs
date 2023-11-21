@@ -138,6 +138,10 @@ use pact_models::v4::synch_http::SynchronousHttp;
 use serde_json::{json, Value};
 use tracing::*;
 
+use pact_matching::generators::generate_message;
+use pact_models::generators::GeneratorTestMode;
+use futures::executor::block_on;
+
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::error::set_error_msg;
 use crate::mock_server::{StringResult, xml};
@@ -2136,7 +2140,12 @@ pub extern fn pactffi_message_with_metadata(message_handle: MessageHandle, key: 
 /// Reifies the given message
 ///
 /// Reification is the process of stripping away any matchers, and returning the original contents.
-/// NOTE: the returned string needs to be deallocated with the `free_string` function
+///
+/// # Safety
+///
+/// The returned string needs to be deallocated with the `free_string` function.
+/// This function must only ever be called from a foreign language. Calling it from a Rust function
+/// that has a Tokio runtime in its call stack can result in a deadlock.
 #[no_mangle]
 pub extern fn pactffi_message_reify(message_handle: MessageHandle) -> *const c_char {
   let res = message_handle.with_message(&|_, inner, spec_version| {
@@ -2145,7 +2154,9 @@ pub extern fn pactffi_message_reify(message_handle: MessageHandle) -> *const c_c
       match message.contents.contents {
         OptionalBody::Null => "null".to_string(),
         OptionalBody::Present(_, _, _) => if spec_version <= pact_models::PactSpecification::V3 {
-          message.as_message().unwrap_or_default().to_json(&spec_version).to_string()
+          let message = message.as_message().unwrap_or_default();
+          let message = block_on(generate_message(&message, &GeneratorTestMode::Consumer, &hashmap!{}, &vec![], &hashmap!{}));
+          message.to_json(&spec_version).to_string()
         } else {
           message.to_json().to_string()
         },
