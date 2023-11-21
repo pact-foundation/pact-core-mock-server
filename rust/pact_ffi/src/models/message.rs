@@ -534,6 +534,8 @@ ffi_fn! {
     /// # Safety
     ///
     /// The underlying data must not change during iteration.
+    /// This function must only ever be called from a foreign language. Calling it from a Rust function
+    /// that has a Tokio runtime in its call stack can result in a deadlock.
     ///
     /// # Error Handling
     ///
