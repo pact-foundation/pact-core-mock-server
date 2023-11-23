@@ -1581,7 +1581,7 @@ pub extern fn pactffi_with_binary_body(
   body: *const u8,
   size: size_t
 ) -> bool {
-  trace!(">>> pactffi_with_body({:?}, {:?}, {:?}, {:?}, {})", interaction, part, content_type, body, size);
+  trace!(">>> pactffi_with_binary_body({:?}, {:?}, {:?}, {:?}, {})", interaction, part, content_type, body, size);
   let content_type = convert_cstr("content_type", content_type)
     .unwrap_or("application/octet-stream");
   let content_type_header = "Content-Type".to_string();
@@ -1675,6 +1675,7 @@ pub extern fn pactffi_with_binary_file(
   body: *const u8,
   size: size_t
 ) -> bool {
+  trace!(">>> pactffi_with_binary_file({:?}, {:?}, {:?}, {:?}, {})", interaction, part, content_type, body, size);
   let content_type_header = "Content-Type".to_string();
   let support_content_type_matching_rule = interaction.with_pact(
     &|_, pact| pact.specification_version >= PactSpecification::V3
