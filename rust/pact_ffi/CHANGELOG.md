@@ -1,5 +1,24 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.11 - Bugfix Release
+
+* 82e51872 - Merge pull request #348 from tienvx/update-trace-logs (Ronald Holshausen, Tue Nov 28 09:36:04 2023 +1100)
+* 133bf14f - Merge pull request #347 from tienvx/update-comment-metadata-v2 (Ronald Holshausen, Tue Nov 28 09:35:22 2023 +1100)
+* 777e19ef - chore: Update trace logs (tien.xuan.vo, Thu Nov 23 17:12:15 2023 +0700)
+* c238fdd2 - docs: Add comment about example usage and safety to pactffi_message_with_metadata_v2 (tien.xuan.vo, Thu Nov 23 02:39:00 2023 +0700)
+* f87c76e8 - feat: Add pactffi_response_status_v2 (tien.xuan.vo, Wed Nov 22 23:07:05 2023 +0700)
+* 2983e52f - refactor: Reuse matching rules and generators processing code (tien.xuan.vo, Tue Nov 21 22:24:52 2023 +0700)
+* aec900ae - feat: Add pactffi_message_with_metadata_v2 (tien.xuan.vo, Mon Nov 20 20:14:26 2023 +0700)
+* 86aa29aa - docs: Update safety comment for pactffi_message_reify (tien.xuan.vo, Tue Nov 21 11:32:22 2023 +0700)
+* e26bf72d - feat: Apply generators to message's contents and metadata (tien.xuan.vo, Mon Nov 20 16:26:39 2023 +0700)
+* b293ddce - docs: Update safety comment for pactffi_message_metadata_iter_next (tien.xuan.vo, Tue Nov 21 11:24:27 2023 +0700)
+* 3df61ab7 - feat: Apply generators to message's metadata (tien.xuan.vo, Mon Nov 20 15:08:20 2023 +0700)
+* 755909b8 - Merge pull request #340 from tienvx/generate-message-contents (Ronald Holshausen, Tue Nov 21 15:19:05 2023 +1100)
+* a7b81fe7 - docs: Update safety comment for pactffi_message_get_contents (tien.xuan.vo, Tue Nov 21 11:12:01 2023 +0700)
+* b57a717e - feat: Apply generators to message's contents (tien.xuan.vo, Mon Nov 20 14:45:40 2023 +0700)
+* 7405ccbe - Merge branch 'release/0.4.10' (Ronald Holshausen, Tue Nov 14 05:50:08 2023 +1100)
+* 08786976 - bump version to 0.4.11 (Ronald Holshausen, Tue Nov 14 04:08:57 2023 +1100)
+
 # 0.4.10 - Bugfix Release
 
 * 3f0ae7f1 - chore: Upgrade pact_matching to 1.1.7 (Ronald Holshausen, Tue Nov 14 03:10:25 2023 +1100)
