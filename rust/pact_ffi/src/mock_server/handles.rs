@@ -936,7 +936,7 @@ fn from_integration_json_v2(
           };
 
           if let Some(rule) = &matching_rule {
-            let path = if matching_rules.name == Category::PATH {
+            let path = if [Category::PATH, Category::STATUS].contains(&matching_rules.name)  {
               path.parent().unwrap_or(DocPath::root())
             } else {
               path.clone()
@@ -951,12 +951,13 @@ fn from_integration_json_v2(
                 Category::HEADER => &GeneratorCategory::HEADER,
                 Category::PATH => &GeneratorCategory::PATH,
                 Category::QUERY => &GeneratorCategory::QUERY,
+                Category::STATUS => &GeneratorCategory::STATUS,
                 _ => {
                   warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
                   &GeneratorCategory::BODY
                 }
               };
-              let path = if matching_rules.name == Category::PATH {
+              let path = if [Category::PATH, Category::STATUS].contains(&matching_rules.name) {
                 path.parent().unwrap_or(DocPath::root())
               } else {
                 path.clone()
@@ -1358,6 +1359,44 @@ pub extern fn pactffi_response_status(interaction: InteractionHandle, status: c_
   interaction.with_interaction(&|_, mock_server_started, inner| {
     if let Some(reqres) = inner.as_v4_http_mut() {
       reqres.response.status = status;
+      !mock_server_started
+    } else {
+      error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+      false
+    }
+  }).unwrap_or(false)
+}
+
+/// Configures the response for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
+///
+/// * `status` - the response status. Defaults to 200.
+///
+/// To include matching rules for the status (only statusCode or integer really makes sense to use), include the
+/// matching rule JSON format with the value as a single JSON document. I.e.
+///
+/// ```c
+/// const char* status = "{ \"pact:generator:type\": \"RandomInt\", \"min\": 100, \"max\": 399, \"pact:matcher:type\":\"statusCode\", \"status\": \"nonError\"}";
+/// pactffi_response_status_v2(handle, status);
+/// ```
+/// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
+///
+/// # Safety
+/// The status parameter must be valid pointers to NULL terminated strings.
+#[no_mangle]
+pub extern fn pactffi_response_status_v2(interaction: InteractionHandle, status: *const c_char) -> bool {
+  let status = convert_cstr("status", status).unwrap_or("200");
+  interaction.with_interaction(&|_, mock_server_started, inner| {
+    if let Some(reqres) = inner.as_v4_http_mut() {
+      let status = from_integration_json_v2(&mut reqres.response.matching_rules,
+        &mut reqres.response.generators, &status.to_string(), DocPath::empty(), "status", 0);
+      reqres.response.status = match status {
+        Either::Left(value) => value.parse().unwrap_or_default(),
+        Either::Right(values) => {
+          warn!("Received multiple values for the status ({:?}), will only use the first one", values);
+          values.first().cloned().unwrap_or_default().parse().unwrap_or_default()
+        }
+      };
       !mock_server_started
     } else {
       error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
@@ -2409,7 +2448,7 @@ mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
   use pact_models::content_types::JSON;
-  use pact_models::matchingrules;
+  use pact_models::{generators, matchingrules, HttpStatus};
   use pact_models::matchingrules::{Category, MatchingRule};
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::{Generators, MatchingRules};
@@ -3248,5 +3287,69 @@ mod tests {
     expect!(body.len()).to(be_equal_to(xml.len()));
     let headers = interaction.request.headers.unwrap();
     expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&XML.to_string()));
+  }
+
+  #[test]
+  fn simple_status() {
+    let pact_handle = PactHandle::new("TestPC1", "TestPP");
+    let description = CString::new("simple_status").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let status = CString::new("404").unwrap();
+    pactffi_response_status_v2(handle, status.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.response.status).to(be_equal_to(404));
+    expect!(interaction.response.matching_rules.rules.get(&Category::PATH).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn status_with_matcher() {
+    let pact_handle = PactHandle::new("TestPC2", "TestPP");
+    let description = CString::new("status_with_matcher").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let status = CString::new("{\"value\": 503, \"pact:matcher:type\":\"statusCode\", \"status\": \"error\"}").unwrap();
+    pactffi_response_status_v2(handle, status.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.response.status).to(be_equal_to(503));
+    expect!(&interaction.response.matching_rules).to(be_equal_to(&matchingrules! {
+      "status" => { "$" => [ MatchingRule::StatusCode(HttpStatus::Error) ] }
+    }));
+  }
+
+  #[test]
+  fn status_with_matcher_and_generator() {
+    let pact_handle = PactHandle::new("TestPC3", "TestPP");
+    let description = CString::new("status_with_matcher_and_generator").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let status = CString::new("{\"pact:generator:type\": \"RandomInt\", \"min\": 201, \"max\": 299, \"pact:matcher:type\": \"integer\"}").unwrap();
+    pactffi_response_status_v2(handle, status.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.response.status).to(be_equal_to(0));
+    expect!(&interaction.response.matching_rules).to(be_equal_to(&matchingrules! {
+      "status" => { "$" => [ MatchingRule::Integer ] }
+    }));
+    expect!(&interaction.response.generators).to(be_equal_to(&generators! {
+      "status" => { "$" => Generator::RandomInt(201, 299) }
+    }));
   }
 }
