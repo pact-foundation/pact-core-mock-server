@@ -2180,6 +2180,18 @@ pub extern fn pactffi_message_with_metadata(message_handle: MessageHandle, key: 
 ///
 /// * `key` - metadata key
 /// * `value` - metadata value, supports JSON structures with matchers and generators
+///
+/// To include matching rules for the value, include the
+/// matching rule JSON format with the value as a single JSON document. I.e.
+///
+/// ```c
+/// const char* value = "{\"value\": { \"ID\": \"sjhdjkshsdjh\", \"weight\": 100.5 }, \"pact:matcher:type\":\"type\"}";
+/// pactffi_message_with_metadata_v2(handle, "TagData", value);
+/// ```
+/// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
+///
+/// # Safety
+/// The key and value parameters must be valid pointers to NULL terminated strings.
 #[no_mangle]
 pub extern fn pactffi_message_with_metadata_v2(message_handle: MessageHandle, key: *const c_char, value: *const c_char) {
   if let Some(key) = convert_cstr("key", key) {
