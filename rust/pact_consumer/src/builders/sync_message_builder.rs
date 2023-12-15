@@ -15,15 +15,15 @@ use pact_models::v4::interaction::InteractionMarkup;
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
-#[cfg(feature = "plugins")] use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
+#[cfg(feature = "plugins")] use pact_plugin_driver::content::ContentMatcher;
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
 use tracing::debug;
 
 use crate::prelude::{JsonPattern, Pattern};
 #[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
-
-#[cfg(not(feature = "plugins"))] use crate::builders::message_builder::{InteractionContents, PactPluginManifest, PluginConfiguration};
+use crate::builders::message_builder::{InteractionContents, PluginConfiguration};
+#[cfg(not(feature = "plugins"))] use crate::builders::message_builder::PactPluginManifest;
 
 #[derive(Clone, Debug)]
 /// Synchronous message interaction builder. Normally created via PactBuilder::sync_message_interaction.
@@ -35,9 +35,9 @@ pub struct SyncMessageInteractionBuilder {
   key: Option<String>,
   pending: Option<bool>,
   /// Request contents of the message. This will include the payload as well as any metadata
-  pub request_contents: InteractionContents, // TODO: This should not be using this struct, as it leaks plugin specific API
+  pub request_contents: InteractionContents,
   /// Response contents of the message. This will include the payloads as well as any metadata
-  pub response_contents: Vec<InteractionContents>, // TODO: This should not be using this struct, as it leaks plugin specific API
+  pub response_contents: Vec<InteractionContents>,
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
@@ -220,18 +220,18 @@ impl SyncMessageInteractionBuilder {
             match content_matcher.configure_interation(&ct, contents_hashmap).await {
               Ok((contents, plugin_config)) => {
                 if let Some(interaction) = contents.iter().find(|i| i.part_name == "request") {
-                  self.request_contents = interaction.clone();
+                  self.request_contents = InteractionContents::from(&interaction);
                 }
 
                 for interaction in contents.iter().filter(|i| i.part_name == "response") {
-                  self.response_contents.push(interaction.clone());
+                  self.response_contents.push(InteractionContents::from(&interaction));
                 }
 
                 self.contents_plugin = content_matcher.plugin();
 
                 if let Some(plugin_config) = plugin_config {
                   let plugin_name = content_matcher.plugin_name();
-                  self.add_plugin_config(plugin_config, plugin_name)
+                  self.add_plugin_config(PluginConfiguration::from(&plugin_config), plugin_name)
                 }
               }
               Err(err) => panic!("Failed to call out to plugin - {}", err)

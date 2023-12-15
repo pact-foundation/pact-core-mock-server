@@ -55,7 +55,7 @@ impl PluginConfiguration {
 /// Struct that stores the interaction contents for the message
 pub struct InteractionContents {
   /// Description of what part this interaction belongs to (in the case of there being more than
-  /// one, for instance, request/response messages)
+  /// one, for instance, request/response messages). For async messages, this will not be used.
   #[allow(dead_code)] pub part_name: String,
 
   /// Body/Contents of the interaction
