@@ -8,7 +8,7 @@ use maplit::hashmap;
 use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRuleCategory;
-#[cfg(not(feature = "plugins"))] use pact_models::generators::Generators;
+use pact_models::generators::Generators;
 use pact_models::message::Message;
 use pact_models::path_exp::DocPath;
 #[cfg(feature = "plugins")] use pact_models::plugins::PluginData;
@@ -17,7 +17,7 @@ use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::InteractionMarkup;
 use pact_models::v4::message_parts::MessageContents;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
-#[cfg(feature = "plugins")] use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
+#[cfg(feature = "plugins")] use pact_plugin_driver::content::ContentMatcher;
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
 use tracing::debug;
@@ -29,6 +29,30 @@ use crate::prelude::Pattern;
 #[cfg(not(feature = "plugins"))]
 #[derive(Clone, Debug, Default)]
 /// Placeholder struct when plugins are disabled
+pub struct PactPluginManifest {}
+
+#[derive(Clone, Debug, Default)]
+/// Struct to store any config received from plugins
+pub struct PluginConfiguration {
+  /// Data to persist on the interaction
+  pub interaction_configuration: HashMap<String, Value>,
+  /// Data to persist in the Pact metadata
+  pub pact_configuration: HashMap<String, Value>
+}
+
+impl PluginConfiguration {
+  /// Create a new struct from a plugin specific one
+  #[cfg(feature = "plugins")]
+  pub fn from(config: &pact_plugin_driver::content::PluginConfiguration) -> Self {
+    PluginConfiguration {
+      interaction_configuration: config.interaction_configuration.clone(),
+      pact_configuration: config.pact_configuration.clone()
+    }
+  }
+}
+
+#[derive(Clone, Debug, Default)]
+/// Struct that stores the interaction contents for the message
 pub struct InteractionContents {
   /// Description of what part this interaction belongs to (in the case of there being more than
   /// one, for instance, request/response messages)
@@ -59,15 +83,23 @@ pub struct InteractionContents {
   pub interaction_markup_type: String
 }
 
-#[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug, Default)]
-/// Placeholder struct when plugins are disabled
-pub struct PactPluginManifest {}
-
-#[cfg(not(feature = "plugins"))]
-#[derive(Clone, Debug, Default)]
-/// Placeholder struct when plugins are disabled
-pub struct PluginConfiguration {}
+impl InteractionContents {
+  #[cfg(feature = "plugins")]
+  /// Create a new struct from a plugin specific one
+  pub fn from(contents: &pact_plugin_driver::content::InteractionContents) -> Self {
+    InteractionContents {
+      part_name: contents.part_name.clone(),
+      body: contents.body.clone(),
+      rules: contents.rules.clone(),
+      generators: contents.generators.clone(),
+      metadata: contents.metadata.clone(),
+      metadata_rules: contents.metadata_rules.clone(),
+      plugin_config: PluginConfiguration::from(&contents.plugin_config),
+      interaction_markup: contents.interaction_markup.clone(),
+      interaction_markup_type: contents.interaction_markup_type.clone()
+    }
+  }
+}
 
 #[derive(Clone, Debug)]
 /// Asynchronous message interaction builder. Normally created via PactBuilder::message_interaction.
@@ -79,7 +111,7 @@ pub struct MessageInteractionBuilder {
   key: Option<String>,
   pending: Option<bool>,
   /// Contents of the message. This will include the payload as well as any metadata
-  pub message_contents: InteractionContents,  // TODO: This should not be using this struct, as it leaks plugin specific API
+  pub message_contents: InteractionContents,
   #[allow(dead_code)] contents_plugin: Option<PactPluginManifest>,
   #[allow(dead_code)] plugin_config: HashMap<String, PluginConfiguration>
 }
@@ -258,9 +290,9 @@ impl MessageInteractionBuilder {
             match content_matcher.configure_interation(&ct, contents_hashmap).await {
               Ok((contents, plugin_config)) => {
                 if let Some(contents) = contents.first() {
-                  self.message_contents = contents.clone();
+                  self.message_contents = InteractionContents::from(contents);
                   if !contents.plugin_config.is_empty() {
-                    self.plugin_config.insert(content_matcher.plugin_name(), contents.plugin_config.clone());
+                    self.plugin_config.insert(content_matcher.plugin_name(), PluginConfiguration::from(&contents.plugin_config));
                   }
                 }
                 self.contents_plugin = content_matcher.plugin();
@@ -273,7 +305,7 @@ impl MessageInteractionBuilder {
                       entry.pact_configuration.insert(k.clone(), v.clone());
                     }
                   } else {
-                    self.plugin_config.insert(plugin_name.to_string(), plugin_config.clone());
+                    self.plugin_config.insert(plugin_name.to_string(), PluginConfiguration::from(&plugin_config));
                   }
                 }
               }
