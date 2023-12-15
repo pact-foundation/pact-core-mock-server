@@ -32,7 +32,6 @@ use pact_verifier::verification_result::{VerificationExecutionResult, Verificati
 
 use crate::shared_steps::{assert_value_type, determine_content_type, element_text, IndexType};
 use crate::shared_steps::provider::MockProviderStateExecutor;
-use crate::v3_steps::generators::as_json_pointer;
 
 lazy_static!{
   pub static ref MESSAGES: Arc<Mutex<HashMap<String, Message>>> = Arc::new(Mutex::new(hashmap![]));
@@ -499,9 +498,11 @@ fn the_message_contents_for_will_have_been_replaced_with_an(
   let message = message_pact.messages.first().unwrap();
   let path = DocPath::new(path).unwrap();
   let original_json: Value = serde_json::from_str(message.contents.value_as_string().unwrap().as_str()).unwrap();
-  let original_element = original_json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let pointer = path.as_json_pointer().unwrap();
+  let pointer = pointer.as_str();
+  let original_element = original_json.pointer(pointer).unwrap();
   let json: Value = serde_json::from_str(world.received_messages.first().unwrap().contents.value_as_string().unwrap().as_str()).unwrap();
-  let element = json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let element = json.pointer(pointer).unwrap();
 
   if element == original_element {
     return Err(anyhow!("Expected original ({:?}) to have been replaced", original_element))

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -9,7 +8,7 @@ use cucumber::gherkin::Step;
 use maplit::hashmap;
 use pact_models::generators::{Generators, GeneratorTestMode};
 use pact_models::json_utils::json_to_string;
-use pact_models::path_exp::{DocPath, PathToken};
+use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 use pact_models::response::Response;
 use regex::Regex;
@@ -171,43 +170,17 @@ fn the_body_value_for_will_have_been_replaced_with_a_value(
 ) -> anyhow::Result<()> {
   let path = DocPath::new(path).unwrap();
   let original_json: Value = serde_json::from_str(world.original_body.value_as_string().unwrap().as_str()).unwrap();
-  let original_element = original_json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let pointer = path.as_json_pointer().unwrap();
+  let pointer = pointer.as_str();
+  let original_element = original_json.pointer(pointer).unwrap();
   let json: Value = serde_json::from_str(world.generated_body.value_as_string().unwrap().as_str()).unwrap();
-  let element = json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let element = json.pointer(pointer).unwrap();
 
   if element == original_element {
     return Err(anyhow!("Expected original ({:?}) to have been replaced", original_element))
   }
 
   assert_value_type(value_type, element)
-}
-
-// TODO: Replace this with version from pact_models
-pub fn as_json_pointer(path: &DocPath) -> String {
-  let mut buffer = String::new();
-
-  for token in path.tokens() {
-    match token {
-      PathToken::Root => {},
-      PathToken::Field(v) => {
-        let parsed = v.replace('~', "~0")
-          .replace('/', "~1");
-        let _ = write!(buffer, "/{}", parsed);
-      }
-      PathToken::Index(i) => {
-        buffer.push('/');
-        buffer.push_str(i.to_string().as_str());
-      }
-      PathToken::Star => {
-        panic!("* can not be converted to a JSON pointer");
-      }
-      PathToken::StarIndex => {
-        panic!("* can not be converted to a JSON pointer");
-      }
-    }
-  }
-
-  buffer
 }
 
 #[then(expr = "the body value for {string} will have been replaced with {string}")]
@@ -218,9 +191,11 @@ fn the_body_value_for_will_have_been_replaced_with_value(
 ) -> anyhow::Result<()> {
   let path = DocPath::new(path).unwrap();
   let original_json: Value = serde_json::from_str(world.original_body.value_as_string().unwrap().as_str()).unwrap();
-  let original_element = original_json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let pointer = path.as_json_pointer().unwrap();
+  let pointer = pointer.as_str();
+  let original_element = original_json.pointer(pointer).unwrap();
   let json: Value = serde_json::from_str(world.generated_body.value_as_string().unwrap().as_str()).unwrap();
-  let element = json.pointer(as_json_pointer(&path).as_str()).unwrap();
+  let element = json.pointer(pointer).unwrap();
 
   if element == original_element {
     Err(anyhow!("Expected original ({:?}) to have been replaced", original_element))
