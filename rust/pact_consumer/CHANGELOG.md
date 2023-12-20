@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.0 - Maintenance Release
+
+* 302a5e88 - chore(pact_consumer): Cleanup TODO (Ronald Holshausen, Fri Dec 15 16:26:44 2023 +1100)
+* 52dfe7d5 - chore(pact_consumer): Cleanup TODO (Ronald Holshausen, Fri Dec 15 16:10:45 2023 +1100)
+* 691f4422 - chore(pact_consumer): Bump minor version (Ronald Holshausen, Fri Dec 15 15:45:37 2023 +1100)
+* 713e4098 - chore: Upgrade pact-plugin-driver to 0.4.6 (Ronald Holshausen, Thu Dec 14 17:04:59 2023 +1100)
+* e12536a3 - bump version to 1.0.6 (Ronald Holshausen, Tue Nov 14 03:23:24 2023 +1100)
+
 # 1.0.5 - Maintenance Release
 
 * f8110971 - chore: cleanup compiler warning (Ronald Holshausen, Tue Nov 14 03:18:42 2023 +1100)
