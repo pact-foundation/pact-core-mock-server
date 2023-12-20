@@ -2162,7 +2162,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-core",
- "tracing-log 0.1.4",
+ "tracing-log 0.2.0",
  "tracing-subscriber",
  "trycmd",
 ]
