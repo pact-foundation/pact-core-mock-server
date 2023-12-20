@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.4 - Maintenance Release
+
+* 8cdca5a4 - chore(pact_verifier): Upgrade all dependencies (Ronald Holshausen, Wed Dec 20 13:58:47 2023 +1100)
+* 7a170fa5 - feat(verifier): Add option to only verify pact from a webhook URL #350 (Ronald Holshausen, Wed Dec 20 11:54:48 2023 +1100)
+* 691f4422 - chore(pact_consumer): Bump minor version (Ronald Holshausen, Fri Dec 15 15:45:37 2023 +1100)
+* 713e4098 - chore: Upgrade pact-plugin-driver to 0.4.6 (Ronald Holshausen, Thu Dec 14 17:04:59 2023 +1100)
+* 3f0ae7f1 - chore: Upgrade pact_matching to 1.1.7 (Ronald Holshausen, Tue Nov 14 03:10:25 2023 +1100)
+* 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
+* 04bad264 - chore: Upgrade pact_matching to 1.1.6 (Ronald Holshausen, Fri Sep 22 11:03:38 2023 +1000)
+* 2bac8b7a - bump version to 1.0.4 (Ronald Holshausen, Tue Aug 29 10:00:03 2023 +1000)
+
 # 1.0.3 - Bugfix Release
 
 * 3ec99c41 - chore: Upgrade pact_matching to 1.1.5 (Ronald Holshausen, Fri Aug 18 15:40:02 2023 +1000)
