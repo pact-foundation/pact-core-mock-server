@@ -1,5 +1,24 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.2 - Maintenance Release
+
+* 75a5d1ab - chore: Upgrade all dependencies (Ronald Holshausen, Wed Dec 20 15:05:43 2023 +1100)
+* 2ff2d873 - chore: Update readme with --webhook-callback-url option #350 (Ronald Holshausen, Wed Dec 20 15:01:14 2023 +1100)
+* 39a14e97 - chore: Upgrade pact_verifier to 1.0.4 (Ronald Holshausen, Wed Dec 20 14:46:57 2023 +1100)
+* 7a170fa5 - feat(verifier): Add option to only verify pact from a webhook URL #350 (Ronald Holshausen, Wed Dec 20 11:54:48 2023 +1100)
+* 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
+* c7dbcd88 - chore(pact_verifier_cli): Disable aarch64-unknown-linux-gnu target from release build (Ronald Holshausen, Tue Aug 29 11:34:23 2023 +1000)
+* 90345760 - chore(pact_verifier_cli): Upgrade docker image to use Alpine 3.18 (Ronald Holshausen, Tue Aug 29 10:57:52 2023 +1000)
+* 417cb806 - bump version to 1.0.2 (Ronald Holshausen, Tue Aug 29 10:39:04 2023 +1000)
+* 72ac6f86 - update changelog for release 1.0.1 (Ronald Holshausen, Tue Aug 29 10:37:32 2023 +1000)
+* c924b9ce - chore: Upgrade pact_verifier to 1.0.3 (Ronald Holshausen, Tue Aug 29 10:04:18 2023 +1000)
+* e4da3e42 - chore: Upgrade pact_models to 1.1.11 (Ronald Holshausen, Mon Aug 7 13:59:34 2023 +1000)
+* 24ed7835 - chore: Upgrade pact-models to 1.1.10 (Ronald Holshausen, Fri Aug 4 16:11:24 2023 +1000)
+* 04af3923 - chore: Upgrade pact_verifier to 1.0.2 (Ronald Holshausen, Thu Jul 27 15:17:57 2023 +1000)
+* 4a01919a - chore: Upgrade pact_models to 1.1.9 (Ronald Holshausen, Thu Jul 27 10:24:00 2023 +1000)
+* 64a862ee - chore:(pact_verifier_cli): correct linux release script (Ronald Holshausen, Wed Jul 12 13:49:34 2023 +1000)
+* 87017434 - bump version to 1.0.1 (Ronald Holshausen, Wed Jul 12 12:07:52 2023 +1000)
+
 # 1.0.1 - Maintenance Release
 
 * c924b9ce - chore: Upgrade pact_verifier to 1.0.3 (Ronald Holshausen, Tue Aug 29 10:04:18 2023 +1000)
