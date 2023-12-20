@@ -113,32 +113,47 @@ pub enum PactSource {
       links: Vec<Link>
     },
     /// Load the Pact from some JSON (used for testing purposed)
-    String(String)
+    String(String),
+    /// Load the given pact with the URL via a webhook callback
+    WebhookCallbackUrl {
+      /// URL to the Pact to verify
+      pact_url: String,
+      /// Base URL of the Pact Broker
+      broker_url: String,
+      /// HTTP authentication details for accessing the Pact Broker
+      auth: Option<HttpAuth>
+    }
 }
 
 impl Display for PactSource {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    match *self {
-      PactSource::File(ref file) => write!(f, "File({})", file),
-      PactSource::Dir(ref dir) => write!(f, "Dir({})", dir),
-      PactSource::URL(ref url, _) => write!(f, "URL({})", url),
-      PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
+    match self {
+      PactSource::File(file) => write!(f, "File({})", file),
+      PactSource::Dir(dir) => write!(f, "Dir({})", dir),
+      PactSource::URL(url, _) => write!(f, "URL({})", url),
+      PactSource::BrokerUrl(provider_name, broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
       }
       PactSource::BrokerWithDynamicConfiguration {
-        ref provider_name,
-        ref broker_url,
-        ref enable_pending,
-        ref include_wip_pacts_since,
-        ref provider_branch,
-        ref provider_tags,
-        ref selectors,
-        ref auth, .. } => {
+        provider_name,
+        broker_url,
+        enable_pending,
+        include_wip_pacts_since,
+        provider_branch,
+        provider_tags,
+        selectors,
+        auth, .. } => {
         if let Some(auth) = auth {
           write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_pending={}, include_wip_since={:?}, provider_tags={:?}, provider_branch={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth)
         } else {
           write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_pending={}, include_wip_since={:?}, provider_tags={:?}, provider_branch={:?}, consumer_version_selectors='{:?}, auth=None')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors)
-
+        }
+      }
+      PactSource::WebhookCallbackUrl { pact_url, auth, .. } => {
+        if let Some(auth) = auth {
+          write!(f, "WebhookCallbackUrl({}, auth={}')", pact_url, auth)
+        } else {
+          write!(f, "WebhookCallbackUrl({}, auth=None')", pact_url)
         }
       }
       _ => write!(f, "Unknown")
@@ -1313,6 +1328,16 @@ async fn fetch_pact(
         .and_then(|json| load_pact_from_json("<json>", &json)))
         .map(|(pact, tm)| {
           (pact, None, source.clone(), tm)
+        })
+    ],
+    PactSource::WebhookCallbackUrl { pact_url, broker_url, auth, .. } => vec![
+      timeit_async(pact_broker::fetch_pact_from_url(pact_url, auth)).await
+        .map_err(|err| anyhow!("Failed to load pact '{}' - {}", pact_url, err))
+        .map(|((pact, links), tm)| {
+          trace!(%pact_url, duration = ?tm, "Loaded pact from url");
+          let provider = pact.provider();
+          (pact, None, PactSource::BrokerUrl(provider.name.clone(), broker_url.clone(),
+            auth.clone(), links.clone()), tm)
         })
     ],
     _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]

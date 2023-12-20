@@ -43,6 +43,7 @@ pub(crate) fn setup_app() -> Command {
       .long("version")
       .action(ArgAction::Version)
       .help("Print version information and exit"))
+
     .group(ArgGroup::new("logging").multiple(true))
     .next_help_heading("Logging options")
     .arg(Arg::new("loglevel")
@@ -83,6 +84,7 @@ pub(crate) fn setup_app() -> Command {
       .action(ArgAction::SetTrue)
       .visible_alias("no-color")
       .help("Disables ANSI escape codes in the output"))
+
     .group(ArgGroup::new("source").multiple(true))
     .next_help_heading("Loading pacts options")
     .arg(Arg::new("file")
@@ -115,10 +117,18 @@ pub(crate) fn setup_app() -> Command {
       .action(ArgAction::Set)
       .value_parser(NonEmptyStringValueParser::new())
       .help("URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)"))
+    .arg(Arg::new("webhook-callback-url")
+      .long("webhook-callback-url")
+      .requires("broker-url")
+      .conflicts_with_all(&["file", "dir", "url"])
+      .action(ArgAction::Set)
+      .value_parser(NonEmptyStringValueParser::new())
+      .help("URL of a Pact to verify via a webhook callback. Requires the broker-url to be set."))
     .arg(Arg::new("ignore-no-pacts-error")
       .long("ignore-no-pacts-error")
       .action(ArgAction::SetTrue)
       .help("Do not fail if no pacts are found to verify"))
+
     .group(ArgGroup::new("auth").multiple(true))
     .next_help_heading("Authentication options")
     .arg(Arg::new("user")
@@ -143,6 +153,7 @@ pub(crate) fn setup_app() -> Command {
       .value_parser(NonEmptyStringValueParser::new())
       .conflicts_with("user")
       .help("Bearer token to use when fetching pacts from URLS"))
+
     .group(ArgGroup::new("provider").multiple(true))
     .next_help_heading("Provider options")
     .arg(Arg::new("hostname")
@@ -198,6 +209,7 @@ pub(crate) fn setup_app() -> Command {
       .long("disable-ssl-verification")
       .action(ArgAction::SetTrue)
       .help("Disables validation of SSL certificates"))
+
     .group(ArgGroup::new("states").multiple(true))
     .next_help_heading("Provider state options")
     .arg(Arg::new("state-change-url")
@@ -214,6 +226,7 @@ pub(crate) fn setup_app() -> Command {
       .long("state-change-teardown")
       .action(ArgAction::SetTrue)
       .help("State change teardown requests are to be made after each interaction"))
+
     .group(ArgGroup::new("filtering").multiple(true))
     .next_help_heading("Filtering interactions")
     .arg(Arg::new("filter-description")
@@ -242,6 +255,7 @@ pub(crate) fn setup_app() -> Command {
       .action(ArgAction::Append)
       .value_parser(NonEmptyStringValueParser::new())
       .help("Consumer name to filter the pacts to be verified (can be repeated)"))
+
     .group(ArgGroup::new("publish-options").multiple(true))
     .next_help_heading("Publishing options")
     .arg(Arg::new("publish")
@@ -271,6 +285,7 @@ pub(crate) fn setup_app() -> Command {
       .action(ArgAction::Set)
       .value_parser(NonEmptyStringValueParser::new())
       .help("Provider branch to use when publishing results"))
+
     .group(ArgGroup::new("broker").multiple(true))
     .next_help_heading("Pact Broker options")
     .arg(Arg::new("consumer-version-tags")

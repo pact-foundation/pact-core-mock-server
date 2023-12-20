@@ -514,66 +514,79 @@ fn print_version(version: &str) {
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   let mut sources = vec![];
 
-  if let Some(values) = matches.get_many::<String>("file") {
-    sources.extend(values.map(|v| PactSource::File(v.clone())).collect::<Vec<PactSource>>());
-  };
-
-  if let Some(values) = matches.get_many::<String>("dir") {
-    sources.extend(values.map(|v| PactSource::Dir(v.clone())).collect::<Vec<PactSource>>());
-  };
-
-  if let Some(values) = matches.get_many::<String>("url") {
-    sources.extend(values.map(|v| {
-      if let Some(user) = matches.get_one::<String>("user") {
-        PactSource::URL(v.clone(), Some(HttpAuth::User(user.clone(),
-          matches.get_one::<String>("password").map(|p| p.clone()))))
-      } else if let Some(token) = matches.get_one::<String>("token") {
-        PactSource::URL(v.clone(), Some(HttpAuth::Token(token.clone())))
-      } else {
-        PactSource::URL(v.clone(), None)
-      }
-    }).collect::<Vec<PactSource>>());
-  };
-
-  if let Some(broker_url) = matches.get_one::<String>("broker-url") {
-    let name = matches.get_one::<String>("provider-name").cloned().unwrap_or_default();
+  if let Some(webhook_url) = matches.get_one::<String>("webhook-callback-url") {
+    let broker_url = matches.get_one::<String>("broker-url").unwrap();
     let auth = matches.get_one::<String>("user").map(|user| {
       HttpAuth::User(user.clone(), matches.get_one::<String>("password").cloned())
     }).or_else(|| matches.get_one::<String>("token").map(|t| HttpAuth::Token(t.clone())));
-
-    let source = if matches.contains_id("consumer-version-selectors") || matches.contains_id("consumer-version-tags") {
-      let pending = matches.get_flag("enable-pending");
-      let wip = matches.get_one::<String>("include-wip-pacts-since").cloned();
-      let provider_tags = matches.get_many::<String>("provider-tags")
-        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.clone()).collect());
-      let provider_branch = matches.get_one::<String>("provider-branch").cloned();
-
-      let selectors = if matches.contains_id("consumer-version-selectors") {
-        matches.get_many::<String>("consumer-version-selectors")
-          .map_or_else(Vec::new, |s| json_to_selectors(s.map(|v| v.as_str()).collect::<Vec<_>>()))
-      } else if matches.contains_id("consumer-version-tags") {
-        matches.get_many::<String>("consumer-version-tags")
-          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.map(|v| v.as_str()).collect::<Vec<_>>()))
-      } else {
-        vec![]
-      };
-
-      PactSource::BrokerWithDynamicConfiguration {
-        provider_name: name,
-        broker_url: broker_url.into(),
-        enable_pending: pending,
-        include_wip_pacts_since: wip,
-        provider_tags,
-        provider_branch,
-        selectors,
-        auth,
-        links: vec![]
-      }
-    } else {
-      PactSource::BrokerUrl(name, broker_url.to_string(), auth, vec![])
+    sources.push(PactSource::WebhookCallbackUrl {
+      pact_url: webhook_url.clone(),
+      broker_url: broker_url.clone(),
+      auth
+    });
+  } else {
+    if let Some(values) = matches.get_many::<String>("file") {
+      sources.extend(values.map(|v| PactSource::File(v.clone())).collect::<Vec<PactSource>>());
     };
-    sources.push(source);
-  };
+
+    if let Some(values) = matches.get_many::<String>("dir") {
+      sources.extend(values.map(|v| PactSource::Dir(v.clone())).collect::<Vec<PactSource>>());
+    };
+
+    if let Some(values) = matches.get_many::<String>("url") {
+      sources.extend(values.map(|v| {
+        if let Some(user) = matches.get_one::<String>("user") {
+          PactSource::URL(v.clone(), Some(HttpAuth::User(user.clone(),
+                                                         matches.get_one::<String>("password").map(|p| p.clone()))))
+        } else if let Some(token) = matches.get_one::<String>("token") {
+          PactSource::URL(v.clone(), Some(HttpAuth::Token(token.clone())))
+        } else {
+          PactSource::URL(v.clone(), None)
+        }
+      }).collect::<Vec<PactSource>>());
+    };
+
+    if let Some(broker_url) = matches.get_one::<String>("broker-url") {
+      let name = matches.get_one::<String>("provider-name").cloned().unwrap_or_default();
+      let auth = matches.get_one::<String>("user").map(|user| {
+        HttpAuth::User(user.clone(), matches.get_one::<String>("password").cloned())
+      }).or_else(|| matches.get_one::<String>("token").map(|t| HttpAuth::Token(t.clone())));
+
+      let source = if matches.contains_id("consumer-version-selectors") || matches.contains_id("consumer-version-tags") {
+        let pending = matches.get_flag("enable-pending");
+        let wip = matches.get_one::<String>("include-wip-pacts-since").cloned();
+        let provider_tags = matches.get_many::<String>("provider-tags")
+          .map_or_else(Vec::new, |tags| tags.map(|tag| tag.clone()).collect());
+        let provider_branch = matches.get_one::<String>("provider-branch").cloned();
+
+        let selectors = if matches.contains_id("consumer-version-selectors") {
+          matches.get_many::<String>("consumer-version-selectors")
+            .map_or_else(Vec::new, |s| json_to_selectors(s.map(|v| v.as_str()).collect::<Vec<_>>()))
+        } else if matches.contains_id("consumer-version-tags") {
+          matches.get_many::<String>("consumer-version-tags")
+            .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.map(|v| v.as_str()).collect::<Vec<_>>()))
+        } else {
+          vec![]
+        };
+
+        PactSource::BrokerWithDynamicConfiguration {
+          provider_name: name,
+          broker_url: broker_url.into(),
+          enable_pending: pending,
+          include_wip_pacts_since: wip,
+          provider_tags,
+          provider_branch,
+          selectors,
+          auth,
+          links: vec![]
+        }
+      } else {
+        PactSource::BrokerUrl(name, broker_url.to_string(), auth, vec![])
+      };
+      sources.push(source);
+    };
+  }
+
   sources
 }
 

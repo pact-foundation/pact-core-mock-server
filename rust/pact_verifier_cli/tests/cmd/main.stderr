@@ -16,11 +16,18 @@ Logging options:
       --no-colour            Disables ANSI escape codes in the output [aliases: no-color]
 
 Loading pacts options:
-  -f, --file <file>              Pact file to verify (can be repeated)
-  -d, --dir <dir>                Directory of pact files to verify (can be repeated)
-  -u, --url <url>                URL of pact file to verify (can be repeated)
-  -b, --broker-url <broker-url>  URL of the pact broker to fetch pacts from to verify (requires the provider name parameter) [env: PACT_BROKER_BASE_URL=]
-      --ignore-no-pacts-error    Do not fail if no pacts are found to verify
+  -f, --file <file>
+          Pact file to verify (can be repeated)
+  -d, --dir <dir>
+          Directory of pact files to verify (can be repeated)
+  -u, --url <url>
+          URL of pact file to verify (can be repeated)
+  -b, --broker-url <broker-url>
+          URL of the pact broker to fetch pacts from to verify (requires the provider name parameter) [env: PACT_BROKER_BASE_URL=]
+      --webhook-callback-url <webhook-callback-url>
+          URL of a Pact to verify via a webhook callback. Requires the broker-url to be set.
+      --ignore-no-pacts-error
+          Do not fail if no pacts are found to verify
 
 Authentication options:
       --user <user>          Username to use when fetching pacts from URLS [env: PACT_BROKER_USERNAME=]
