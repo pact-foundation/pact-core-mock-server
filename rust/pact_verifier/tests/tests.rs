@@ -836,3 +836,115 @@ async fn verify_pact_with_matcher_on_last_modified_header() {
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
+
+// Issue #351
+#[test_log::test(tokio::test)]
+async fn broker_validation_errors_should_be_shown_to_the_user() {
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBrokerTest2")
+    .interaction("a request to the pact broker root", "", |mut i| async move {
+      i.request
+        .path("/")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+            "_links": {
+                "pb:provider-pacts-for-verification": {
+                  "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+                  "title": like!("Pact versions to be verified for the specified provider"),
+                  "templated": like!(true)
+                }
+            }
+        }));
+      i
+    })
+    .await
+    .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
+      i.request
+        .get()
+        .path("/pacts/provider/Alice%20Service/for-verification")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+                "_links": {
+                    "self": {
+                      "href": like!("http://localhost/pacts/provider/Alice%20Service/for-verification"),
+                      "title": like!("Pacts to be verified")
+                    }
+                }
+            }));
+      i
+    })
+    .await
+    .interaction("a request for the pacts to verify", "", |mut i| async move {
+      i.request
+        .post()
+        .path("/pacts/provider/Alice%20Service/for-verification")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .status(400)
+        .header("Content-Type", "application/hal+json")
+        .json_body("[\"consumerVersionSelectors: cannot specify the fields branch/latest with the field deployedOrReleased (at index 0)\"]");
+      i
+    })
+    .await
+    .start_mock_server(None);
+
+  #[allow(deprecated)]
+    let provider_info = ProviderInfo {
+    name: "Alice Service".to_string(),
+    host: "127.0.0.1".to_string(),
+    port: Some(8080),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: Some(8080),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
+    .. ProviderInfo::default()
+  };
+
+  let pact_source = PactSource::BrokerWithDynamicConfiguration {
+    provider_name: "Alice Service".to_string(),
+    broker_url: server.url().to_string(),
+    enable_pending: false,
+    include_wip_pacts_since: None,
+    provider_tags: vec![],
+    provider_branch: None,
+    selectors: vec![],
+    auth: None,
+    links: vec![]
+  };
+
+  let verification_options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_state_executor = Arc::new(DummyProviderStateExecutor{});
+  let publish_options = PublishOptions {
+    provider_version: Some("1.2.3".to_string()),
+    build_url: None,
+    provider_tags: vec![],
+    provider_branch: None,
+  };
+
+  let result = verify_provider_async(
+    provider_info,
+    vec![ pact_source ],
+    FilterInfo::None,
+    vec![ "Consumer".to_string() ],
+    &verification_options,
+    Some(&publish_options),
+    &provider_state_executor,
+    None
+  ).await;
+
+  let verification_result = result.unwrap();
+  expect!(verification_result.result).to(be_false());
+  let error = &verification_result.errors[0].1;
+  let error_json: Value = error.into();
+  let message = error_json.as_object().unwrap().get("message").unwrap();
+  let message_str = message.to_string();
+  expect!(message_str.contains("consumerVersionSelectors: cannot specify the fields branch/latest with the field deployedOrReleased (at index 0)")).to(be_true());
+}

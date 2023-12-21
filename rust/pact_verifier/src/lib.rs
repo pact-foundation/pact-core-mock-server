@@ -1097,8 +1097,9 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               warn!("Ignoring no pacts error - {}", Yellow.paint(err.to_string()));
             }
           } else {
-            error!("Failed to load pact - {}", Red.paint(err.to_string()));
-            errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
+            let error = format!("{:#}", err);
+            error!("Failed to load pact - {}", Red.paint(error.clone()));
+            errors.push(("Failed to load pact".to_string(), MismatchResult::Error(error, None)));
           }
         }
       }
