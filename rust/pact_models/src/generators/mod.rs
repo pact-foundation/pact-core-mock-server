@@ -585,6 +585,18 @@ impl Generators {
             None => ()
           }
         },
+        GeneratorCategory::HEADER | GeneratorCategory::QUERY => {
+          let mut generators = serde_json::Map::new();
+          for (key, val) in category {
+            let json = val.to_json();
+            if let Some(json) = json {
+              let name = key.first_field().map(|v| v.to_string())
+                .unwrap_or_else(|| key.to_string());
+              generators.insert(name, json);
+            }
+          }
+          map.insert(cat.clone(), Value::Object(generators));
+        },
         _ => {
           let mut generators = serde_json::Map::new();
           for (key, val) in category {
@@ -1305,6 +1317,7 @@ mod tests {
   use expectest::prelude::*;
   use hamcrest2::*;
   use hashers::fx_hash::FxHasher;
+  use pretty_assertions::assert_eq;
   use test_log::test;
 
   use crate::generators::Generator::{RandomDecimal, RandomInt, Regex};
@@ -1816,6 +1829,27 @@ mod tests {
     expect(json).to(be_equal_to(json!({
       "path": {"digits": 1, "type": "RandomDecimal"}
     })));
+  }
+
+  // Issue #355
+  #[test]
+  fn header_and_query_generator_test() {
+    let mut generators = Generators::default();
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, DocPath::new_unwrap("A"), RandomDecimal(1));
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, DocPath::new_unwrap("$['se-token']"), RandomDecimal(2));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, DocPath::new_unwrap("a"), RandomDecimal(3));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, DocPath::new_unwrap("$['se-token']"), RandomDecimal(4));
+    let json = generators.to_json();
+    assert_eq!(json, json!({
+      "header": {
+        "A": {"digits": 1, "type": "RandomDecimal"},
+        "se-token": {"digits": 2, "type": "RandomDecimal"}
+      },
+      "query": {
+        "a": {"digits": 3, "type": "RandomDecimal"},
+        "se-token": {"digits": 4, "type": "RandomDecimal"}
+      }
+    }));
   }
 
   #[test]

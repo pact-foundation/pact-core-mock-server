@@ -845,7 +845,16 @@ impl MatchingRuleCategory {
   /// Returns a JSON Value representation in V3 format
   pub fn to_v3_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (category, rulelist)| {
-      map.insert(String::from(category), rulelist.to_v3_json());
+      match self.name {
+        Category::HEADER | Category::QUERY => {
+          let name = category.first_field().map(|v| v.to_string())
+            .unwrap_or_else(|| category.to_string());
+          map.insert(name, rulelist.to_v3_json());
+        }
+        _ => {
+          map.insert(String::from(category), rulelist.to_v3_json());
+        }
+      }
       map
     }))
   }
@@ -860,6 +869,12 @@ impl MatchingRuleCategory {
       }
       Category::BODY => for (k, v) in self.rules.clone() {
         map.insert(String::from(k).replace("$", "$.body"), v.to_v2_json());
+      }
+      Category::HEADER | Category::QUERY => for (k, v) in &self.rules {
+        let mut path = DocPath::root();
+        path.push_field(self.name.to_string());
+        path.push_path(k);
+        map.insert(path.to_string(), v.to_v2_json());
       }
       _ => for (k, v) in &self.rules {
         map.insert(format!("$.{}.{}", self.name, k), v.to_v2_json());
@@ -1365,6 +1380,7 @@ mod tests {
 
   use expectest::prelude::*;
   use maplit::hashset;
+  use pretty_assertions::assert_eq;
   use serde_json::Value;
   use speculate::speculate;
 
@@ -1947,7 +1963,7 @@ mod tests {
   }
 
   #[test]
-  fn matching_rule_from_json_supports_intergration_form() {
+  fn matching_rule_from_json_supports_integration_form() {
     let json = json!({
       "pact:matcher:type": "each-value",
       "value": {
@@ -2158,6 +2174,85 @@ mod tests {
         "matchers": [ { "match": "type" } ]
       }
     })));
+  }
+
+  // Issue #355
+  #[test]
+  fn to_json_with_matching_rules_for_headers_and_query_parameters() {
+    let matching_rules = MatchingRules {
+      rules: hashmap!{
+        Category::HEADER => MatchingRuleCategory {
+          name: Category::HEADER,
+          rules: hashmap!{
+            DocPath::new_unwrap("$.A") => RuleList {
+              rules: vec![MatchingRule::Type],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            },
+            DocPath::new_unwrap("$['se-token']") => RuleList {
+              rules: vec![MatchingRule::Type],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+        },
+        Category::QUERY => MatchingRuleCategory {
+          name: Category::QUERY,
+          rules: hashmap!{
+            DocPath::new_unwrap("$.A") => RuleList {
+              rules: vec![MatchingRule::Type],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            },
+            DocPath::new_unwrap("$['se-token']") => RuleList {
+              rules: vec![MatchingRule::Type],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+        }
+      }
+    };
+
+    let json = matchers_to_json(&matching_rules, &PactSpecification::V3);
+    assert_eq!(json, json!({
+      "header": {
+        "A": {
+          "combine": "AND",
+          "matchers": [ { "match": "type" } ]
+        },
+        "se-token": {
+          "combine": "AND",
+          "matchers": [ { "match": "type" } ]
+        }
+      },
+      "query": {
+        "A": {
+          "combine": "AND",
+          "matchers": [ { "match": "type" } ]
+        },
+        "se-token": {
+          "combine": "AND",
+          "matchers": [ { "match": "type" } ]
+        }
+      }
+    }));
+
+    let json = matchers_to_json(&matching_rules, &PactSpecification::V2);
+    assert_eq!(json, json!({
+      "$.header.A": {
+        "match": "type"
+      },
+      "$.header['se-token']": {
+        "match": "type"
+      },
+      "$.query.A": {
+        "match": "type"
+      },
+      "$.query['se-token']": {
+        "match": "type"
+      }
+    }));
   }
 
   #[test]

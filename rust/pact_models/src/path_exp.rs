@@ -247,6 +247,17 @@ impl DocPath {
     self
   }
 
+  /// Mutates this path by pushing another path onto the end. Will drop the root marker from the
+  /// other path
+  pub fn push_path(&mut self, path: &DocPath) -> &mut Self {
+    for token in &path.path_tokens {
+      if token != &PathToken::Root {
+        self.push(token.clone());
+      }
+    }
+    self
+  }
+
   /// Convert this path to a vector of strings
   pub fn to_vec(&self) -> Vec<String> {
     self.path_tokens.iter().map(|t| t.to_string()).collect()
@@ -875,6 +886,22 @@ mod tests {
       .to(be_equal_to("$.something.else.*"));
     expect!(something.push(PathToken::Index(101)).to_string())
       .to(be_equal_to("$.something.else.*[101]"));
+  }
+
+  #[test]
+  fn push_path() {
+    let mut empty = DocPath::empty();
+    let a = empty.push_field("a");
+    let mut root = DocPath::root();
+    let b = root.push_field("a").push_field("b");
+    let mut root = DocPath::root();
+    let c = root.push_field("a").push_field("b").push_field("se-token");
+    expect!(DocPath::root().push_path(a).to_string())
+      .to(be_equal_to("$.a"));
+    expect!(DocPath::root().push_path(b).to_string())
+      .to(be_equal_to("$.a.b"));
+    expect!(DocPath::root().push_path(c).to_string())
+      .to(be_equal_to("$.a.b['se-token']"));
   }
 
   #[test]
