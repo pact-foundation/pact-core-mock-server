@@ -103,6 +103,7 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 use std::ptr::null_mut;
@@ -806,6 +807,9 @@ pub extern fn pactffi_with_query_parameter_v2(
       if let Some(reqres) = inner.as_v4_http_mut() {
         let mut path = DocPath::root();
         path.push_field(name);
+        if index > 0 {
+          path.push_index(index);
+        }
 
         let value = from_integration_json_v2(
           &mut reqres.request.matching_rules,
@@ -913,7 +917,8 @@ fn from_integration_json_v2(
 ) -> Either<String, Vec<String>> {
   trace!(value, %path, category, index, "from_integration_json_v2 called");
   let matching_rules = rules.add_category(category);
-  let mut path = path.clone();
+  let path_or_status = [Category::PATH, Category::STATUS].contains(&matching_rules.name);
+  let query_or_header = [Category::QUERY, Category::HEADER].contains(&matching_rules.name);
 
   match serde_json::from_str(value) {
     Ok(json) => match json {
@@ -930,18 +935,31 @@ fn from_integration_json_v2(
                 let array = process_array(&array, matching_rules, generators, path.clone(), true, false);
                 (path.clone(), array)
               },
-              _ => (path.push_index(index).clone(), val.clone())
+              _ => (path.clone(), val.clone())
             },
-            None => (path.push_index(index).clone(), Value::Null)
+            None => (path.clone(), Value::Null)
           };
 
           if let Some(rule) = &matching_rule {
-            let path = if [Category::PATH, Category::STATUS].contains(&matching_rules.name)  {
+            let path = if path_or_status {
               path.parent().unwrap_or(DocPath::root())
             } else {
               path.clone()
             };
-            matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
+            if query_or_header {
+              if index > 0 {
+                // If the index > 0, and there is an existing entry with the base name, we need
+                // to re-key that with an index of 0
+                let mut parent = path.parent().unwrap_or(DocPath::root());
+                if let Entry::Occupied(rule) = matching_rules.rules.entry(parent.clone()) {
+                  let rules = rule.remove();
+                  matching_rules.rules.insert(parent.push_index(0).clone(), rules);
+                }
+              }
+              matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
+            } else {
+              matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
+            }
           }
           if let Some(gen) = map.get("pact:generator:type") {
             debug!("detected pact:generator:type, will configure a generators");
@@ -957,7 +975,7 @@ fn from_integration_json_v2(
                   &GeneratorCategory::BODY
                 }
               };
-              let path = if [Category::PATH, Category::STATUS].contains(&matching_rules.name) {
+              let path = if path_or_status {
                 path.parent().unwrap_or(DocPath::root())
               } else {
                 path.clone()
@@ -1185,6 +1203,9 @@ pub extern fn pactffi_with_header_v2(
       if let Some(reqres) = inner.as_v4_http_mut() {
         let mut path = DocPath::root();
         path.push_field(name);
+        if index > 0 {
+          path.push_index(index);
+        }
 
         let value = match part {
           InteractionPart::Request => from_integration_json_v2(
@@ -2465,6 +2486,7 @@ mod tests {
   use pact_models::matchingrules::{Category, MatchingRule};
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::{Generators, MatchingRules};
+  use pretty_assertions::assert_eq;
 
   use crate::mock_server::handles::*;
 
@@ -2547,7 +2569,7 @@ mod tests {
       "id".to_string() => vec!["100".to_string()]
     }));
     expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
-      "query" => { "$.id[0]" => [ MatchingRule::Regex("\\d+".to_string()) ] }
+      "query" => { "$.id" => [ MatchingRule::Regex("\\d+".to_string()) ] }
     }));
   }
 
@@ -2594,12 +2616,12 @@ mod tests {
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
       "id".to_string() => vec!["100".to_string(), "abc".to_string()]
     }));
-    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+    assert_eq!(&interaction.request.matching_rules, &matchingrules! {
       "query" => {
-        "$.id[0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
-        "$.id[1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
+        "$.id[1]" => [ MatchingRule::Regex("\\w+".to_string()) ],
+        "$.id[0]" => [ MatchingRule::Regex("\\d+".to_string()) ]
       }
-    }));
+    });
   }
 
   // Issue #205
@@ -2759,7 +2781,7 @@ mod tests {
       "x-id".to_string() => vec!["100".to_string()]
     }));
     expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
-      "header" => { "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ] }
+      "header" => { "$['x-id']" => [ MatchingRule::Regex("\\d+".to_string()) ] }
     }));
   }
 
@@ -2806,12 +2828,12 @@ mod tests {
     expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
       "x-id".to_string() => vec!["100".to_string(), "abc".to_string()]
     }));
-    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+    assert_eq!(&interaction.request.matching_rules, &matchingrules! {
       "header" => {
-        "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
-        "$['x-id'][1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
+        "$['x-id'][1]" => [ MatchingRule::Regex("\\w+".to_string()) ],
+        "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ]
       }
-    }));
+    });
   }
 
   // Issue #300
@@ -2867,6 +2889,66 @@ mod tests {
 
     expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
       "x-id".to_string() => vec!["100".to_string(), "200".to_string(), "300".to_string()]
+    }));
+  }
+
+  // Issue #355
+  #[test_log::test]
+  fn header_with_provider_state_generator() {
+    let pact_handle = PactHandle::new("TestHC5", "TestHP");
+    let description = CString::new("header_with_provider_state_generator").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("se-token").unwrap();
+    let value = CString::new("{\"expression\":\"${seToken}\",\"pact:generator:type\":\"ProviderState\",\"pact:matcher:type\":\"type\",\"value\":\"ABC123\"}").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "se-token".to_string() => vec!["ABC123".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "header" => {
+        "$['se-token']" => [ MatchingRule::Type ]
+      }
+    }));
+    expect!(&interaction.request.generators).to(be_equal_to(&generators! {
+      "header" => {
+        "$['se-token']" => Generator::ProviderStateGenerator("${seToken}".to_string(), None)
+      }
+    }));
+    let json = interaction.to_json();
+    assert_eq!(json, json!({
+      "description": "header_with_provider_state_generator",
+      "pending": false,
+      "request": {
+        "generators": {
+          "header": {
+            "se-token": {"expression": "${seToken}", "type": "ProviderState"}
+          }
+        },
+        "headers": {
+          "se-token": ["ABC123"]
+        },
+        "matchingRules": {
+          "header": {
+            "se-token": {
+              "combine": "AND",
+              "matchers": [
+                {"match": "type"}
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/"
+      },
+      "response": {"status": 200}, "type": "Synchronous/HTTP"
     }));
   }
 
