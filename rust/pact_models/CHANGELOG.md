@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.13 - Bugfix Release
+
+* 6e5504cd - fix: matching rules and generators for headers could be written to JSON form incorrectly #355 (Ronald Holshausen, Tue Jan 16 03:44:20 2024 +1100)
+* d8688c17 - bump version to 1.1.13 (Ronald Holshausen, Mon Nov 13 17:14:24 2023 +1100)
+
 # 1.1.12 - Bugfix Release
 
 * 07a1e7c2 - fix: Fallback to always generate a value to fix 'Could not generate a random TYPE from null' (tien.xuan.vo, Wed Nov 8 08:12:29 2023 +0700)
