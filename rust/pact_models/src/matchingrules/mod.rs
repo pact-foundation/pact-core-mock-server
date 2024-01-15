@@ -17,7 +17,7 @@ use crate::{HttpStatus, PactSpecification};
 use crate::generators::{Generator, GeneratorCategory, Generators};
 use crate::json_utils::{json_to_num, json_to_string};
 use crate::matchingrules::expressions::{MatchingReference, MatchingRuleDefinition, ValueType};
-use crate::path_exp::DocPath;
+use crate::path_exp::{DocPath, PathToken};
 
 pub mod expressions;
 
@@ -1146,7 +1146,6 @@ impl MatchingRules {
   fn load_from_v2_map(&mut self, map: &serde_json::Map<String, Value>
   ) -> anyhow::Result<()> {
     for (key, v) in map {
-      let path = key.split('.').collect::<Vec<&str>>();
       if key.starts_with("$.body") {
         if key == "$.body" {
           self.add_v2_rule("body", DocPath::root(), v)?;
@@ -1154,11 +1153,24 @@ impl MatchingRules {
           self.add_v2_rule("body", DocPath::new(format!("${}", &key[6..]))?, v)?;
         }
       } else if key.starts_with("$.headers") {
-        self.add_v2_rule("header", DocPath::new(path[2])?, v)?;
+        let path = DocPath::new(key)?;
+        let header_name = path.tokens().iter().filter_map(|t| match t {
+          PathToken::Field(n) => Some(n.clone()),
+          _ => None
+        }).skip(1).next();
+        let header = header_name.ok_or_else(|| anyhow!("'{}' is not a valid path value for a matching rule", key))?;
+        self.add_v2_rule("header", DocPath::new(header)?, v)?;
       } else {
+        let path = DocPath::new(key)?;
+        let mut names = path.tokens().iter().filter_map(|t| match t {
+          PathToken::Field(n) => Some(n.clone()),
+          _ => None
+        });
+        let category = names.next().ok_or_else(|| anyhow!("'{}' is not a valid path value for a matching rule", key))?;
+        let name = names.next();
         self.add_v2_rule(
-          path[1],
-          if path.len() > 2 { DocPath::new(path[2])? } else { DocPath::empty() },
+          category,
+          if let Some(name) = name { DocPath::new(name)? } else { DocPath::empty() },
           v,
         )?;
       }
@@ -1687,6 +1699,43 @@ mod tests {
         DocPath::new_unwrap("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And, cascaded: false }
       }
     }));
+  }
+
+  #[test]
+  fn load_from_v2_map_supports_headers_and_query_parameters_in_encoded_format() {
+    let matching_rules_json = json!({
+      "$.query.Q1": { "match": "regex", "regex": "1" },
+      "$.query.x-test": { "match": "regex", "regex": "2" },
+      "$.query['x-test-2']": { "match": "regex", "regex": "3" },
+      "$.header.HEADERY": { "match": "regex", "regex": "4" },
+      "$.header.x-test": { "match": "regex", "regex": "5" },
+      "$.header['x-test-2']": { "match": "regex", "regex": "6" }
+    });
+    let matching_rules_map = matching_rules_json.as_object().unwrap();
+
+    let mut matching_rules = MatchingRules::default();
+    matching_rules.load_from_v2_map(&matching_rules_map).unwrap();
+
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{
+      Category::QUERY, Category::HEADER
+    }));
+    assert_eq!(matching_rules.rules_for_category("header").unwrap(), MatchingRuleCategory {
+      name: "header".into(),
+      rules: hashmap!{
+        DocPath::new_unwrap("HEADERY") => RuleList { rules: vec![ MatchingRule::Regex("4".to_string()) ], rule_logic: RuleLogic::And, cascaded: false },
+        DocPath::new_unwrap("x-test") => RuleList { rules: vec![ MatchingRule::Regex("5".to_string()) ], rule_logic: RuleLogic::And, cascaded: false },
+        DocPath::new_unwrap("x-test-2") => RuleList { rules: vec![ MatchingRule::Regex("6".to_string()) ], rule_logic: RuleLogic::And, cascaded: false }
+      }
+    });
+    assert_eq!(matching_rules.rules_for_category("query").unwrap(), MatchingRuleCategory {
+      name: "query".into(),
+      rules: hashmap!{
+        DocPath::new_unwrap("Q1") => RuleList { rules: vec![ MatchingRule::Regex("1".to_string()) ], rule_logic: RuleLogic::And, cascaded: false },
+        DocPath::new_unwrap("x-test") => RuleList { rules: vec![ MatchingRule::Regex("2".to_string()) ], rule_logic: RuleLogic::And, cascaded: false },
+        DocPath::new_unwrap("x-test-2") => RuleList { rules: vec![ MatchingRule::Regex("3".to_string()) ], rule_logic: RuleLogic::And, cascaded: false }
+      }
+    });
   }
 
   #[test]
