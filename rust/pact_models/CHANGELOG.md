@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.14 - Bugfix Release
+
+* d94c7827 - fix: Support V2 matching rule header/query paths in encoded format #355 (Ronald Holshausen, Tue Jan 16 09:19:21 2024 +1100)
+* e7e0c278 - bump version to 1.1.14 (Ronald Holshausen, Tue Jan 16 04:25:00 2024 +1100)
+
 # 1.1.13 - Bugfix Release
 
 * 6e5504cd - fix: matching rules and generators for headers could be written to JSON form incorrectly #355 (Ronald Holshausen, Tue Jan 16 03:44:20 2024 +1100)
