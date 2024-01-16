@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.12 - Bugfix Release
+
+* 403c0af1 - chore: Upgrade pact_models to 1.1.14 #355 (Ronald Holshausen, Tue Jan 16 10:31:12 2024 +1100)
+* 9d121e5e - fix(FFI): Headers configured with provider state generator have invalid paths in Pact file #355 (Ronald Holshausen, Tue Jan 16 07:48:20 2024 +1100)
+* dfd13760 - chore: Upgrade pact_models to 1.1.13 #355 (Ronald Holshausen, Tue Jan 16 07:42:33 2024 +1100)
+* 39a14e97 - chore: Upgrade pact_verifier to 1.0.4 (Ronald Holshausen, Wed Dec 20 14:46:57 2023 +1100)
+* 713e4098 - chore: Upgrade pact-plugin-driver to 0.4.6 (Ronald Holshausen, Thu Dec 14 17:04:59 2023 +1100)
+* ca698fce - bump version to 0.4.12 (Ronald Holshausen, Mon Nov 27 19:55:59 2023 +1100)
+
 # 0.4.11 - Bugfix Release
 
 * 82e51872 - Merge pull request #348 from tienvx/update-trace-logs (Ronald Holshausen, Tue Nov 28 09:36:04 2023 +1100)
