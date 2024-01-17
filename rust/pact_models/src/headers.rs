@@ -1,12 +1,13 @@
 pub static PARAMETERISED_HEADERS: [&str; 2] = ["accept", "content-type"];
-pub static SINGLE_VALUE_HEADERS: [&str; 7] = [
+pub static SINGLE_VALUE_HEADERS: [&str; 8] = [
   "date",
   "accept-datetime",
   "if-modified-since",
   "if-unmodified-since",
   "expires",
   "retry-after",
-  "last-modified"
+  "last-modified",
+  "set-cookie"
 ];
 
 /// Tries to parse the header value into multiple values, taking into account headers that should
