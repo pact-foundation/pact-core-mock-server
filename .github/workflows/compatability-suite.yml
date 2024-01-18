@@ -2,11 +2,12 @@ name: Pact-Rust Compatibility Suite
 
 on: [push, pull_request]
 
+env:
+  pact_do_not_track: true
+
 jobs:
   v1:
     runs-on: ubuntu-latest
-    env:
-      pact_do_not_track: true
     steps:
     - uses: actions/checkout@v2
     - uses: dtolnay/rust-toolchain@stable
@@ -15,8 +16,6 @@ jobs:
       working-directory: compatibility-suite
   v2:
     runs-on: ubuntu-latest
-    env:
-      pact_do_not_track: true
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
@@ -25,8 +24,6 @@ jobs:
         working-directory: compatibility-suite
   v3:
     runs-on: ubuntu-latest
-    env:
-      pact_do_not_track: true
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
@@ -35,8 +32,6 @@ jobs:
         working-directory: compatibility-suite
   v4:
     runs-on: ubuntu-latest
-    env:
-      pact_do_not_track: true
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
