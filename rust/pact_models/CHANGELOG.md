@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.15 - Bugfix Release
+
+* 1d9034aa - fix: regression - generators must support query parameters in q[]= form #359 (Ronald Holshausen, Fri Jan 19 14:03:23 2024 +1100)
+* 01903998 - fix: regression - matching rules must support query parameters in q[]= form #359 (Ronald Holshausen, Fri Jan 19 13:03:21 2024 +1100)
+* 512ed87b - fix: Error where interactions failed to load where being silently ignored #359 (Ronald Holshausen, Fri Jan 19 12:49:01 2024 +1100)
+* 7d615579 - docs: Fix date example value (tien.xuan.vo, Wed Jan 17 12:25:54 2024 +0700)
+* ab1d496f - fix: Add set-cookie header to the list of single value headers #353 (Ronald Holshausen, Wed Jan 17 13:46:49 2024 +1100)
+* 54022150 - bump version to 1.1.15 (Ronald Holshausen, Tue Jan 16 10:24:00 2024 +1100)
+
 # 1.1.14 - Bugfix Release
 
 * d94c7827 - fix: Support V2 matching rule header/query paths in encoded format #355 (Ronald Holshausen, Tue Jan 16 09:19:21 2024 +1100)
