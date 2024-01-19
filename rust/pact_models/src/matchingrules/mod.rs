@@ -979,7 +979,7 @@ impl MatchingRuleCategory {
         self.add_rule_list(DocPath::empty(), rules)?;
       } else if self.name == Category::QUERY || self.name == Category::HEADER {
         for (k, v) in m {
-          let mut path = DocPath::empty();
+          let mut path = DocPath::root();
           path.push_field(k);
           self.add_rule_list(path, v)?;
         }
@@ -1824,11 +1824,11 @@ mod tests {
     }));
     expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
       name: "query".into(),
-      rules: hashmap!{ DocPath::empty().join("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
+      rules: hashmap!{ DocPath::root().join("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
     }));
     expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
       name: "header".into(),
-      rules: hashmap!{ DocPath::empty().join("HEADERY") => RuleList { rules: vec![
+      rules: hashmap!{ DocPath::root().join("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include("ValueA".to_string()),
         MatchingRule::Include("ValueB".to_string()) ], rule_logic: RuleLogic::Or, cascaded: false } }
     }));
@@ -1933,11 +1933,11 @@ mod tests {
     }));
     expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
       name: "query".into(),
-      rules: hashmap!{ DocPath::empty().join("Q[]") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
+      rules: hashmap!{ DocPath::root().join("Q[]") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
     }));
     expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
       name: "header".into(),
-      rules: hashmap!{ DocPath::empty().join("Y[]") => RuleList { rules: vec![
+      rules: hashmap!{ DocPath::root().join("Y[]") => RuleList { rules: vec![
         MatchingRule::Include("ValueA".to_string()),
         MatchingRule::Include("ValueB".to_string()) ], rule_logic: RuleLogic::Or, cascaded: false } }
     }));
