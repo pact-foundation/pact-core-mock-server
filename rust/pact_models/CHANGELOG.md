@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.16 - Bugfix Release
+
+* 0f5f563f - fix: regression - prevous matching rules change broke specification tests #359 (Ronald Holshausen, Fri Jan 19 14:41:37 2024 +1100)
+* a77c9eb0 - bump version to 1.1.16 (Ronald Holshausen, Fri Jan 19 14:13:25 2024 +1100)
+
 # 1.1.15 - Bugfix Release
 
 * 1d9034aa - fix: regression - generators must support query parameters in q[]= form #359 (Ronald Holshausen, Fri Jan 19 14:03:23 2024 +1100)
