@@ -182,15 +182,16 @@ impl PartialEq for Box<dyn V4Interaction + Send + Sync + RefUnwindSafe> {
 }
 
 /// Load V4 format interactions from JSON struct
-pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>> {
+pub fn interactions_from_json(json: &Value, source: &str) -> anyhow::Result<Vec<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>>> {
   match json.get("interactions") {
     Some(Value::Array(ref array)) => {
-      array.iter().enumerate().map(|(index, ijson)| {
-        interaction_from_json(source, index, ijson).ok()
-      }).flatten()
-        .collect()
+      let mut interactions = vec![];
+      for (index, ijson) in array.iter().enumerate() {
+        interactions.push(interaction_from_json(source, index, ijson)?);
+      }
+      Ok(interactions)
     },
-    _ => vec![]
+    _ => Ok(vec![])
   }
 }
 

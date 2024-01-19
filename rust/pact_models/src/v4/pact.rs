@@ -158,7 +158,7 @@ impl V4Pact {
     Ok(V4Pact {
       consumer,
       provider,
-      interactions: interactions_from_json(&json, source),
+      interactions: interactions_from_json(&json, source)?,
       metadata,
       plugin_data
     })
@@ -447,7 +447,7 @@ pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact
   Ok(Box::new(V4Pact {
     consumer,
     provider,
-    interactions: interactions_from_json(pact_json, source),
+    interactions: interactions_from_json(pact_json, source)?,
     metadata,
     plugin_data
   }))
