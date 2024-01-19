@@ -956,6 +956,44 @@ impl MatchingRuleCategory {
     Ok(())
   }
 
+  /// Adds the rules to the category from the provided JSON in V3+ format
+  pub fn add_v3_rules_from_json(&mut self, rules: &Value) -> anyhow::Result<()> {
+    if self.name == Category::PATH && rules.get("matchers").is_some() {
+      let rule_logic = match rules.get("combine") {
+        Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+          RuleLogic::Or
+        } else {
+          RuleLogic::And
+        },
+        None => RuleLogic::And
+      };
+      if let Some(matchers) = rules.get("matchers") {
+        if let Value::Array(array) = matchers {
+          for matcher in array {
+            self.rule_from_json(DocPath::empty(), &matcher, rule_logic)?;
+          }
+        }
+      }
+    } else if let Value::Object(m) = rules {
+      if m.contains_key("matchers") {
+        self.add_rule_list(DocPath::empty(), rules)?;
+      } else if self.name == Category::QUERY || self.name == Category::HEADER {
+        for (k, v) in m {
+          let mut path = DocPath::empty();
+          path.push_field(k);
+          self.add_rule_list(path, v)?;
+        }
+      } else {
+        for (k, v) in m {
+          self.add_rule_list(DocPath::new(k)?, v)?;
+        }
+      }
+    } else {
+      return Err(anyhow!("Matching rule JSON {} is not correctly formed", rules));
+    }
+    Ok(())
+  }
+
   fn add_rule_list(&mut self, k: DocPath, v: &Value) -> anyhow::Result<()> {
     let rule_logic = match v.get("combine") {
       Some(val) => if json_to_string(val).to_uppercase() == "OR" {
@@ -1181,15 +1219,10 @@ impl MatchingRules {
   fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>
   ) -> anyhow::Result<()> {
     for (k, v) in map {
-      self.add_rules_private(k, v)?;
+      let category = self.add_category(k.as_str());
+      category.add_v3_rules_from_json(v)?;
     }
     Ok(())
-  }
-
-  fn add_rules_private<S: Into<String>>(&mut self, category_name: S, rules: &Value
-  ) -> anyhow::Result<()> {
-    let category = self.add_category(category_name.into());
-    category.add_rules_from_json(rules)
   }
 
   fn add_v2_rule<S: Into<String>>(
@@ -1791,11 +1824,11 @@ mod tests {
     }));
     expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
       name: "query".into(),
-      rules: hashmap!{ DocPath::new_unwrap("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
+      rules: hashmap!{ DocPath::empty().join("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
     }));
     expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
       name: "header".into(),
-      rules: hashmap!{ DocPath::new_unwrap("HEADERY") => RuleList { rules: vec![
+      rules: hashmap!{ DocPath::empty().join("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include("ValueA".to_string()),
         MatchingRule::Include("ValueB".to_string()) ], rule_logic: RuleLogic::Or, cascaded: false } }
     }));
@@ -1868,6 +1901,46 @@ mod tests {
         ));
       }
     }
+  }
+
+  #[test]
+  fn loads_v3_matching_rules_supports_headers_and_query_parameters_with_brackets() {
+    let matching_rules_json = Value::from_str(r#"{"matchingRules": {
+      "query": {
+        "Q[]": {
+          "matchers": [
+            { "match": "regex", "regex": "\\d+" }
+          ]
+        }
+      },
+      "header": {
+        "Y[]": {
+          "combine": "OR",
+          "matchers": [
+            {"match": "include", "value": "ValueA"},
+            {"match": "include", "value": "ValueB"}
+          ]
+        }
+      }
+    }}"#).unwrap();
+
+    let matching_rules = matchers_from_json(&matching_rules_json, &None);
+    let matching_rules = matching_rules.unwrap();
+
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{
+      Category::QUERY, Category::HEADER
+    }));
+    expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
+      name: "query".into(),
+      rules: hashmap!{ DocPath::empty().join("Q[]") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And, cascaded: false } }
+    }));
+    expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
+      name: "header".into(),
+      rules: hashmap!{ DocPath::empty().join("Y[]") => RuleList { rules: vec![
+        MatchingRule::Include("ValueA".to_string()),
+        MatchingRule::Include("ValueB".to_string()) ], rule_logic: RuleLogic::Or, cascaded: false } }
+    }));
   }
 
   #[test]
