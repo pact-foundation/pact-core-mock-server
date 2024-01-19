@@ -1049,12 +1049,17 @@ impl GenerateValue<Value> for Generator {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
           Ok(hir) => {
-            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Ok(json!(rand::thread_rng().sample::<String, _>(gen)))
+            match rand_regex::Regex::with_hir(hir, 20) {
+              Ok(gen) => Ok(json!(rand::thread_rng().sample::<String, _>(gen))),
+              Err(err) => {
+                warn!("Failed to generate a value from regular expression - {}", err);
+                Err(anyhow!("Failed to generate a value from regular expression - {}", err))
+              }
+            }
           },
           Err(err) => {
             warn!("'{}' is not a valid regular expression - {}", regex, err);
-            Err(anyhow!("Could not generate a random string from {} - {}", regex, err))
+            Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
           }
         }
       },
@@ -1325,6 +1330,7 @@ mod tests {
   use pretty_assertions::assert_eq;
   use test_log::test;
 
+  use crate::contain;
   use crate::generators::Generator::{RandomDecimal, RandomInt, Regex};
 
   use super::*;
@@ -2058,6 +2064,21 @@ mod tests {
 
     let generated = Generator::Regex(r"^\d{1,2}/\d{1,2}$".into()).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
+  }
+
+  #[test]
+  fn regex_generator_test_with_anchors() {
+    let generator = Generator::Regex(r"^\/api\/families\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$".into());
+
+    let generated = generator.generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let err = generated.unwrap_err().to_string();
+    expect!(&err).to(contain("'^\\/api\\/families\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' is not a valid regular expression"));
+    expect!(&err).to(contain("error: unrecognized escape sequence"));
+
+    let generated = generator.generate_value(&json!(""), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let err = generated.unwrap_err().to_string();
+    expect!(&err).to(contain("'^\\/api\\/families\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' is not a valid regular expression"));
+    expect!(&err).to(contain("error: unrecognized escape sequence"));
   }
 
   #[test]

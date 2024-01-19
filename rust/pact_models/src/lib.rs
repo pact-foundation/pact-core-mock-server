@@ -430,3 +430,29 @@ impl Display for HttpStatus {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub struct Contains {
+  expected: String
+}
+
+#[cfg(test)]
+pub fn contain<S: Into<String>>(expected: S) -> Contains {
+  Contains { expected: expected.into() }
+}
+
+#[cfg(test)]
+impl<A> expectest::core::Matcher<A, String> for Contains
+  where
+    A: Into<String> + Clone
+{
+  fn failure_message(&self, _join: expectest::core::Join, actual: &A) -> String {
+    let s: String = actual.clone().into();
+    format!("expected '{}' to contain <{:?}>", s, self.expected)
+  }
+
+  fn matches(&self, actual: &A) -> bool {
+    let s: String = actual.clone().into();
+    s.contains(self.expected.as_str())
+  }
+}
