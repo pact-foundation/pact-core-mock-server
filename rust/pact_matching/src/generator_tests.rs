@@ -75,8 +75,8 @@ async fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
 #[tokio::test]
 async fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
   let request = HttpRequest { query: Some(hashmap!{
-      s!("A") => vec![ s!("a") ],
-      s!("B") => vec![ s!("b") ]
+      "A".to_string() => vec![ "a".to_string() ],
+      "B".to_string() => vec![ "b".to_string() ]
     }), generators: generators! {
       "QUERY" => {
         "A" => Generator::Uuid(None)
@@ -86,6 +86,32 @@ async fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request
   let query = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await.query.unwrap().clone();
   let query_val = &query.get("A").unwrap()[0];
   expect!(query_val).to_not(be_equal_to("a"));
+}
+
+#[test_log::test(tokio::test)]
+async fn applies_provider_state_generator_for_query_parameters_with_square_brackets() {
+  let request = HttpRequest {
+    query: Some(hashmap!{
+      "A".to_string() => vec![ "a".to_string() ],
+      "q[]".to_string() => vec![ "q1".to_string(), "q2".to_string() ]
+    }),
+    generators: generators! {
+      "QUERY" => {
+        "A" => Generator::ProviderStateGenerator("exp1".to_string(), None),
+        "$['q[]']" => Generator::ProviderStateGenerator("${exp2}".to_string(), None)
+      }
+    }, .. HttpRequest::default()
+  };
+  let context = hashmap! {
+    "exp1" => json!("1234"),
+    "exp2" => json!("5678")
+  };
+  let result = generate_request(&request, &GeneratorTestMode::Provider, &context).await;
+  let query = result.query.unwrap();
+  let a_val = query.get("A").unwrap();
+  expect!(a_val).to(be_equal_to(&vec!["1234".to_string()]));
+  let q_val = query.get("q[]").unwrap();
+  expect!(q_val).to(be_equal_to(&vec!["5678".to_string(), "5678".to_string()]));
 }
 
 #[tokio::test]
