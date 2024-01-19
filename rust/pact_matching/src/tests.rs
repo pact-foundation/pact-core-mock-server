@@ -288,6 +288,37 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
   });
 }
 
+#[test]
+fn match_query_with_query_parameters_with_brackets() {
+  let matching_rules_json = json!({
+    "matchingRules": {
+      "query": {
+        "Q[]": {
+          "matchers": [
+            { "match": "regex", "regex": "\\d+" }
+          ]
+        }
+      }
+    }
+  });
+
+  let matching_rules = matchingrules::matchers_from_json(&matching_rules_json, &None).unwrap();
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matching_rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let expected = hashmap!{
+    "Q[]".to_string() => vec!["1".to_string(), "2".to_string()]
+  };
+  let actual = hashmap!{
+    "Q[]".to_string() => vec!["100".to_string(), "2000".to_string(), "999".to_string()]
+  };
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.get("Q[]").unwrap().iter()).to(be_empty());
+}
+
 #[tokio::test]
 async fn body_does_not_match_if_different_content_types() {
   let expected = Request {
