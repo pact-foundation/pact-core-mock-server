@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.8 - Bugfix Release
+
+* f9792697 - Merge pull request #364 from tienvx/allow-matching-strings-with-values-matcher (Ronald Holshausen, Mon Jan 22 10:51:13 2024 +1100)
+* 045ffbb6 - Merge pull request #363 from tienvx/test-content-type-matcher (Ronald Holshausen, Mon Jan 22 10:45:34 2024 +1100)
+* f4891c03 - fix(pact_matching): Allow matching strings using Values matcher (tien.xuan.vo, Mon Jan 22 00:57:34 2024 +0700)
+* 37e498e9 - test(pact_matching): Test more cases for ContentType matcher (tien.xuan.vo, Sat Jan 20 17:39:07 2024 +0700)
+* ce421520 - chore: add a test for generators on query parameters with square brackets #359 (Ronald Holshausen, Fri Jan 19 17:38:42 2024 +1100)
+* 9d60c8b0 - chore: add a test for matching rules on query parameters with square brackets #359 (Ronald Holshausen, Fri Jan 19 17:17:29 2024 +1100)
+* 944613df - fix: regression - upgrade pact_models to 1.1.16 #359 (Ronald Holshausen, Fri Jan 19 14:52:36 2024 +1100)
+* 403c0af1 - chore: Upgrade pact_models to 1.1.14 #355 (Ronald Holshausen, Tue Jan 16 10:31:12 2024 +1100)
+* dfd13760 - chore: Upgrade pact_models to 1.1.13 #355 (Ronald Holshausen, Tue Jan 16 07:42:33 2024 +1100)
+* 713e4098 - chore: Upgrade pact-plugin-driver to 0.4.6 (Ronald Holshausen, Thu Dec 14 17:04:59 2023 +1100)
+* b7789ae1 - bump version to 1.1.8 (Ronald Holshausen, Tue Nov 14 02:45:34 2023 +1100)
+
 # 1.1.7 - Maintenance Release
 
 * 826758a6 - chore: Upgrade pact_models to 1.1.12 (Ronald Holshausen, Mon Nov 13 17:25:21 2023 +1100)
