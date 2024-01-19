@@ -16,7 +16,7 @@ use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 use serde_json::Value;
-use tracing::{error, warn};
+use tracing::{error, warn, trace};
 
 use crate::{as_mut, as_ref, ffi_fn};
 use crate::util::{ptr, string};
@@ -266,9 +266,16 @@ ffi_fn! {
     fn pactffi_generators_iter_next(iter: *mut GeneratorCategoryIterator) -> *const GeneratorKeyValuePair {
         let iter = as_mut!(iter);
 
-        let (path, generator) = iter.next().ok_or(anyhow::anyhow!("iter past the end of the generators"))?;
-        let pair = GeneratorKeyValuePair::new(&path.to_string(), generator)?;
-        ptr::raw_to(pair)
+        match iter.next() {
+          Some((path, generator)) => {
+            let pair = GeneratorKeyValuePair::new(&path.to_string(), generator)?;
+            ptr::raw_to(pair)
+          }
+          None => {
+            trace!("iter past the end of the generators");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }

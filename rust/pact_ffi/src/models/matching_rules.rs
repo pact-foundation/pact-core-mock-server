@@ -1,13 +1,14 @@
 //! FFI functions to deal with matching rules
 
 use itertools::Itertools;
-use pact_models::matchingrules::{Category, MatchingRule};
 use libc::c_char;
+use pact_models::matchingrules::{Category, MatchingRule};
 use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
+use tracing::trace;
 
-use crate::{ffi_fn, as_ref, as_mut};
+use crate::{as_mut, as_ref, ffi_fn};
 use crate::util::{ptr, string};
 use crate::util::ptr::{drop_raw, raw_to};
 
@@ -180,9 +181,16 @@ ffi_fn! {
     fn pactffi_matching_rules_iter_next(iter: *mut MatchingRuleCategoryIterator) -> *const MatchingRuleKeyValuePair {
         let iter = as_mut!(iter);
 
-        let (path, rule) = iter.next().ok_or(anyhow::anyhow!("iter past the end of the matching rules"))?;
-        let pair = MatchingRuleKeyValuePair::new(&path.to_string(), rule)?;
-        ptr::raw_to(pair)
+        match iter.next() {
+          Some((path, rule)) => {
+            let pair = MatchingRuleKeyValuePair::new(&path.to_string(), rule)?;
+            ptr::raw_to(pair)
+          }
+          None => {
+            trace!("iter past the end of the matching rules");
+            std::ptr::null_mut()
+          }
+      }
     } {
         std::ptr::null_mut()
     }

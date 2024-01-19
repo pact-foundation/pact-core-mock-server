@@ -15,6 +15,7 @@ use itertools::Itertools;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
+use tracing::trace;
 
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, ContentTypeHint};
@@ -419,11 +420,13 @@ ffi_fn! {
         let message_ptr = unsafe { guard.as_mut() };
         match message_ptr {
             Some(message) => {
-                let provider_state = message
-                    .provider_states_mut()
-                    .get_mut(index)
-                    .ok_or(anyhow::anyhow!("iter past the end of provider states"))?;
-                provider_state as *mut ProviderState
+                match message.provider_states_mut().get_mut(index) {
+                  Some(provider_state) => provider_state as *mut ProviderState,
+                  None => {
+                    trace!("iter past the end of provider states");
+                    std::ptr::null_mut()
+                  }
+                }
             }
             None => std::ptr::null_mut()
         }
@@ -555,14 +558,21 @@ ffi_fn! {
                 &contents.metadata
             }
         };
-        let key = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
 
-        let (key, value) = metadata
-            .get_key_value(key)
-            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+        match iter.next() {
+          Some(key) => {
+            let (key, value) = metadata
+                .get_key_value(key)
+                .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
 
-        let pair = MessageMetadataPair::new(key, json_to_string(&value).as_str())?;
-        ptr::raw_to(pair)
+            let pair = MessageMetadataPair::new(key, json_to_string(&value).as_str())?;
+            ptr::raw_to(pair)
+          }
+          None => {
+            trace!("iter past the end of metadata");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }

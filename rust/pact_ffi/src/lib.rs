@@ -222,11 +222,13 @@ ffi_fn! {
         let iter = as_mut!(iter);
         let mismatches = as_ref!(iter.mismatches);
         let index = iter.next();
-        let mismatch = mismatches
-            .0
-            .get(index)
-            .ok_or(anyhow::anyhow!("iter past the end of mismatches"))?;
-       mismatch as *const Mismatch
+        match mismatches.0.get(index) {
+          Some(mismatch) => mismatch as *const Mismatch,
+          None => {
+            trace!("iter past the end of mismatches");
+            std::ptr::null()
+          }
+        }
     } {
         std::ptr::null()
     }

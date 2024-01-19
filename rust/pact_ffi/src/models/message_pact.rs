@@ -4,6 +4,7 @@ use std::iter::{self, Iterator};
 
 use anyhow::{anyhow, Context};
 use libc::c_char;
+use tracing::trace;
 
 use pact_models::{Consumer, Provider};
 use pact_models::message::Message;
@@ -137,11 +138,13 @@ ffi_fn! {
         let iter = as_mut!(iter);
         let message_pact = as_mut!(iter.message_pact);
         let index = iter.next();
-        let message = message_pact
-            .messages
-            .get_mut(index)
-            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
-        message as *mut Message
+        match message_pact.messages.get_mut(index) {
+          Some(message) => message as *mut Message,
+          None => {
+            trace!("iter past the end of messages");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }
@@ -243,20 +246,26 @@ ffi_fn! {
     fn pactffi_message_pact_metadata_iter_next(iter: *mut MessagePactMetadataIterator) -> *mut MessagePactMetadataTriple {
         let iter = as_mut!(iter);
         let message_pact = as_ref!(iter.message_pact);
-        let (outer_key, inner_key) = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
+        match iter.next() {
+          Some((outer_key, inner_key)) => {
+            let (outer_key, sub_tree) = message_pact
+                .metadata
+                .get_key_value(outer_key)
+                .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
 
-        let (outer_key, sub_tree) = message_pact
-            .metadata
-            .get_key_value(outer_key)
-            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+            let (inner_key, value) = sub_tree
+                .get_key_value(inner_key)
+                .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
 
-        let (inner_key, value) = sub_tree
-            .get_key_value(inner_key)
-            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+            let triple = MessagePactMetadataTriple::new(outer_key, inner_key, value)?;
 
-        let triple = MessagePactMetadataTriple::new(outer_key, inner_key, value)?;
-
-        ptr::raw_to(triple)
+            ptr::raw_to(triple)
+          }
+          None => {
+            trace!("iter past the end of metadata");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }

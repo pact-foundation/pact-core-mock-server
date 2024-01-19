@@ -1,6 +1,9 @@
 //! FFI wrapper code for iterating over Pact interactions
 
 use std::panic::RefUnwindSafe;
+
+use tracing::trace;
+
 use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
 use pact_models::v4::pact::V4Pact;
@@ -62,9 +65,13 @@ ffi_fn! {
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn pactffi_pact_message_iter_next(iter: *mut PactMessageIterator) -> *mut Message {
         let iter = as_mut!(iter);
-        let message = iter.next()
-            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
-        message as *mut Message
+        match iter.next() {
+          Some(message) => message as *mut Message,
+          None => {
+            trace!("iter past the end of messages");
+            std::ptr::null_mut()
+          }
+      }
     } {
         std::ptr::null_mut()
     }
@@ -116,9 +123,13 @@ ffi_fn! {
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn pactffi_pact_sync_message_iter_next(iter: *mut PactSyncMessageIterator) -> *mut SynchronousMessage {
         let iter = as_mut!(iter);
-        let message = iter.next()
-            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
-        message as *mut SynchronousMessage
+        match iter.next() {
+          Some(message) => message as *mut SynchronousMessage,
+          None => {
+            trace!("iter past the end of messages");
+            std::ptr::null_mut()
+          }
+      }
     } {
         std::ptr::null_mut()
     }
@@ -177,9 +188,13 @@ ffi_fn! {
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn pactffi_pact_sync_http_iter_next(iter: *mut PactSyncHttpIterator) -> *mut SynchronousHttp {
         let iter = as_mut!(iter);
-        let interaction = iter.next()
-            .ok_or(anyhow::anyhow!("iter past the end of the list"))?;
-        interaction as *mut SynchronousHttp
+        match iter.next() {
+          Some(interaction) => interaction as *mut SynchronousHttp,
+          None => {
+            trace!("iter past the end of the list");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }
@@ -237,9 +252,13 @@ ffi_fn! {
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn pactffi_pact_interaction_iter_next(iter: *mut PactInteractionIterator) -> *const PactInteraction {
         let iter = as_mut!(iter);
-        let interaction = iter.next()
-            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
-        interaction as *const PactInteraction
+        match iter.next() {
+          Some(interaction) => interaction as *const PactInteraction,
+          None => {
+            trace!("iter past the end of messages");
+            std::ptr::null()
+          }
+        }
     } {
         std::ptr::null()
     }

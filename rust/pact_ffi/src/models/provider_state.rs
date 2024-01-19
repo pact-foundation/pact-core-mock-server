@@ -3,6 +3,7 @@
 use anyhow::anyhow;
 use libc::c_char;
 use serde_json::Value as JsonValue;
+use tracing::trace;
 
 use pact_models::provider_states::ProviderState;
 
@@ -82,13 +83,20 @@ ffi_fn! {
     ) -> *mut ProviderStateParamPair {
         let iter = as_mut!(iter);
         let provider_state = as_ref!(iter.provider_state);
-        let key = iter.next().ok_or(anyhow!("iter past the end of params"))?;
-        let (key, value) = provider_state
-            .params
-            .get_key_value(key)
-            .ok_or(anyhow!("iter provided invalid param key"))?;
-        let pair = ProviderStateParamPair::new(key, value)?;
-        ptr::raw_to(pair)
+        match iter.next() {
+          Some(key) => {
+            let (key, value) = provider_state
+                .params
+                .get_key_value(key)
+                .ok_or(anyhow!("iter provided invalid param key"))?;
+            let pair = ProviderStateParamPair::new(key, value)?;
+            ptr::raw_to(pair)
+          }
+          None => {
+            trace!("iter past the end of params");
+            std::ptr::null_mut()
+          }
+        }
     } {
         std::ptr::null_mut()
     }

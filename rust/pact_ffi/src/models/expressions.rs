@@ -14,7 +14,7 @@ use pact_models::matchingrules::expressions::{
 };
 use pact_models::matchingrules::MatchingRule;
 use pact_models::time_utils::validate_datetime;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::error::set_error_msg;
@@ -383,8 +383,13 @@ ffi_fn! {
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn pactffi_matching_rule_iter_next(iter: *mut MatchingRuleIterator) -> *const MatchingRuleResult {
         let iter = as_mut!(iter);
-        let result = iter.next().ok_or(anyhow::anyhow!("iter past the end of messages"))?;
-        result as *const MatchingRuleResult
+        match iter.next() {
+          Some(result) => result as *const MatchingRuleResult,
+          None => {
+            trace!("iter past the end of matching rules");
+            std::ptr::null()
+          }
+        }
     } {
         std::ptr::null()
     }
