@@ -527,15 +527,20 @@ impl Generators {
   ) -> anyhow::Result<()> {
     for (k, v) in map {
       match v {
-        &Value::Object(ref map) =>  match GeneratorCategory::from_str(k) {
-          Ok(ref category) => match category {
-            &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
+        Value::Object(map) => match &GeneratorCategory::from_str(k) {
+          Ok(category) => match category {
+            GeneratorCategory::PATH | GeneratorCategory::METHOD | GeneratorCategory::STATUS => {
               self.parse_generator_from_map(category, map, None);
             },
             _ => for (sub_k, sub_v) in map {
               match sub_v {
-                &Value::Object(ref map) =>
-                  self.parse_generator_from_map(category, map, Some(DocPath::new(sub_k)?)),
+                &Value::Object(ref map) => {
+                  if *category == GeneratorCategory::QUERY || *category == GeneratorCategory::HEADER {
+                    self.parse_generator_from_map(category, map, Some(DocPath::root().push_field(sub_k).clone()));
+                  } else {
+                    self.parse_generator_from_map(category, map, Some(DocPath::new(sub_k)?));
+                  }
+                },
                 _ => warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
               }
             }
@@ -1590,9 +1595,81 @@ mod tests {
   }
 
   #[test]
-  fn matchers_from_json_test() {
+  fn generators_from_json_test() {
     let generators = generators_from_json(&Value::Null);
     expect!(generators.unwrap().categories.iter()).to(be_empty());
+
+    let generators = generators_from_json(&json!({}));
+    expect!(generators.unwrap().categories.iter()).to(be_empty());
+
+    let generators_json = json!({
+      "generators": {
+        "path": {
+          "type": "RandomBoolean"
+        },
+        "query": {
+          "Q1": {
+            "type": "RandomBoolean"
+          }
+        },
+        "header": {
+          "Y": {
+            "type": "RandomBoolean"
+          }
+        },
+        "body": {
+          "$.animals": {
+            "type": "RandomBoolean"
+          },
+          "$.animals[*].children": {
+            "type": "RandomBoolean"
+          }
+        }
+      }
+    });
+    let generators = generators_from_json(&generators_json).unwrap();
+    expect!(generators).to(be_equal_to(generators!{
+      "PATH" => {
+        "" => Generator::RandomBoolean
+      },
+      "QUERY" => {
+        "$.Q1" => Generator::RandomBoolean
+      },
+      "HEADER" => {
+        "$.Y" => Generator::RandomBoolean
+      },
+      "BODY" => {
+        "$.animals" => Generator::RandomBoolean,
+        "$.animals[*].children" => Generator::RandomBoolean
+      }
+    }));
+  }
+
+  #[test]
+  fn generators_from_json_supports_query_parameters_with_brackets() {
+    let generators_json = json!({
+      "generators": {
+        "query": {
+          "Q[]": {
+            "type": "RandomBoolean"
+          }
+        },
+        "header": {
+          "Y[]": {
+            "type": "RandomBoolean"
+          }
+        }
+      }
+    });
+    let generators = generators_from_json(&generators_json).unwrap();
+    expect!(generators).to(be_equal_to(generators!{
+      "QUERY" => {
+        "$['Q[]']" => Generator::RandomBoolean
+      },
+      "HEADER" => {
+        "$['Y[]']" => Generator::RandomBoolean
+      }
+    }));
   }
 
   #[test]
@@ -1701,6 +1778,46 @@ mod tests {
       be_some().value(Generator::ProviderStateGenerator("5".into(), None)));
     expect!(Generator::from_map("ProviderState", &json!({ "expression": "5", "dataType": "INTEGER" }).as_object().unwrap())).to(
       be_some().value(Generator::ProviderStateGenerator("5".into(), Some(DataType::INTEGER))));
+  }
+
+  #[test]
+  fn load_from_map_test() {
+    let mut generators = Generators::default();
+    let json = json!({});
+    let json_map = json.as_object().unwrap();
+    expect!(generators.load_from_map(json_map)).to(be_ok());
+    expect!(generators.is_empty()).to(be_true());
+
+    let mut generators = Generators::default();
+    let json = json!({ "invalid": {} });
+    let json_map = json.as_object().unwrap();
+    expect!(generators.load_from_map(json_map)).to(be_ok());
+    expect!(generators.is_empty()).to(be_true());
+
+    let mut generators = Generators::default();
+    let json = json!({ "path": []});
+    let json_map = json.as_object().unwrap();
+    expect!(generators.load_from_map(json_map)).to(be_ok());
+    expect!(generators.is_empty()).to(be_true());
+
+    let mut generators = Generators::default();
+    let json = json!({
+      "path": { "type": "RandomBoolean" },
+      "query": {
+        "q": { "type": "RandomBoolean" }
+      }
+    });
+    let json_map = json.as_object().unwrap();
+    expect!(generators.load_from_map(json_map)).to(be_ok());
+    expect!(generators.is_empty()).to(be_false());
+    expect!(generators).to(be_equal_to(generators!{
+      "path" => {
+        "" => Generator::RandomBoolean
+      },
+      "query" => {
+        "$.q" => Generator::RandomBoolean
+      }
+    }));
   }
 
   #[test]
