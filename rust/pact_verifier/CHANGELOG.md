@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.5 - Bugfix Release
+
+* bff1d573 - chore: Upgrade dependencies (Ronald Holshausen, Sat Jan 20 20:23:10 2024 +1100)
+* e552bdce - chore: Upgrade pact_matching to 1.1.9 (Ronald Holshausen, Sat Jan 20 15:13:13 2024 +1100)
+* 7b087acf - chore: Upgrade pact-plugin-driver to 0.5.0 (Ronald Holshausen, Sat Jan 20 14:49:21 2024 +1100)
+* b735df9d - chore: Upgrade pact_models to 1.1.17 (Ronald Holshausen, Sat Jan 20 13:54:03 2024 +1100)
+* 1a4bcd27 - chore: Upgrade pact_matching to 1.1.8 (Ronald Holshausen, Fri Jan 19 18:24:54 2024 +1100)
+* 944613df - fix: regression - upgrade pact_models to 1.1.16 #359 (Ronald Holshausen, Fri Jan 19 14:52:36 2024 +1100)
+* 403c0af1 - chore: Upgrade pact_models to 1.1.14 #355 (Ronald Holshausen, Tue Jan 16 10:31:12 2024 +1100)
+* dfd13760 - chore: Upgrade pact_models to 1.1.13 #355 (Ronald Holshausen, Tue Jan 16 07:42:33 2024 +1100)
+* ab3f9a56 - fix(verifier): default error formatter does not display the inner error #351 (Ronald Holshausen, Thu Dec 21 15:18:31 2023 +1100)
+* aa07cdd5 - bump version to 1.0.5 (Ronald Holshausen, Wed Dec 20 14:39:08 2023 +1100)
+
 # 1.0.4 - Maintenance Release
 
 * f8c09785 - Revert "update changelog for release 1.0.4" (Ronald Holshausen, Wed Dec 20 14:26:46 2023 +1100)
