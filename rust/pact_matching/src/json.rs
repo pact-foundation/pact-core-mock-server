@@ -977,6 +977,26 @@ mod tests {
     expect!(Value::String("100".into()).matches_with(&Value::Null, &matcher, false)).to(be_ok());
   }
 
+  #[test]
+  fn content_type_matcher_test() {
+    let matcher = MatchingRule::ContentType("text/plain".to_string());
+    expect!(Value::String("plain text".into()).matches_with(&Value::String("plain text".into()), &matcher, false)).to(be_ok());
+    expect!(Value::String("plain text".into()).matches_with(&Value::String("different text".into()), &matcher, false)).to(be_ok());
+    expect!(Value::String("plain text".into()).matches_with(&json!(100), &matcher, false)).to(be_ok());
+    expect!(Value::String("plain text".into()).matches_with(&json!(100.01), &matcher, false)).to(be_ok());
+    #[cfg(not(windows))]
+    {
+      let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+      <note>
+        <to>Tove</to>
+        <from>Jani</from>
+        <heading>Reminder</heading>
+        <body>Don't forget me this weekend!</body>
+      </note>"#;
+      expect!(Value::String("plain text".into()).matches_with(Value::String(xml.into()), &matcher, false)).to(be_err());
+    }
+  }
+
   #[test_log::test]
   fn compare_maps_handles_wildcard_matchers() {
     let val1 = request!(r#"
