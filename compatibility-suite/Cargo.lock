@@ -1996,14 +1996,14 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "anyhow",
  "bytes",
  "futures",
  "hyper",
  "hyper-rustls",
- "itertools 0.10.5",
+ "itertools 0.12.0",
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
@@ -2063,7 +2063,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2074,7 +2074,7 @@ dependencies = [
  "futures",
  "http",
  "humantime",
- "itertools 0.11.0",
+ "itertools 0.12.0",
  "lazy_static",
  "maplit",
  "mime",
