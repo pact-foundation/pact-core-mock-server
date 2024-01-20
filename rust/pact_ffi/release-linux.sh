@@ -37,10 +37,10 @@ gzip -c ../target/x86_64-unknown-linux-musl/release/libpact_ffi.a > ../release_a
 openssl dgst -sha256 -r ../release_artifacts/libpact_ffi-linux-x86_64-musl.a.gz > ../release_artifacts/libpact_ffi-linux-x86_64-musl.a.gz.sha256
 
 cargo install cross@0.2.5
-echo -- Build the musl aarch64 release artifacts --
-cross build --release --target=aarch64-unknown-linux-musl
-gzip -c ../target/aarch64-unknown-linux-musl/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz
-openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz > ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz.sha256
+#echo -- Build the musl aarch64 release artifacts --
+#cross build --release --target=aarch64-unknown-linux-musl
+#gzip -c ../target/aarch64-unknown-linux-musl/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz
+#openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz > ../target/artifacts/libpact_ffi-linux-aarch64-musl.a.gz.sha256
 
 echo -- Build the aarch64 release artifacts --
 cargo clean
