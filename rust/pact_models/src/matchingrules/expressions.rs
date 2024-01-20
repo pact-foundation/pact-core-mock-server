@@ -82,6 +82,27 @@
 //!
 //! For example: `eachValue(matching(type, 100))`
 //!
+//! ### atLeast(SIZE)
+//!
+//! Configures a type matching rule to be applied to a map or list (if another rule is not applied),
+//! and asserts the length is at least the given size.
+//!
+//! For example: `atLeast(2)`
+//!
+//! ### atMost(SIZE)
+//!
+//! Configures a type matching rule to be applied to a map or list (if another rule is not applied), and asserts the
+//! length is at most the given size.
+//!
+//! For example: `atMost(2)`
+//!
+//! ## Composing expressions
+//!
+//! Expressions can be composed by separating them with a comma. For example
+//! `atLeast(2), atMost(10), eachValue(matching(regex, '\d+', '1234'))`. This will configure an
+//! array to have to have at least 2 items, at most 10, and each item in the array must match the
+//! given regex.
+//!
 //! ## Grammar
 //!
 //! There is a grammar for the definitions in [ANTLR4 format](https://github.com/pact-foundation/pact-plugins/blob/main/docs/matching-rule-definition.g4).
@@ -100,7 +121,7 @@ use tracing::{trace, warn};
 
 use crate::generators::Generator;
 use crate::matchingrules::MatchingRule;
-use crate::matchingrules::MatchingRule::NotEmpty;
+use crate::matchingrules::MatchingRule::{MaxType, MinType, NotEmpty};
 
 /// Type to associate with an expression element
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -218,6 +239,12 @@ enum MatcherDefinitionToken {
   #[token("eachValue")]
   EachValue,
 
+  #[token("atLeast")]
+  AtLeast,
+
+  #[token("atMost")]
+  AtMost,
+
   #[token("(")]
   LeftBracket,
 
@@ -233,8 +260,11 @@ enum MatcherDefinitionToken {
   #[regex("[a-zA-Z]+")]
   Id,
 
-  #[regex("-?[0-9]+", |lex| lex.slice().parse().ok())]
+  #[regex("-[0-9]+", |lex| lex.slice().parse().ok())]
   Int(i64),
+
+  #[regex("[0-9]+", |lex| lex.slice().parse().ok())]
+  Num(usize),
 
   #[regex(r"-?[0-9]\.[0-9]+")]
   Decimal,
@@ -289,7 +319,7 @@ pub fn is_matcher_def(v: &str) -> bool {
 }
 
 // matchingDefinition returns [ MatchingRuleDefinition value ] :
-//     matchingDefinitionExp { $value = $matchingDefinitionExp.value; } ( COMMA e=matchingDefinitionExp {  if ($value != null) { $value = $value.merge($e.value); } } )* EOF
+//     matchingDefinitionExp ( COMMA matchingDefinitionExp )* EOF
 //     ;
 fn matching_definition(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let mut value = matching_definition_exp(lex, v)?;
@@ -311,26 +341,18 @@ fn matching_definition(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyh
 
 // matchingDefinitionExp returns [ MatchingRuleDefinition value ] :
 //     (
-//       'matching' LEFT_BRACKET matchingRule RIGHT_BRACKET {
-//         if ($matchingRule.reference != null) {
-//           $value = new MatchingRuleDefinition($matchingRule.value, $matchingRule.reference, $matchingRule.generator);
-//         } else {
-//           $value = new MatchingRuleDefinition($matchingRule.value, $matchingRule.rule, $matchingRule.generator);
-//         }
-//       }
-//       | 'notEmpty' LEFT_BRACKET string RIGHT_BRACKET { $value = new MatchingRuleDefinition($string.contents, NotEmptyMatcher.INSTANCE, null); }
-//       | 'eachKey' LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET { if ($e.value != null) { $value = new MatchingRuleDefinition(null, new EachKeyMatcher($e.value), null); } }
-//       | 'eachValue' LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET {
-//         if ($e.value != null) {
-//           $value = new MatchingRuleDefinition(null, ValueType.Unknown, List.of((Either<MatchingRule, MatchingReference>) new Either.A(new EachValueMatcher($e.value))), null);
-//         }
-//       }
+//       'matching' LEFT_BRACKET matchingRule RIGHT_BRACKET
+//       | 'notEmpty' LEFT_BRACKET string RIGHT_BRACKET
+//       | 'eachKey' LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET
+//       | 'eachValue' LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET
+//       | 'atLeast' LEFT_BRACKET DIGIT+ RIGHT_BRACKET
+//       | 'atMost' LEFT_BRACKET DIGIT+ RIGHT_BRACKET
 //     )
 //     ;
 fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let next = lex.next();
-  if let Some(Ok(token)) = next {
-    if token == MatcherDefinitionToken::Matching {
+  if let Some(Ok(token)) = &next {
+    if token == &MatcherDefinitionToken::Matching {
       let (value, value_type, matching_rule, generator, reference) = parse_matching(lex, v)?;
       if let Some(reference) = reference {
         Ok(MatchingRuleDefinition {
@@ -347,7 +369,7 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
           generator
         })
       }
-    } else if token == MatcherDefinitionToken::NotEmpty {
+    } else if token == &MatcherDefinitionToken::NotEmpty {
       let (value, value_type) = parse_not_empty(lex, v)?;
       Ok(MatchingRuleDefinition {
         value,
@@ -355,12 +377,28 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
         rules: vec![Either::Left(NotEmpty)],
         generator: None
       })
-    } else if token == MatcherDefinitionToken::EachKey {
+    } else if token == &MatcherDefinitionToken::EachKey {
       let definition = parse_each_key(lex, v)?;
       Ok(definition)
-    } else if token == MatcherDefinitionToken::EachValue {
+    } else if token == &MatcherDefinitionToken::EachValue {
       let definition = parse_each_value(lex, v)?;
       Ok(definition)
+    } else if token == &MatcherDefinitionToken::AtLeast {
+      let length = parse_length_param(lex, v)?;
+      Ok(MatchingRuleDefinition {
+        value: String::default(),
+        value_type: ValueType::Unknown,
+        rules: vec![Either::Left(MinType(length))],
+        generator: None
+      })
+    } else if token == &MatcherDefinitionToken::AtMost {
+      let length = parse_length_param(lex, v)?;
+      Ok(MatchingRuleDefinition {
+        value: String::default(),
+        value_type: ValueType::Unknown,
+        rules: vec![Either::Left(MaxType(length))],
+        generator: None
+      })
     } else {
       let mut buffer = BytesMut::new().writer();
       let span = lex.span();
@@ -368,7 +406,7 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
         .with_config(Config::default().with_color(false))
         .with_message(format!("Expected a type of matching rule definition, but got '{}'", lex.slice()))
         .with_label(Label::new(("expression", span)).with_message("Expected a matching rule definition here"))
-        .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue")
+        .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue, atLeast, atMost")
         .finish();
       report.write(("expression", Source::from(v)), &mut buffer)?;
       let message = from_utf8(&*buffer.get_ref())?.to_string();
@@ -381,7 +419,7 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
       .with_config(Config::default().with_color(false))
       .with_message(format!("Expected a type of matching rule definition but got the end of the expression"))
       .with_label(Label::new(("expression", span)).with_message("Expected a matching rule definition here"))
-      .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue")
+      .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue, atLeast, atMost")
       .finish();
     report.write(("expression", Source::from(v)), &mut buffer)?;
     let message = from_utf8(&*buffer.get_ref())?.to_string();
@@ -408,16 +446,7 @@ fn parse_each_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow:
         generator: None
       })
     } else {
-      let mut buffer = BytesMut::new().writer();
-      let span = lex.span();
-      let report = Report::build(ReportKind::Error, "expression", span.start)
-        .with_config(Config::default().with_color(false))
-        .with_message(format!("Expected a closing bracket, got '{}'", lex.slice()))
-        .with_label(Label::new(("expression", span)).with_message("Expected a closing bracket before this"))
-        .finish();
-      report.write(("expression", Source::from(v)), &mut buffer)?;
-      let message = from_utf8(&*buffer.get_ref())?.to_string();
-      Err(anyhow!(message))
+      Err(anyhow!(error_message(lex, v, "Expected a closing bracket", "Expected a closing bracket before this")?))
     }
   } else {
     let mut buffer = BytesMut::new().writer();
@@ -433,7 +462,20 @@ fn parse_each_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow:
   }
 }
 
-// LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET { if ($e.value != null) { $value = new MatchingRuleDefinition(null, new EachKeyMatcher($e.value), null); } }
+fn error_message(lex: &mut Lexer<MatcherDefinitionToken>, v: &str, error: &str, additional: &str) -> Result<String, Error> {
+  let mut buffer = BytesMut::new().writer();
+  let span = lex.span();
+  let report = Report::build(ReportKind::Error, "expression", span.start)
+    .with_config(Config::default().with_color(false))
+    .with_message(format!("{}, got '{}'", error, lex.slice()))
+    .with_label(Label::new(("expression", span)).with_message(additional))
+    .finish();
+  report.write(("expression", Source::from(v)), &mut buffer)?;
+  let message = from_utf8(&*buffer.get_ref())?.to_string();
+  Ok(message)
+}
+
+// LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET
 fn parse_each_key(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let next = lex.next()
     .ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
@@ -695,6 +737,17 @@ fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> a
         Ok((lex.slice().to_string(), ValueType::Integer))
       }
     },
+    Ok(MatcherDefinitionToken::Num(_)) => {
+      // Logos is returning an NUM token when a Decimal should match. We need to now parse the
+      // remaining pattern if it is a decimal
+      if lex.remainder().starts_with('.') {
+        let int_part = lex.slice();
+        let _ = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+        Ok((format!("{}{}", int_part, lex.slice()), ValueType::Decimal))
+      } else {
+        Ok((lex.slice().to_string(), ValueType::Integer))
+      }
+    },
     Ok(MatcherDefinitionToken::Decimal) => Ok((lex.slice().to_string(), ValueType::Decimal)),
     Ok(MatcherDefinitionToken::Boolean) => Ok((lex.slice().to_string(), ValueType::Boolean)),
     _ => Err(anyhow!("expected a primitive value, got '{}'", lex.slice()))
@@ -708,7 +761,7 @@ fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Res
   let next = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
   if let Ok(MatcherDefinitionToken::Decimal) = next {
     Ok((lex.slice().to_string(), ValueType::Number,  Some(MatchingRule::Number), None, None))
-  } else if let Ok(MatcherDefinitionToken::Int(_)) = next {
+  } else if let Ok(MatcherDefinitionToken::Int(_) | MatcherDefinitionToken::Num(_)) = next {
     // Logos is returning an INT token when a Decimal should match. We need to now parse the
     // remaining pattern if it is a decimal
     if lex.remainder().starts_with('.') {
@@ -727,7 +780,7 @@ fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Res
 fn parse_integer(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected an integer"))?;
-  if let Ok(MatcherDefinitionToken::Int(_)) = next {
+  if let Ok(MatcherDefinitionToken::Int(_) | MatcherDefinitionToken::Num(_)) = next {
     Ok((lex.slice().to_string(), ValueType::Integer, Some(MatchingRule::Integer), None, None))
   } else {
     Err(anyhow!("expected an integer, got '{}'", lex.slice()))
@@ -739,7 +792,7 @@ fn parse_integer(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
 fn parse_decimal(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a decimal number"))?;
-  if let Ok(MatcherDefinitionToken::Int(_)) = next {
+  if let Ok(MatcherDefinitionToken::Int(_) | MatcherDefinitionToken::Num(_)) = next {
     // Logos is returning an INT token when a Decimal should match. We need to now parse the
     // remaining pattern if it is a decimal
     if lex.remainder().starts_with('.') {
@@ -907,6 +960,26 @@ fn end_of_expression(v: &str, expected: &str) -> Error {
   anyhow!(message)
 }
 
+// LEFT_BRACKET DIGIT+ RIGHT_BRACKET
+fn parse_length_param(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<usize> {
+  let next = lex.next().ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
+  if let Ok(MatcherDefinitionToken::LeftBracket) = next {
+    let next = lex.next().ok_or_else(|| end_of_expression(v, "an unsized integer"))?;
+    if let Ok(MatcherDefinitionToken::Num(length)) = next {
+      let next = lex.next().ok_or_else(|| end_of_expression(v, "')'"))?;
+      if let Ok(MatcherDefinitionToken::RightBracket) = next {
+        Ok(length)
+      } else {
+        Err(anyhow!(error_message(lex, v, "Expected a closing bracket", "Expected a closing bracket before this")?))
+      }
+    } else {
+      Err(anyhow!(error_message(lex, v, "Expected an unsigned number", "Expected an unsigned number here")?))
+    }
+  } else {
+    Err(anyhow!(error_message(lex, v, "Expected an opening bracket", "Expected an opening bracket here")?))
+  }
+}
+
 #[cfg(test)]
 mod test {
   use expectest::prelude::*;
@@ -947,8 +1020,8 @@ mod test {
       be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Number, MatchingRule::Number, None)));
     expect!(super::parse_matcher_def("matching(number,200.22)").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("200.22".to_string(), ValueType::Number, MatchingRule::Number, None)));
-    expect!(super::parse_matcher_def("matching(integer,100)").unwrap()).to(
-      be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Integer, MatchingRule::Integer, None)));
+    expect!(super::parse_matcher_def("matching(integer,-100)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("-100".to_string(), ValueType::Integer, MatchingRule::Integer, None)));
     expect!(super::parse_matcher_def("matching(decimal,100)").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Decimal, MatchingRule::Decimal, None)));
     expect!(super::parse_matcher_def("matching(decimal,100.22)").unwrap()).to(
@@ -1317,7 +1390,7 @@ mod test {
             |   │    │\u{0020}
             |   │    ╰─ Expected a matching rule definition here
             |   │\u{0020}
-            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue, atLeast, atMost
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1332,7 +1405,7 @@ mod test {
             |   │ ──────┬────── \u{0020}
             |   │       ╰──────── Expected a matching rule definition here
             |   │\u{0020}
-            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue, atLeast, atMost
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1641,5 +1714,129 @@ mod test {
     expect!(process_raw_string(r"\u00", 0..3, r"\u00")).to(be_err());
     expect!(process_raw_string(r"\u000", 0..4, r"\u000")).to(be_err());
     expect!(process_raw_string(r"\u{000", 0..4, r"\u{000")).to(be_err());
+  }
+
+  #[test]
+  fn parse_at_least_test() {
+    let mut lex = MatcherDefinitionToken::lexer("atLeast(1)");
+    assert_eq!(super::matching_definition_exp(&mut lex, "atLeast(1)").unwrap(),
+      MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::MinType(1)) ],
+        generator: None
+      }
+    );
+
+    let mut lex = MatcherDefinitionToken::lexer("atLeast");
+    let result = super::matching_definition(&mut lex, "atLeast");
+    assert_eq!(as_string!(result).unwrap_err(),
+        "|Error: Expected an opening bracket, got the end of the expression
+        |   ╭─[expression:1:8]
+        |   │
+        | 1 │ atLeast
+        |   │        │\u{0020}
+        |   │        ╰─ Expected an opening bracket here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atLeast(-10)");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atLeast(-10)")).unwrap_err(),
+        "|Error: Expected an unsigned number, got '-10'
+        |   ╭─[expression:1:9]
+        |   │
+        | 1 │ atLeast(-10)
+        |   │         ─┬─ \u{0020}
+        |   │          ╰─── Expected an unsigned number here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atLeast('10')");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atLeast('10')")).unwrap_err(),
+        "|Error: Expected an unsigned number, got ''10''
+        |   ╭─[expression:1:9]
+        |   │
+        | 1 │ atLeast('10')
+        |   │         ──┬─ \u{0020}
+        |   │           ╰─── Expected an unsigned number here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atLeast(10");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atLeast(10")).unwrap_err(),
+        "|Error: Expected ')', got the end of the expression
+        |   ╭─[expression:1:11]
+        |   │
+        | 1 │ atLeast(10
+        |   │           │\u{0020}
+        |   │           ╰─ Expected ')' here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+  }
+
+  #[test]
+  fn parse_at_most_test() {
+    let mut lex = MatcherDefinitionToken::lexer("atMost(100)");
+    assert_eq!(super::matching_definition_exp(&mut lex, "atMost(100)").unwrap(),
+      MatchingRuleDefinition {
+       value: "".to_string(),
+       value_type: ValueType::Unknown,
+       rules: vec![ Either::Left(MatchingRule::MaxType(100)) ],
+       generator: None
+      }
+    );
+
+    let mut lex = MatcherDefinitionToken::lexer("atMost");
+    let result = super::matching_definition(&mut lex, "atMost");
+    assert_eq!(as_string!(result).unwrap_err(),
+        "|Error: Expected an opening bracket, got the end of the expression
+        |   ╭─[expression:1:7]
+        |   │
+        | 1 │ atMost
+        |   │       │\u{0020}
+        |   │       ╰─ Expected an opening bracket here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atMost(-10)");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atMost(-10)")).unwrap_err(),
+        "|Error: Expected an unsigned number, got '-10'
+        |   ╭─[expression:1:8]
+        |   │
+        | 1 │ atMost(-10)
+        |   │        ─┬─ \u{0020}
+        |   │         ╰─── Expected an unsigned number here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atMost('10')");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atMost('10')")).unwrap_err(),
+        "|Error: Expected an unsigned number, got ''10''
+        |   ╭─[expression:1:8]
+        |   │
+        | 1 │ atMost('10')
+        |   │        ──┬─ \u{0020}
+        |   │          ╰─── Expected an unsigned number here
+        |───╯
+        |
+        ".trim_margin().unwrap());
+
+    let mut lex = MatcherDefinitionToken::lexer("atMost(10");
+    assert_eq!(as_string!(super::matching_definition_exp(&mut lex, "atMost(10")).unwrap_err(),
+        "|Error: Expected ')', got the end of the expression
+        |   ╭─[expression:1:10]
+        |   │
+        | 1 │ atMost(10
+        |   │          │\u{0020}
+        |   │          ╰─ Expected ')' here
+        |───╯
+        |
+        ".trim_margin().unwrap());
   }
 }
