@@ -32,14 +32,14 @@ maplit = "1.0.2"
 pact_models = { version = "~1.1.17", default-features = false }
 pact_verifier = { version = "~1.0.5", path = "../pact_verifier", default-features = false }
 regex = "1.10.2"
-reqwest = { version = "0.11.22", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+reqwest = { version = "0.11.23", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 serde_json = "1.0.108"
-time = "0.3.30"
-tokio = { version = "1.33.0", features = ["full"] }
+time = "0.3.31"
+tokio = { version = "1.35.1", features = ["full"] }
 tracing = "0.1.40"
 tracing-core = "0.1.32"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter", "tracing-log"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "tracing-log"] }
 
 [dev-dependencies]
 expectest = "0.12.0"
