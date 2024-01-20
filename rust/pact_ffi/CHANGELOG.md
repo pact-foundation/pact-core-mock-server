@@ -1,5 +1,33 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.14 - Bugfix Release
+
+* 6b82b19f - chore(FFI): Update all dependencies (Ronald Holshausen, Sat Jan 20 22:24:41 2024 +1100)
+* 8d3f146a - chore: Upgrade pact_verifier to 1.0.5 (Ronald Holshausen, Sat Jan 20 21:31:51 2024 +1100)
+* 5d3b041e - Merge branch 'master' into allow-turn-off-log (tien.xuan.vo, Thu Jan 25 08:35:46 2024 +0700)
+* b82f0a4c - tests(pact_ffi): Add tests for log_level_from_c_char (tien.xuan.vo, Thu Jan 25 08:35:03 2024 +0700)
+* bbf61ba5 - docs(pact_ffi): Mention about default log level value (tien.xuan.vo, Thu Jan 25 08:34:03 2024 +0700)
+* f2fa8a1a - feat(pact_ffi): Allow turn off log (tien.xuan.vo, Wed Jan 24 22:06:46 2024 +0700)
+* def5685c - chore: Upgrade pact_mock_server to 1.2.4 (Ronald Holshausen, Sat Jan 20 18:56:26 2024 +1100)
+* 6fa097a5 - Merge branch 'master' into ci/cargo_clean (Ronald Holshausen, Thu Jan 25 10:22:25 2024 +1100)
+* 835bd21b - Merge branch 'master' into feat/musl_aarch64_ffi (Ronald Holshausen, Thu Jan 25 10:02:21 2024 +1100)
+* 36390097 - Merge pull request #371 from YOU54F/chore/renable_verifier_aarch64_linux (Ronald Holshausen, Thu Jan 25 09:59:53 2024 +1100)
+* 00402ba4 - chore: migrate target/artifacts to release_artifacts to avoid cargo clean loss (Yousaf Nabi, Wed Jan 24 15:26:18 2024 +0000)
+* 22331310 - ci: cargo clean prior to cross build (Yousaf Nabi, Wed Jan 24 15:24:10 2024 +0000)
+* c412829f - feat: build aarch64-pc-windows-msvc target (ffi/mock_server/verifier) (Yousaf Nabi, Wed Jan 24 12:01:50 2024 +0000)
+* acfab971 - chore: remove cross usage from aarch64-apple-darwin (Yousaf Nabi, Wed Jan 24 12:26:43 2024 +0000)
+* bd636e70 - chore: remove cross usage from aarch64-apple-darwin (Yousaf Nabi, Wed Jan 24 12:20:11 2024 +0000)
+* a2ba1cd5 - fix: pin cross to 0.2.5 for glibc 2.23 (Yousaf Nabi, Wed Jan 24 11:54:22 2024 +0000)
+* c74d1876 - feat: enable aarch64-unknown-linux-musl libpact_ffi.a (Yousaf Nabi, Wed Jan 24 12:10:56 2024 +0000)
+* 1b847777 - fix: pin cross to 0.2.5 for glibc 2.23 (Yousaf Nabi, Wed Jan 24 11:54:22 2024 +0000)
+* e552bdce - chore: Upgrade pact_matching to 1.1.9 (Ronald Holshausen, Sat Jan 20 15:13:13 2024 +1100)
+* 7b087acf - chore: Upgrade pact-plugin-driver to 0.5.0 (Ronald Holshausen, Sat Jan 20 14:49:21 2024 +1100)
+* b735df9d - chore: Upgrade pact_models to 1.1.17 (Ronald Holshausen, Sat Jan 20 13:54:03 2024 +1100)
+* 367aa253 - fix(FFI): do not use a panic as the mechanism to detect end of iterator #344 (Ronald Holshausen, Fri Jan 19 21:38:58 2024 +1100)
+* 1a4bcd27 - chore: Upgrade pact_matching to 1.1.8 (Ronald Holshausen, Fri Jan 19 18:24:54 2024 +1100)
+* 37e498e9 - test(pact_matching): Test more cases for ContentType matcher (tien.xuan.vo, Sat Jan 20 17:39:07 2024 +0700)
+* a990c55d - bump version to 0.4.14 (Ronald Holshausen, Fri Jan 19 15:05:21 2024 +1100)
+
 # 0.4.13 - Bugfix Release
 
 * 944613df - fix: regression - upgrade pact_models to 1.1.16 #359 (Ronald Holshausen, Fri Jan 19 14:52:36 2024 +1100)
