@@ -1938,7 +1938,7 @@ dependencies = [
  "futures",
  "hyper",
  "hyper-rustls",
- "itertools 0.10.5",
+ "itertools 0.12.0",
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
