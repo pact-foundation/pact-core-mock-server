@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.3 - Bugfix Release
+
+* 8f1ea28d - chore: Upgrade dependencies (Ronald Holshausen, Sat Jan 20 21:35:41 2024 +1100)
+* 8d3f146a - chore: Upgrade pact_verifier to 1.0.5 (Ronald Holshausen, Sat Jan 20 21:31:51 2024 +1100)
+* 6fa097a5 - Merge branch 'master' into ci/cargo_clean (Ronald Holshausen, Thu Jan 25 10:22:25 2024 +1100)
+* 36390097 - Merge pull request #371 from YOU54F/chore/renable_verifier_aarch64_linux (Ronald Holshausen, Thu Jan 25 09:59:53 2024 +1100)
+* 00402ba4 - chore: migrate target/artifacts to release_artifacts to avoid cargo clean loss (Yousaf Nabi, Wed Jan 24 15:26:18 2024 +0000)
+* 22331310 - ci: cargo clean prior to cross build (Yousaf Nabi, Wed Jan 24 15:24:10 2024 +0000)
+* 6e422105 - chore: renable aarch64 linux verifier cli (Yousaf Nabi, Wed Jan 24 12:07:04 2024 +0000)
+* c412829f - feat: build aarch64-pc-windows-msvc target (ffi/mock_server/verifier) (Yousaf Nabi, Wed Jan 24 12:01:50 2024 +0000)
+* a2ba1cd5 - fix: pin cross to 0.2.5 for glibc 2.23 (Yousaf Nabi, Wed Jan 24 11:54:22 2024 +0000)
+* b735df9d - chore: Upgrade pact_models to 1.1.17 (Ronald Holshausen, Sat Jan 20 13:54:03 2024 +1100)
+* 944613df - fix: regression - upgrade pact_models to 1.1.16 #359 (Ronald Holshausen, Fri Jan 19 14:52:36 2024 +1100)
+* 403c0af1 - chore: Upgrade pact_models to 1.1.14 #355 (Ronald Holshausen, Tue Jan 16 10:31:12 2024 +1100)
+* dfd13760 - chore: Upgrade pact_models to 1.1.13 #355 (Ronald Holshausen, Tue Jan 16 07:42:33 2024 +1100)
+* 2e7cbf6a - bump version to 1.0.3 (Ronald Holshausen, Wed Dec 20 15:14:24 2023 +1100)
+
 # 1.0.2 - Maintenance Release
 
 * 75a5d1ab - chore: Upgrade all dependencies (Ronald Holshausen, Wed Dec 20 15:05:43 2023 +1100)
