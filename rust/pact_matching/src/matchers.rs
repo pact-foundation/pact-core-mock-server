@@ -176,7 +176,7 @@ impl Matches<&str> for &str {
           Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
-      MatchingRule::Equality => {
+      MatchingRule::Equality | MatchingRule::Values => {
         if self == &actual {
           Ok(())
         } else {

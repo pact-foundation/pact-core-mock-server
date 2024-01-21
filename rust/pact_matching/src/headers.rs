@@ -681,7 +681,7 @@ mod tests {
         "arrayContaining".to_string()
       ]
     };
-    let actual = hashmap! {
+    let wrong_order = hashmap! {
       "X-IMPROVED".to_string() => vec![
         "regex".to_string(),
         "like".to_string(),
@@ -689,15 +689,34 @@ mod tests {
         "arrayContaining".to_string()
       ]
     };
-    let result = match_headers(Some(expected), Some(actual), &context);
+    let result = match_headers(Some(expected.clone()), Some(wrong_order), &context);
     expect!(result.values().flatten()).to_not(be_empty());
 
     let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
-    expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::HeaderMismatch {
-      key: "X-IMPROVED".to_string(),
-      expected: "like".to_string(),
-      actual: "regex".to_string(),
-      mismatch: "Mismatch with header 'X-IMPROVED': Unable to match 'like' using Values for value at index 0".to_string(),
-    }));
+    expect!(mismatches.clone()).to(be_equal_to(vec![
+      Mismatch::HeaderMismatch {
+        key: "X-IMPROVED".to_string(),
+        expected: "like".to_string(),
+        actual: "regex".to_string(),
+        mismatch: "Mismatch with header 'X-IMPROVED': Expected 'regex' to be equal to 'like' for value at index 0".to_string(),
+      },
+      Mismatch::HeaderMismatch {
+        key: "X-IMPROVED".to_string(),
+        expected: "regex".to_string(),
+        actual: "like".to_string(),
+        mismatch: "Mismatch with header 'X-IMPROVED': Expected 'like' to be equal to 'regex' for value at index 1".to_string(),
+      }
+    ]));
+
+    let actual = hashmap! {
+      "X-IMPROVED".to_string() => vec![
+        "like".to_string(),
+        "regex".to_string(),
+        "values".to_string(),
+        "arrayContaining".to_string()
+      ]
+    };
+    let result = match_headers(Some(expected.clone()), Some(actual), &context);
+    expect!(result.values().flatten()).to(be_empty());
   }
 }
