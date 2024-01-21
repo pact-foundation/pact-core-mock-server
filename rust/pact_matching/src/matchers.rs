@@ -1231,4 +1231,23 @@ mod tests {
     expect!(json!("1.0.0").matches_with(&json!("1.0.0"), &matcher, false)).to(be_ok());
     expect!(json!("1.0.0").matches_with(&json!("1"), &matcher, false)).to(be_err());
   }
+
+  #[test]
+  fn content_type_matcher_test() {
+    let matcher = MatchingRule::ContentType("text/plain".to_string());
+    expect!("plain text".matches_with("plain text", &matcher, false)).to(be_ok());
+    expect!("plain text".matches_with("different text", &matcher, false)).to(be_ok());
+    expect!("plain text".matches_with(100, &matcher, false)).to(be_err());
+    #[cfg(not(windows))]
+    {
+      let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+      <note>
+        <to>Tove</to>
+        <from>Jani</from>
+        <heading>Reminder</heading>
+        <body>Don't forget me this weekend!</body>
+      </note>"#;
+      expect!("plain text".matches_with(xml, &matcher, false)).to(be_err());
+    }
+  }
 }
