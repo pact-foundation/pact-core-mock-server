@@ -38,6 +38,7 @@ openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-x86_64-musl.a.gz >
 
 echo -- Build the aarch64 release artifacts --
 cargo install cross --git https://github.com/cross-rs/cross
+cargo clean
 cross build --target aarch64-unknown-linux-gnu --release
 gzip -c ../target/aarch64-unknown-linux-gnu/release/libpact_ffi.so > ../target/artifacts/libpact_ffi-linux-aarch64.so.gz
 openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-aarch64.so.gz > ../target/artifacts/libpact_ffi-linux-aarch64.so.gz.sha256
