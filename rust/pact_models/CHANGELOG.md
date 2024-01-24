@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.17 - Bugfix Release
+
+* 57e8d092 - fix: Implemented missing atLeast and atMost options with matching rule definitions (Ronald Holshausen, Sat Jan 20 13:29:30 2024 +1100)
+* e9f7c06f - fix:  Regex generator panics if the regex has any anchors #311 (Ronald Holshausen, Fri Jan 19 19:33:50 2024 +1100)
+* 69c1cbb6 - bump version to 1.1.17 (Ronald Holshausen, Fri Jan 19 14:46:18 2024 +1100)
+
 # 1.1.16 - Bugfix Release
 
 * 0f5f563f - fix: regression - prevous matching rules change broke specification tests #359 (Ronald Holshausen, Fri Jan 19 14:41:37 2024 +1100)

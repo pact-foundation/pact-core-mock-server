@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.9 - Maintenance Release
+
+* 7b087acf - chore: Upgrade pact-plugin-driver to 0.5.0 (Ronald Holshausen, Sat Jan 20 14:49:21 2024 +1100)
+* b735df9d - chore: Upgrade pact_models to 1.1.17 (Ronald Holshausen, Sat Jan 20 13:54:03 2024 +1100)
+* 3ffd77ce - bump version to 1.1.9 (Ronald Holshausen, Fri Jan 19 18:16:32 2024 +1100)
+
 # 1.1.8 - Bugfix Release
 
 * f9792697 - Merge pull request #364 from tienvx/allow-matching-strings-with-values-matcher (Ronald Holshausen, Mon Jan 22 10:51:13 2024 +1100)
