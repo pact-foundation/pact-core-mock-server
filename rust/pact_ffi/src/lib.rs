@@ -85,7 +85,7 @@ pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
 /// Initialises logging, and sets the log level explicitly. This function should only be called
 /// once, as it tries to install a global tracing subscriber.
 ///
-/// * `log_level` - String (case-insensitive). One of TRACE, DEBUG, INFO, WARN, ERROR, NONE/OFF
+/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR, NONE/OFF. Case-insensitive. Defaults to INFO.
 ///
 /// # Safety
 ///
@@ -131,7 +131,7 @@ pub extern "C" fn pactffi_enable_ansi_support() { }
 ///
 /// * `source` - String. The source of the log, such as the class or caller framework to
 ///                      disambiguate log lines from the rust logging (e.g. pact_go)
-/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR
+/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR. Case-insensitive. Defaults to INFO.
 /// * `message` - Message to log
 ///
 /// # Safety
