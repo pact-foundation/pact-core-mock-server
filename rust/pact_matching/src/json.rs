@@ -1279,3 +1279,91 @@ mod tests {
     expect!(result).to(be_err());
   }
 }
+
+#[cfg(test)]
+mod tests2 {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use rstest::rstest;
+  use serde_json::{json, Value};
+
+  use pact_models::matchingrules_list;
+  use pact_models::matchingrules::MatchingRule;
+  use crate::{CoreMatchingContext, DiffConfig};
+
+  use super::*;
+
+  #[rstest]
+  //                                                    config,                          actual_json,                                           is_ok
+  #[case::no_unexpected_keys_same_values(               DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "bb", "c": "ccc"}),              true)]
+  #[case::no_unexpected_keys_missing_first_value(       DiffConfig::NoUnexpectedKeys,    json!({"b": "bb", "c": "ccc"}),                        true)] // should be err
+  #[case::no_unexpected_keys_missing_last_value(        DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "bb"}),                          true)] // should be err
+  #[case::no_unexpected_keys_duplicated_first_value(    DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "bb", "c": "ccc", "d": "a"}),    true)]
+  #[case::no_unexpected_keys_duplicated_second_value(   DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "bb", "c": "ccc", "d": "bb"}),   false)] // should be ok, for consistency
+  #[case::no_unexpected_keys_additional_value_begin(    DiffConfig::NoUnexpectedKeys,    json!({"d": "dddd", "a": "a", "b": "bb", "c": "ccc"}), false)] // the mismatch doesn't make sense
+  #[case::no_unexpected_keys_additional_value_end(      DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "bb", "c": "ccc", "d": "dddd"}), false)] // the mismatch doesn't make sense
+  #[case::no_unexpected_keys_updated_value(             DiffConfig::NoUnexpectedKeys,    json!({"a": "a", "b": "b", "c": "cc"}),                false)]
+  #[case::no_unexpected_keys_swap_value(                DiffConfig::NoUnexpectedKeys,    json!({"a": "bb", "b": "ccc", "c": "a"}),              false)] // should be ok
+  #[case::allow_unexpected_keys_same_values_change_keys(DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "bb": "bb", "ccc": "ccc"}),           false)] // should be ok
+  #[case::allow_unexpected_keys_missing_first_value(    DiffConfig::AllowUnexpectedKeys, json!({"b": "bb", "c": "ccc"}),                        true)] // should be err
+  #[case::allow_unexpected_keys_missing_last_value(     DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "b": "bb"}),                          true)] // should be err
+  #[case::allow_unexpected_keys_duplicated_first_value( DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "b": "bb", "c": "ccc", "d": "a"}),    true)]
+  #[case::allow_unexpected_keys_duplicated_second_value(DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "b": "bb", "c": "ccc", "d": "bb"}),   false)] // should be ok, for consistency
+  #[case::allow_unexpected_keys_additional_value_begin( DiffConfig::AllowUnexpectedKeys, json!({"d": "dddd", "a": "a", "b": "bb", "c": "ccc"}), false)] // the mismatch doesn't make sense
+  #[case::allow_unexpected_keys_additional_value_end(   DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "b": "bb", "c": "ccc", "d": "dddd"}), false)] // the mismatch doesn't make sense
+  #[case::allow_unexpected_keys_updated_value(          DiffConfig::AllowUnexpectedKeys, json!({"a": "a", "b": "b", "c":  "cc"}),               false)]
+  #[case::allow_unexpected_keys_swap_value(             DiffConfig::AllowUnexpectedKeys, json!({"a": "bb", "b": "ccc", "c":  "a"}),             false)] // should be ok
+  fn compare_maps_with_values_matcher(#[case] config: DiffConfig, #[case] actual_json: Value, #[case] is_ok: bool) {
+    let expected_json = json!({"a": "a", "b": "bb", "c": "ccc"});
+    let matchingrules = matchingrules_list! {
+       "body"; "$" => [
+        MatchingRule::Values
+      ]
+    };
+    let context = CoreMatchingContext::new(config, &matchingrules, &hashmap!{});
+    let expected = expected_json.as_object().unwrap();
+    let actual = actual_json.as_object().unwrap();
+    let result = compare_maps(&DocPath::root(), expected, actual, &context);
+    if is_ok {
+      expect!(result).to(be_ok());
+    } else {
+      expect!(result).to(be_err());
+    }
+  }
+
+  #[rstest]
+  //                                                     config,                          actual_json,                              is_ok
+  #[case::no_unexpected_keys_same_values(                DiffConfig::NoUnexpectedKeys,    json!(["a", "bb", "ccc"]),                true)]
+  #[case::no_unexpected_keys_missing_first_value(        DiffConfig::NoUnexpectedKeys,    json!(["bb", "ccc"]),                     false)]
+  #[case::no_unexpected_keys_missing_last_value(         DiffConfig::NoUnexpectedKeys,    json!(["a", "bb"]),                       true)] // should be err
+  #[case::no_unexpected_keys_duplicated_first_value(     DiffConfig::NoUnexpectedKeys,    json!(["a", "bb", "ccc", "a", "a", "a"]), true)]
+  #[case::no_unexpected_keys_duplicated_other_values(    DiffConfig::NoUnexpectedKeys,    json!(["a", "bb", "ccc", "bb", "ccc"]),   false)] // should be ok, for consistency
+  #[case::no_unexpected_keys_additional_value_begin(     DiffConfig::NoUnexpectedKeys,    json!(["dddd", "a", "bb", "ccc"]),        false)] // the mismatch doesn't make sense
+  #[case::no_unexpected_keys_additional_value_end(       DiffConfig::NoUnexpectedKeys,    json!(["a", "bb", "ccc", "dddd"]),        false)] // the mismatch doesn't make sense
+  #[case::no_unexpected_keys_swap_value(                 DiffConfig::NoUnexpectedKeys,    json!(["ccc", "bb", "a"]),                false)] // should be ok
+  #[case::allow_unexpected_keys_same_values(             DiffConfig::AllowUnexpectedKeys, json!(["a", "bb", "ccc"]),                true)]
+  #[case::allow_unexpected_keys_missing_first_value(     DiffConfig::AllowUnexpectedKeys, json!(["bb", "ccc"]),                     false)]
+  #[case::allow_unexpected_keys_missing_last_value(      DiffConfig::AllowUnexpectedKeys, json!(["a", "bb"]),                       true)] // should be err
+  #[case::allow_unexpected_keys_duplicated_first_value(  DiffConfig::AllowUnexpectedKeys, json!(["a", "bb", "ccc", "a", "a", "a"]), true)]
+  #[case::allow_unexpected_keys_duplicated_sother_values(DiffConfig::AllowUnexpectedKeys, json!(["a", "bb", "ccc", "bb", "ccc"]),   false)] // should be ok, for consistency
+  #[case::allow_unexpected_keys_additional_value_begin(  DiffConfig::AllowUnexpectedKeys, json!(["dddd", "a", "bb", "ccc"]),        false)] // the mismatch doesn't make sense
+  #[case::allow_unexpected_keys_additional_value_end(    DiffConfig::AllowUnexpectedKeys, json!(["a", "bb", "ccc", "dddd"]),        false)] // the mismatch doesn't make sense
+  #[case::allow_unexpected_keys_swap_value(              DiffConfig::AllowUnexpectedKeys, json!(["ccc", "bb", "a"]),                false)] // should be ok
+  fn compare_lists_with_values_matcher(#[case] config: DiffConfig, #[case] actual_json: Value, #[case] is_ok: bool) {
+    let expected_json = json!(["a", "bb", "ccc"]);
+    let matchingrules = matchingrules_list! {
+       "body"; "$" => [
+        MatchingRule::Values
+      ]
+    };
+    let context = CoreMatchingContext::new(config, &matchingrules, &hashmap!{});
+    let expected = expected_json.as_array().unwrap();
+    let actual = actual_json.as_array().unwrap();
+    let result = compare_lists(&DocPath::root(), expected, actual, &context);
+    if is_ok {
+      expect!(result).to(be_ok());
+    } else {
+      expect!(result).to(be_err());
+    }
+  }
+}

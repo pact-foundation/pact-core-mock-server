@@ -5,6 +5,6 @@
 
 cargo clean
 cargo lipo --release
-mkdir -p ../target/artifacts
-gzip -c ../target/universal/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-ios-universal.a.gz
-openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-ios-universal.a.gz > ../target/artifacts/libpact_ffi-ios-universal.a.gz.sha256
+mkdir -p ../release_artifacts
+gzip -c ../target/universal/release/libpact_ffi.a > ../release_artifacts/libpact_ffi-ios-universal.a.gz
+openssl dgst -sha256 -r ../release_artifacts/libpact_ffi-ios-universal.a.gz > ../release_artifacts/libpact_ffi-ios-universal.a.gz.sha256

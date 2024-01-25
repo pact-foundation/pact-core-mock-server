@@ -39,7 +39,7 @@ executeOnShell 'git pull'
 
 ask('Execute Build?: [Y]') {
   executeOnShell 'cargo clean'
-  executeOnShell 'mkdir -p ../target/artifacts'
+  executeOnShell 'mkdir -p ../release_artifacts'
   executeOnShell 'cargo build'
   executeOnShell 'cargo test'
 }

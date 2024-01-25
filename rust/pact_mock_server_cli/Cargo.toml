@@ -1,6 +1,6 @@
 [package]
 name = "pact_mock_server_cli"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Standalone pact mock server for consumer pact tests"
@@ -22,34 +22,34 @@ multipart = ["pact_matching/multipart", "pact_mock_server/multipart"] # suport f
 tls = ["pact_mock_server/tls"]
 
 [dependencies]
-anyhow = "1.0.71"
-clap = { version = "4.3.2", features = ["cargo"] }
-futures = "0.3.28"
+anyhow = "1.0.75"
+clap = { version = "4.4.11", features = ["cargo"] }
+futures = "0.3.29"
 http = "0.2.9"
-hyper = "0.14.26"
+hyper = "0.14.28"
 maplit = "1.0.2"
-itertools = "0.10.5"
-log = "0.4.18"
+itertools = "0.12.0"
+log = "0.4.20"
 lazy_static = "1.4.0"
 pact_matching = { version = "~1.1.9", path = "../pact_matching", default-features = false }
-pact_mock_server = { version = "~1.2.3", path = "../pact_mock_server", default-features = false }
+pact_mock_server = { version = "~1.2.4", path = "../pact_mock_server", default-features = false }
 pact_models = { version = "~1.1.17", default-features = false }
 rand = "0.8.5"
-regex = "1.8.4"
-reqwest = { version = "0.11.18", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
-serde_json = "1.0.96"
-tokio = { version = "1.28.2", features = ["full"] }
-tracing = "0.1.37"
-tracing-appender = "0.2.2"
-tracing-core = "0.1.30"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "local-time", "tracing-log"] }
-url = "2.4.0"
-uuid = { version = "1.3.3", features = ["v4"] }
+regex = "1.10.2"
+reqwest = { version = "0.11.23", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+serde_json = "1.0.108"
+tokio = { version = "1.35.1", features = ["full"] }
+tracing = "0.1.40"
+tracing-appender = "0.2.3"
+tracing-core = "0.1.32"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "local-time", "tracing-log"] }
+url = "2.5.0"
+uuid = { version = "1.6.1", features = ["v4"] }
 webmachine-rust = "0.3.0"
 
 [dev-dependencies]
 quickcheck = "1"
 expectest = "0.12.0"
-trycmd = "0.14.13"
-test-log = "0.2.11"
-env_logger = "0.10.0"
+trycmd = "0.14.19"
+test-log = "0.2.14"
+env_logger = "0.10.1"
