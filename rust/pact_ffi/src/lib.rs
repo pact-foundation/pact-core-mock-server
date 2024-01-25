@@ -338,7 +338,7 @@ mod tests {
   use expectest::prelude::*;
   use rstest::rstest;
 
-  use super::log_level_filter_from_c_char;
+  use super::*;
   use tracing_core::LevelFilter;
 
   #[rstest]
@@ -360,6 +360,28 @@ mod tests {
   fn log_level_filter_from_c_char_test(#[case] text: String, #[case] level: LevelFilter) {
     let value = CString::new(text).unwrap();
     let result = unsafe { log_level_filter_from_c_char(value.as_ptr()) };
+    expect!(result).to(be_equal_to(level));
+  }
+
+  #[rstest]
+  #[case("trace", Level::TRACE)]
+  #[case("TRACE", Level::TRACE)]
+  #[case("debug", Level::DEBUG)]
+  #[case("DEBUG", Level::DEBUG)]
+  #[case("info", Level::INFO)]
+  #[case("INFO", Level::INFO)]
+  #[case("warn", Level::WARN)]
+  #[case("WARN", Level::WARN)]
+  #[case("error", Level::ERROR)]
+  #[case("ERROR", Level::ERROR)]
+  #[case("off", Level::INFO)]
+  #[case("OFF", Level::INFO)]
+  #[case("none", Level::INFO)]
+  #[case("NONE", Level::INFO)]
+  #[case("invalid", Level::INFO)]
+  fn log_level_from_c_char_test(#[case] text: String, #[case] level: Level) {
+    let value = CString::new(text).unwrap();
+    let result = unsafe { log_level_from_c_char(value.as_ptr()) };
     expect!(result).to(be_equal_to(level));
   }
 }
