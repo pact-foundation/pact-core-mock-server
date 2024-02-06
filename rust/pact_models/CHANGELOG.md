@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.18 - Maintenance Release
+
+* c7a086d6 - feat(models): add merge method (JP-Ellis, Tue Feb 6 12:45:59 2024 +1100)
+* 7222cd27 - fix: Min and Max type matchers were not able to parse their integration form (Ronald Holshausen, Wed Feb 7 09:45:45 2024 +1100)
+* 1d463aae - bump version to 1.1.18 (Ronald Holshausen, Sat Jan 20 13:45:58 2024 +1100)
+
 # 1.1.17 - Bugfix Release
 
 * 57e8d092 - fix: Implemented missing atLeast and atMost options with matching rule definitions (Ronald Holshausen, Sat Jan 20 13:29:30 2024 +1100)
