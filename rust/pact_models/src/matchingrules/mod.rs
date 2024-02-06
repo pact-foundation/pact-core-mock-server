@@ -371,6 +371,14 @@ impl MatchingRule {
         Some(max) => Ok(MatchingRule::MaxType(max)),
         None => Err(anyhow!("Max matcher missing 'max' field")),
       },
+      "min-type" => match json_to_num(attributes.get("min").cloned()) {
+        Some(min) => Ok(MatchingRule::MinType(min)),
+        None => Err(anyhow!("Min matcher missing 'min' field")),
+      },
+      "max-type" => match json_to_num(attributes.get("max").cloned()) {
+        Some(max) => Ok(MatchingRule::MaxType(max)),
+        None => Err(anyhow!("Max matcher missing 'max' field")),
+      },
       "timestamp" | "datetime" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
         Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
         None => Ok(MatchingRule::Timestamp(String::default())),
@@ -1993,6 +2001,10 @@ mod tests {
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\", \"min\": 1}").unwrap())).to(
       be_ok().value(MatchingRule::MinType(1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\", \"max\": \"1\"}").unwrap())).to(
+      be_ok().value(MatchingRule::MaxType(1)));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min-type\", \"min\": 1}").unwrap())).to(
+      be_ok().value(MatchingRule::MinType(1)));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max-type\", \"max\": \"1\"}").unwrap())).to(
       be_ok().value(MatchingRule::MaxType(1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\"}").unwrap())).to(be_err());
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\"}").unwrap())).to(be_err());
