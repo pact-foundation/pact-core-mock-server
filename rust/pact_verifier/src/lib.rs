@@ -1273,9 +1273,9 @@ async fn fetch_pact(
           buffer
         },
         Err(err) => {
-          error!("No pacts found in pact broker '{}': {}", broker_url, err);
+          error!("No pacts found for provider '{}' in pact broker '{}': {}", provider_name, broker_url, err);
           vec![
-            Err(anyhow!(err).context(format!("No pacts found in pact broker '{}'", broker_url)))
+            Err(anyhow!(err).context(format!("No pacts found for provider '{}' in pact broker '{}'", provider_name, broker_url)))
           ]
         }
       }
@@ -1316,9 +1316,9 @@ async fn fetch_pact(
           buffer
         },
         Err(err) => {
-          error!("No pacts found matching the given consumer version selectors in pact broker '{}': {}", broker_url, err);
+          error!("No pacts found for provider '{}' matching the given consumer version selectors in pact broker '{}': {}", provider_name, broker_url, err);
           vec![
-            Err(err.context(format!("No pacts found matching the given consumer version selectors in pact broker '{}'", broker_url)))
+            Err(err.context(format!("No pacts found for provider '{}' matching the given consumer version selectors in pact broker '{}'", provider_name, broker_url)))
           ]
         }
       }
