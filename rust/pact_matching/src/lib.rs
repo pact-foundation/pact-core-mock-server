@@ -526,7 +526,7 @@ impl Default for CoreMatchingContext {
 }
 
 impl MatchingContext for CoreMatchingContext {
-  #[instrument(level = "trace")]
+  #[instrument(level = "trace", ret, skip_all, fields(path, matchers = ?self.matchers))]
   fn matcher_is_defined(&self, path: &DocPath) -> bool {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
