@@ -170,6 +170,61 @@ impl Matches<&[u8]> for &Vec<u8> {
   }
 }
 
+impl <T: Debug + Display + Clone + PartialEq> Matches<&BTreeMap<String, T>> for BTreeMap<String, T> {
+  fn matches_with(&self, actual: &BTreeMap<String, T>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    debug!("map -> map: comparing [String -> {}] to [String -> {}] using {:?}", std::any::type_name::<T>(),
+      std::any::type_name::<T>(), matcher);
+    let result = match matcher {
+      MatchingRule::Regex(_) => Ok(()),
+      MatchingRule::Type => Ok(()),
+      MatchingRule::MinType(min) => {
+        if !cascaded && actual.len() < *min {
+          Err(anyhow!("Expected {:?} (size {}) to have minimum size of {}", actual, actual.len(), min))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MaxType(max) => {
+        if !cascaded && actual.len() > *max {
+          Err(anyhow!("Expected {:?} (size {}) to have maximum size of {}", actual, actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MinMaxType(min, max) => {
+        if !cascaded && actual.len() < *min {
+          Err(anyhow!("Expected {:?} (size {}) to have minimum size of {}", actual, actual.len(), min))
+        } else if !cascaded && actual.len() > *max {
+          Err(anyhow!("Expected {:?} (size {}) to have maximum size of {}", actual, actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to be equal to {}", actual.for_mismatch(), self.for_mismatch()))
+        }
+      }
+      MatchingRule::NotEmpty => {
+        if actual.is_empty() {
+          Err(anyhow!("Expected {} (Array) to not be empty", actual.for_mismatch()))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::ArrayContains(_) => Ok(()),
+      MatchingRule::EachKey(_) => Ok(()),
+      MatchingRule::EachValue(_) => Ok(()),
+      MatchingRule::Values => Ok(()),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self.for_mismatch(), matcher))
+    };
+    debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+    result
+  }
+}
+
 /// Trait to convert a expected or actual complex object into a string that can be used for a mismatch
 pub trait DisplayForMismatch {
   /// Return a string representation that can be used in a mismatch to display to the user
@@ -177,6 +232,12 @@ pub trait DisplayForMismatch {
 }
 
 impl <T: Display> DisplayForMismatch for HashMap<String, T> {
+  fn for_mismatch(&self) -> String {
+    Value::Object(self.iter().map(|(k, v)| (k.clone(), json!(v.to_string()))).collect()).to_string()
+  }
+}
+
+impl <T: Display> DisplayForMismatch for BTreeMap<String, T> {
   fn for_mismatch(&self) -> String {
     Value::Object(self.iter().map(|(k, v)| (k.clone(), json!(v.to_string()))).collect()).to_string()
   }
@@ -211,8 +272,8 @@ impl <T: Display> DisplayForMismatch for BTreeSet<T> {
 }
 
 /// Delegate to the matching rule defined at the given path to compare the key/value maps.
-#[tracing::instrument(ret, skip_all, fields(path, rule, cascaded, expected, actual), level = "trace")]
-pub fn compare_maps_with_matchingrule<T: Display + Debug>(
+#[tracing::instrument(ret, skip_all, fields(path, rule, cascaded), level = "trace")]
+pub fn compare_maps_with_matchingrule<T: Display + Debug + Clone + PartialEq>(
   rule: &MatchingRule,
   cascaded: bool,
   path: &DocPath,
@@ -264,6 +325,14 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
       }
     }
   } else {
+    if let Err(mismatch) = expected.matches_with(actual, rule, cascaded) {
+      result = merge_result(result, Err(vec![Mismatch::BodyMismatch {
+        path: path.to_string(),
+        expected: Some(expected.for_mismatch().into()),
+        actual: Some(actual.for_mismatch().into()),
+        mismatch: mismatch.to_string()
+      }]));
+    }
     let expected_keys = expected.keys().cloned().collect();
     let actual_keys = actual.keys().cloned().collect();
     result = merge_result(result, context.match_keys(path, &expected_keys, &actual_keys));
@@ -278,6 +347,7 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
 }
 
 /// Compare the expected and actual lists using the matching rule's logic
+#[tracing::instrument(ret, skip_all, fields(path, rule, cascaded), level = "trace")]
 pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + Sized>(
   rule: &MatchingRule,
   path: &DocPath,
@@ -425,6 +495,7 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
 mod tests {
   use std::collections::{BTreeSet, HashMap, HashSet};
   use std::sync::RwLock;
+  use bytes::Bytes;
 
   use expectest::prelude::*;
   use maplit::{btreemap, hashmap};
@@ -611,6 +682,84 @@ mod tests {
     let v: Vec<String> = vec!["match_keys($, {\"a\"}, {\"b\", \"c\"})".to_string()];
     expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
     expect!(calls.iter()).to(be_empty());
+  }
+
+  #[test]
+  fn compare_maps_with_matchingrule_with_min_type_matcher() {
+    let expected = btreemap!{
+      "a".to_string() => "100".to_string(),
+      "b".to_string() => "101".to_string(),
+      "c".to_string() => "102".to_string()
+    };
+    let actual = btreemap!{
+      "b".to_string() => "103".to_string()
+    };
+
+    let context = MockContext {
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
+    };
+    let mut calls = vec![];
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
+      calls.push(format!("{}, {}, {}", p, a, b));
+      Ok(())
+    };
+    let rule = MatchingRule::MinType(2);
+    let result = compare_maps_with_matchingrule(&rule, false, &DocPath::root(),
+                                                &expected, &actual, &context, &mut callback);
+
+    expect!(result.unwrap_err()).to(be_equal_to(vec![
+      Mismatch::BodyMismatch {
+        path: "$".to_string(),
+        expected: Some(Bytes::from(b"{\"a\":\"100\",\"b\":\"101\",\"c\":\"102\"}".to_vec())),
+        actual: Some(Bytes::from(b"{\"b\":\"103\"}".to_vec())),
+        mismatch: "Expected {\"b\": \"103\"} (size 1) to have minimum size of 2".to_string()
+      }
+    ]));
+
+    let v: Vec<String> = vec!["match_keys($, {\"a\", \"b\", \"c\"}, {\"b\"})".to_string()];
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
+    expect!(calls).to(be_equal_to(vec!["$.b, 101, 103".to_string()]));
+  }
+
+  #[test]
+  fn compare_maps_with_matchingrule_with_max_type_matcher() {
+    let expected = btreemap!{
+      "a".to_string() => "100".to_string()
+    };
+    let actual = btreemap!{
+      "a".to_string() => "101".to_string(),
+      "b".to_string() => "102".to_string(),
+      "c".to_string() => "103".to_string()
+    };
+
+    let context = MockContext {
+      calls: RwLock::new(vec![]),
+      matchers: MatchingRuleCategory::default()
+    };
+    let mut calls = vec![];
+    let mut callback = |p: &DocPath, a: &String, b: &String, _: &(dyn MatchingContext + Send + Sync)| {
+      calls.push(format!("{}, {}, {}", p, a, b));
+      Ok(())
+    };
+    let rule = MatchingRule::MaxType(2);
+    let result = compare_maps_with_matchingrule(&rule, false, &DocPath::root(),
+                                                &expected, &actual, &context, &mut callback);
+
+    expect!(result.unwrap_err()).to(be_equal_to(vec![
+      Mismatch::BodyMismatch {
+        path: "$".to_string(),
+        expected: Some(Bytes::from(b"{\"a\":\"100\"}".to_vec())),
+        actual: Some(Bytes::from(b"{\"a\":\"101\",\"b\":\"102\",\"c\":\"103\"}".to_vec())),
+        mismatch: "Expected {\"a\": \"101\", \"b\": \"102\", \"c\": \"103\"} (size 3) to have maximum size of 2".to_string()
+      }
+    ]));
+
+    let v: Vec<String> = vec!["match_keys($, {\"a\"}, {\"a\", \"b\", \"c\"})".to_string()];
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
+    expect!(calls).to(be_equal_to(vec![
+      "$.a, 100, 101".to_string()
+    ]));
   }
 
   #[test]
