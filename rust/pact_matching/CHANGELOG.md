@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.10 - Bugfix Release
+
+* a8efa111 - fix: was missing an implementation of MinType and MaxType matchers for maps (Ronald Holshausen, Wed Feb 7 12:27:59 2024 +1100)
+* 24a26cca - chore: Update pact_models to 1.1.18 (Ronald Holshausen, Wed Feb 7 10:53:22 2024 +1100)
+* 73578350 - chore: use local pact_models (JP-Ellis, Tue Feb 6 10:51:09 2024 +1100)
+* 95cbe5a9 - fix: Upgrade pact-plugin-driver to 0.5.1 (Ronald Holshausen, Wed Jan 31 19:56:04 2024 +1100)
+* c7cb72c5 - Merge pull request #365 from tienvx/test-values-matcher-json-body (Ronald Holshausen, Thu Jan 25 10:36:22 2024 +1100)
+* d5e58424 - test(pact_matching): Test Values matcher with json body (tien.xuan.vo, Mon Jan 22 23:36:44 2024 +0700)
+* 482da6f0 - bump version to 1.1.10 (Ronald Holshausen, Sat Jan 20 15:10:39 2024 +1100)
+
 # 1.1.9 - Maintenance Release
 
 * 7b087acf - chore: Upgrade pact-plugin-driver to 0.5.0 (Ronald Holshausen, Sat Jan 20 14:49:21 2024 +1100)
