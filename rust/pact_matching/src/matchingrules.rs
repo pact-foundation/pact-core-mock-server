@@ -148,7 +148,7 @@ impl Matches<&[u8]> for Vec<u8> {
       }
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(actual, expected_content_type)
-          .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+          .map_err(|err| anyhow!("Failed to match data to have a content type of '{}': {}", expected_content_type, err))
       }
       MatchingRule::NotEmpty => {
         if actual.is_empty() {

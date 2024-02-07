@@ -257,7 +257,7 @@ impl Matches<&Value> for Value {
       },
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&convert_data(actual), expected_content_type)
-          .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+          .map_err(|err| anyhow!("Failed to match data to have a content type of '{}': {}", expected_content_type, err))
       }
       MatchingRule::Boolean => match actual {
         Value::Bool(_) => Ok(()),
