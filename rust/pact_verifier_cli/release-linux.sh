@@ -25,5 +25,5 @@ openssl dgst -sha256 -r ../release_artifacts/pact_verifier_cli-linux-x86_64-musl
 echo -- Build the musl aarch64 release artifacts --
 cargo clean
 cross build --release --target=aarch64-unknown-linux-musl
-gzip -c ../target/aarch64-unknown-linux-gnu/release/pact_verifier_cli > ../release_artifacts/pact_verifier_cli-linux-aarch64-musl.gz
+gzip -c ../target/aarch64-unknown-linux-musl/release/pact_verifier_cli > ../release_artifacts/pact_verifier_cli-linux-aarch64-musl.gz
 openssl dgst -sha256 -r ../release_artifacts/pact_verifier_cli-linux-aarch64-musl.gz > ../release_artifacts/pact_verifier_cli-linux-aarch64-musl.gz.sha256
