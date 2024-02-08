@@ -1958,7 +1958,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2024,7 +2024,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "1.1.18"
+version = "1.1.19"
 dependencies = [
  "anyhow",
  "ariadne",
