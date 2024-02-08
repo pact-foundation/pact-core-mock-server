@@ -223,52 +223,7 @@ pub extern fn pactffi_interaction_contents(
               };
             }
           }),
-          V4InteractionType::Synchronous_Messages => setup_contents(inner, part, &content_type, &contents, &|interaction, contents, plugin_name, _| {
-            let message = interaction.as_v4_sync_message_mut().unwrap();
-
-            if let Some(contents) = &contents.iter().find(|c| c.part_name == "request") {
-              message.request.contents = contents.body.clone();
-              message.request.metadata = contents.metadata.clone().unwrap_or_default();
-              if let Some(rules) = &contents.rules {
-                message.request.matching_rules.add_rules("body", rules.clone());
-              }
-              if let Some(generators) = &contents.generators {
-                message.request.generators.add_generators(generators.clone());
-              }
-              if !contents.plugin_config.interaction_configuration.is_empty() {
-                message.plugin_config.insert(plugin_name.clone(), contents.plugin_config.interaction_configuration.clone());
-              }
-              message.interaction_markup = InteractionMarkup {
-                markup: contents.interaction_markup.clone(),
-                markup_type: contents.interaction_markup_type.clone()
-              };
-            }
-
-            for c in contents.iter().filter(|c| c.part_name == "response") {
-              let mut matching_rules = MatchingRules::default();
-              matching_rules.add_rules("body", c.rules.as_ref().cloned().unwrap_or_default());
-              let mut generators = Generators::default();
-              if let Some(g) = &c.generators {
-                generators.add_generators(g.clone());
-              }
-              message.response.push(MessageContents {
-                contents: c.body.clone(),
-                metadata: c.metadata.clone().unwrap_or_default(),
-                matching_rules,
-                generators
-              });
-
-              if !c.plugin_config.is_empty() {
-                message.plugin_config.insert(plugin_name.clone(), c.plugin_config.interaction_configuration.clone());
-              }
-              if !c.interaction_markup.is_empty() {
-                message.interaction_markup = InteractionMarkup {
-                  markup: c.interaction_markup.clone(),
-                  markup_type: c.interaction_markup_type.clone()
-                };
-              }
-            }
-          })
+          V4InteractionType::Synchronous_Messages => setup_contents(inner, part, &content_type, &contents, &setup_sync_message_contents)
         }
       } else {
         Err(anyhow!("Mock server is already started"))
@@ -297,6 +252,64 @@ pub extern fn pactffi_interaction_contents(
       None => Ok(3)
     }
   }).unwrap_or(1)
+}
+
+fn setup_sync_message_contents(
+  interaction: &mut dyn V4Interaction,
+  contents: Vec<InteractionContents>,
+  plugin_name: String,
+  _plugin_version: String
+) {
+  let message = interaction.as_v4_sync_message_mut().unwrap();
+
+  if let Some(contents) = &contents.iter().find(|c| c.part_name == "request") {
+    message.request.contents = contents.body.clone();
+    message.request.metadata = contents.metadata.clone().unwrap_or_default();
+    if let Some(rules) = &contents.rules {
+      message.request.matching_rules.add_rules("body", rules.clone());
+    }
+    if let Some(rules) = &contents.metadata_rules {
+      message.request.matching_rules.add_rules("metadata", rules.clone());
+    }
+    if let Some(generators) = &contents.generators {
+      message.request.generators.add_generators(generators.clone());
+    }
+    if !contents.plugin_config.interaction_configuration.is_empty() {
+      message.plugin_config.insert(plugin_name.clone(), contents.plugin_config.interaction_configuration.clone());
+    }
+    message.interaction_markup = InteractionMarkup {
+      markup: contents.interaction_markup.clone(),
+      markup_type: contents.interaction_markup_type.clone()
+    };
+  }
+
+  for c in contents.iter().filter(|c| c.part_name == "response") {
+    let mut matching_rules = MatchingRules::default();
+    matching_rules.add_rules("body", c.rules.as_ref().cloned().unwrap_or_default());
+    if let Some(rules) = &c.metadata_rules {
+      matching_rules.add_rules("metadata", rules.clone());
+    }
+    let mut generators = Generators::default();
+    if let Some(g) = &c.generators {
+      generators.add_generators(g.clone());
+    }
+    message.response.push(MessageContents {
+      contents: c.body.clone(),
+      metadata: c.metadata.clone().unwrap_or_default(),
+      matching_rules,
+      generators
+    });
+
+    if !c.plugin_config.is_empty() {
+      message.plugin_config.insert(plugin_name.clone(), c.plugin_config.interaction_configuration.clone());
+    }
+    if !c.interaction_markup.is_empty() {
+      message.interaction_markup = InteractionMarkup {
+        markup: c.interaction_markup.clone(),
+        markup_type: c.interaction_markup_type.clone()
+      };
+    }
+  }
 }
 
 // TODO: This needs to setup rules/generators based on the content type
@@ -382,10 +395,14 @@ mod tests {
   use std::ptr::null;
 
   use expectest::prelude::*;
+  use pact_plugin_driver::content::InteractionContents;
+  use pact_models::{matchingrules, matchingrules_list};
+  use pact_models::matchingrules::MatchingRule;
+  use pact_models::v4::sync_message::SynchronousMessage;
 
   use crate::mock_server::handles::{InteractionHandle, InteractionPart, PactHandle};
 
-  use super::pactffi_interaction_contents;
+  use super::{pactffi_interaction_contents, setup_sync_message_contents};
 
   #[test]
   fn pactffi_interaction_contents_with_invalid_content_type() {
@@ -406,5 +423,49 @@ mod tests {
 
     let contents = CString::new("not valid").unwrap();
     expect!(pactffi_interaction_contents(i_handle, InteractionPart::Request, content_type.as_ptr(), contents.as_ptr())).to(be_equal_to(5));
+  }
+
+  #[test]
+  fn setup_sync_message_contents_handles_matching_rules_on_metadata() {
+    let mut interaction = SynchronousMessage {
+      .. SynchronousMessage::default()
+    };
+    let contents = vec![
+      InteractionContents {
+        part_name: "request".to_string(),
+        body: Default::default(),
+        rules: None,
+        generators: None,
+        metadata: None,
+        metadata_rules: Some(matchingrules_list! {
+          "metadata"; "R" => [  MatchingRule::Regex("1".to_string())  ]
+        }),
+        plugin_config: Default::default(),
+        interaction_markup: "".to_string(),
+        interaction_markup_type: "".to_string(),
+      },
+      InteractionContents {
+        part_name: "response".to_string(),
+        body: Default::default(),
+        rules: None,
+        generators: None,
+        metadata: None,
+        metadata_rules: Some(matchingrules_list! {
+          "metadata"; "R" => [  MatchingRule::Regex("2".to_string())  ]
+        }),
+        plugin_config: Default::default(),
+        interaction_markup: "".to_string(),
+        interaction_markup_type: "".to_string(),
+      }
+    ];
+
+    setup_sync_message_contents(&mut interaction, contents, "test".to_string(), "0".to_string());
+
+    expect!(interaction.request.matching_rules).to(be_equal_to(matchingrules! {
+      "metadata" => { "R" => [  MatchingRule::Regex("1".to_string())  ] }
+    }));
+    expect!(interaction.response[0].clone().matching_rules).to(be_equal_to(matchingrules! {
+      "metadata" => { "R" => [  MatchingRule::Regex("2".to_string())  ] }
+    }));
   }
 }
