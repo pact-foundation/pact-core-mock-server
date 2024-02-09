@@ -5,6 +5,12 @@ use std::collections::HashMap;
 
 use bytes::Bytes;
 use maplit::hashmap;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
+#[cfg(feature = "plugins")] use pact_plugin_driver::content::ContentMatcher;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
+use serde_json::{json, Map, Value};
+use tracing::debug;
+
 use pact_models::content_types::ContentType;
 use pact_models::generators::Generators;
 use pact_models::json_utils::json_to_string;
@@ -14,16 +20,11 @@ use pact_models::prelude::{MatchingRuleCategory, MatchingRules, OptionalBody, Pr
 use pact_models::v4::interaction::InteractionMarkup;
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
-#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
-#[cfg(feature = "plugins")] use pact_plugin_driver::content::ContentMatcher;
-#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PactPluginManifest;
-use serde_json::{json, Map, Value};
-use tracing::debug;
 
-use crate::prelude::{JsonPattern, Pattern};
-#[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
 use crate::builders::message_builder::{InteractionContents, PluginConfiguration};
 #[cfg(not(feature = "plugins"))] use crate::builders::message_builder::PactPluginManifest;
+use crate::prelude::{JsonPattern, Pattern};
+#[cfg(feature = "plugins")] use crate::prelude::PluginInteractionBuilder;
 
 #[derive(Clone, Debug)]
 /// Synchronous message interaction builder. Normally created via PactBuilder::sync_message_interaction.
@@ -554,12 +555,12 @@ impl SyncMessageInteractionBuilder {
 mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
-  use pact_models::v4::message_parts::MessageContents;
-  use pact_models::path_exp::DocPath;
-  use pact_models::matchingrules::{MatchingRules, RuleLogic};
-  use pact_models::matchingrules::Category;
-  use pact_models::matchingrules::MatchingRule;
   use serde_json::json;
+
+  use pact_models::matchingrules;
+  use pact_models::matchingrules::{Category, MatchingRule, MatchingRules, RuleLogic};
+  use pact_models::path_exp::DocPath;
+  use pact_models::v4::message_parts::MessageContents;
 
   use crate::builders::SyncMessageInteractionBuilder;
 
@@ -574,6 +575,34 @@ mod tests {
       "a".to_string() => json!("a"),
       "b".to_string() => json!("b"),
       "c".to_string() => json!([1, 2, 3])
+    }));
+  }
+
+  #[test]
+  fn supports_matching_rules_on_metadata_values() {
+    let message = SyncMessageInteractionBuilder::new("test")
+      .request_contents(&MessageContents {
+        contents: Default::default(),
+        metadata: Default::default(),
+        matching_rules: matchingrules! {
+          "metadata" => { "R" => [  MatchingRule::Regex("1".to_string())  ] }
+        },
+        generators: Default::default()
+      })
+      .response_contents(&MessageContents {
+        contents: Default::default(),
+        metadata: Default::default(),
+        matching_rules: matchingrules! {
+          "metadata" => { "R" => [  MatchingRule::Regex("2".to_string())  ] }
+        },
+        generators: Default::default()
+      })
+      .build();
+    expect!(message.request.matching_rules).to(be_equal_to(matchingrules! {
+      "metadata" => { "R" => [  MatchingRule::Regex("1".to_string())  ] }
+    }));
+    expect!(message.response.first().cloned().unwrap().matching_rules).to(be_equal_to(matchingrules! {
+      "metadata" => { "R" => [  MatchingRule::Regex("2".to_string())  ] }
     }));
   }
 
@@ -604,7 +633,7 @@ mod tests {
       .build();
     expect!(message.request.matching_rules).to(be_equal_to(rules));
   }
-  
+
   #[test]
   fn supports_response_metadata_rules() {
     let rules = meta_matching_rules("$.a");
