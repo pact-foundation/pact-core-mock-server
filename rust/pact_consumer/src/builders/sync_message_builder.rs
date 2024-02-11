@@ -132,6 +132,8 @@ impl SyncMessageInteractionBuilder {
     let mut rules = MatchingRules::default();
     rules.add_category("body")
       .add_rules(self.request_contents.rules.as_ref().cloned().unwrap_or_default());
+    rules.add_category("metadata")
+      .add_rules(self.request_contents.metadata_rules.as_ref().cloned().unwrap_or_default());
 
     #[allow(unused_mut, unused_assignments)] let mut plugin_config = hashmap!{};
     #[cfg(feature = "plugins")]
@@ -167,6 +169,8 @@ impl SyncMessageInteractionBuilder {
         let mut rules = MatchingRules::default();
         rules.add_category("body")
           .add_rules(contents.rules.as_ref().cloned().unwrap_or_default());
+        rules.add_category("metadata")
+          .add_rules(contents.metadata_rules.as_ref().cloned().unwrap_or_default());
         MessageContents {
           contents: contents.body.clone(),
           metadata: contents.metadata.as_ref().cloned().unwrap_or_default(),
@@ -550,6 +554,11 @@ impl SyncMessageInteractionBuilder {
 mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
+  use pact_models::v4::message_parts::MessageContents;
+  use pact_models::path_exp::DocPath;
+  use pact_models::matchingrules::{MatchingRules, RuleLogic};
+  use pact_models::matchingrules::Category;
+  use pact_models::matchingrules::MatchingRule;
   use serde_json::json;
 
   use crate::builders::SyncMessageInteractionBuilder;
@@ -566,5 +575,94 @@ mod tests {
       "b".to_string() => json!("b"),
       "c".to_string() => json!([1, 2, 3])
     }));
+  }
+
+  fn meta_matching_rules(path_str: &'static str) -> MatchingRules {
+    let mut rules: MatchingRules = MatchingRules::default();
+    rules.add_category(Category::BODY)
+      .add_rule(DocPath::new_unwrap(path_str), MatchingRule::Type, RuleLogic::And);
+    rules
+  }
+
+  fn message_contents(matching_rules: &MatchingRules) -> MessageContents {
+    MessageContents {
+      contents: pact_models::bodies::OptionalBody::Missing,
+      metadata: hashmap! {
+        "a".to_string() => json!("a")
+      },
+      matching_rules: matching_rules.clone(),
+      generators: Default::default()
+    }
+  }
+
+  #[test]
+  fn supports_request_metadata_rules() {
+    let rules = meta_matching_rules("$.a");
+    let message_contents: MessageContents = message_contents(&rules);
+    let message = SyncMessageInteractionBuilder::new("test")
+      .request_contents(&message_contents)
+      .build();
+    expect!(message.request.matching_rules).to(be_equal_to(rules));
+  }
+  
+  #[test]
+  fn supports_response_metadata_rules() {
+    let rules = meta_matching_rules("$.a");
+    let message_contents = message_contents(&rules);
+    let message = SyncMessageInteractionBuilder::new("test")
+      .response_contents(&message_contents)
+      .build();
+    expect!(message.response.len()).to(be_equal_to(1));
+    expect!(message.response[0].clone().matching_rules).to(be_equal_to(rules));
+  }
+
+  #[test]
+  fn supports_multiple_response_metadata_rules() {
+    let mut rules = MatchingRules::default();
+    let cat = rules.add_category(Category::METADATA);
+    cat.add_rule(DocPath::new_unwrap("$.a"), MatchingRule::Type, RuleLogic::And);
+    cat.add_rule(DocPath::new_unwrap("$.b"), MatchingRule::Type, RuleLogic::And);
+    let message_contents = message_contents(&rules);
+    let message = SyncMessageInteractionBuilder::new("test")
+      .response_contents(&message_contents)
+      .build();
+
+    expect!(message.response.len()).to(be_equal_to(1));
+    expect!(message.response[0].clone().matching_rules).to(be_equal_to(rules));
+  }
+
+  #[test]
+  fn supports_mutliple_response_contents_with_metadata_rules() {
+    let rules1 = meta_matching_rules("$.a");
+    let contents1 = message_contents(&rules1);
+    let rules2 = meta_matching_rules("$.b");
+    let contents2 = message_contents(&rules2);
+    let message = SyncMessageInteractionBuilder::new("test")
+      .response_contents(&contents1)
+      .response_contents(&contents2)
+      .build();
+
+    // expect message.response to have only two elements
+    expect!(message.response.len()).to(be_equal_to(2));
+    expect!(message.response[0].clone().matching_rules).to(be_equal_to(rules1));
+    expect!(message.response[1].clone().matching_rules).to(be_equal_to(rules2));
+  }
+
+  #[test]
+  fn supports_rules_for_body_and_metadata_in_request_and_response() {
+    let mut rules = MatchingRules::default();
+    let cat_body = rules.add_category(Category::BODY);
+    cat_body.add_rule(DocPath::new_unwrap("$.a"), MatchingRule::Type, RuleLogic::And);
+    let cat_meta = rules.add_category(Category::METADATA);
+    cat_meta.add_rule(DocPath::new_unwrap("$.b"), MatchingRule::Type, RuleLogic::And);
+    let message_contents = message_contents(&rules);
+    let message = SyncMessageInteractionBuilder::new("test")
+      .request_contents(&message_contents)
+      .response_contents(&message_contents)
+      .build();
+
+    expect!(message.request.matching_rules).to(be_equal_to(rules.clone()));
+    expect!(message.response.len()).to(be_equal_to(1));
+    expect!(message.response[0].clone().matching_rules).to(be_equal_to(rules.clone()));
   }
 }
