@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.2 - Bugfix Release
+
+* e31589d7 - chore: add test for checking matching rules on message metadata (Ronald Holshausen, Sat Feb 10 10:13:01 2024 +1100)
+* 6bb57df0 - fix: metadata matching rules for sync message (Stan, Fri Feb 9 00:16:51 2024 -0800)
+* a52e0ee9 - chore: Upgrade pact_matching to 1.1.10 (Ronald Holshausen, Wed Feb 7 13:20:45 2024 +1100)
+* 24a26cca - chore: Update pact_models to 1.1.18 (Ronald Holshausen, Wed Feb 7 10:53:22 2024 +1100)
+* 73578350 - chore: use local pact_models (JP-Ellis, Tue Feb 6 10:51:09 2024 +1100)
+* 95cbe5a9 - fix: Upgrade pact-plugin-driver to 0.5.1 (Ronald Holshausen, Wed Jan 31 19:56:04 2024 +1100)
+* 5f5ad750 - bump version to 1.1.2 (Ronald Holshausen, Sat Jan 20 22:00:01 2024 +1100)
+
 # 1.1.1 - Maintenace Release
 
 * c68e00a5 - chore: Upgrade dependencies (Ronald Holshausen, Sat Jan 20 21:53:03 2024 +1100)
