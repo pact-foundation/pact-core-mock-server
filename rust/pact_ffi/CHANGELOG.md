@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.16 - Bugfix Release
+
+* 29b326e5 - fix(FFI): Metadata matching rules from plugins were being ignored (Ronald Holshausen, Thu Feb 8 18:31:05 2024 +1100)
+* 4b9aeb2d - chore: correct CHANGELOG.md (Ronald Holshausen, Wed Feb 7 14:21:29 2024 +1100)
+* 76debd2d - bump version to 0.4.16 (Ronald Holshausen, Wed Feb 7 14:15:28 2024 +1100)
+
 # 0.4.15 - Bugfix Release
 
 * b0f0151e - Merge pull request #383 from pact-foundation/feat/with-matching-rules-2 (Ronald Holshausen, Wed Feb 7 14:54:11 2024 +1100)
