@@ -23,7 +23,7 @@ tls = ["pact_mock_server/tls"]
 
 [dependencies]
 anyhow = "1.0.75"
-clap = { version = "4.4.11", features = ["cargo"] }
+clap = { version = "~4.4.11", features = ["cargo"] }
 futures = "0.3.29"
 http = "0.2.9"
 hyper = "0.14.28"
