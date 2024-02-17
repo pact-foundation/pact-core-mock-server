@@ -1890,30 +1890,39 @@ mod tests {
           },
           "path" => { "" => [ MatchingRule::Regex("/path/\\d+".to_string()) ] },
           "query" => {
-            "a" => [ MatchingRule::Regex("\\w+".to_string()) ]
+            "a" => [ MatchingRule::Regex("\\w+".to_string()) ],
+            "$['principal_identifier[account_id]']" => [ MatchingRule::Regex("\\w+".to_string()) ]
           },
           "header" => {
-            "item1" => [ MatchingRule::Regex("5".to_string()) ]
+            "item1" => [ MatchingRule::Regex("5".to_string()) ],
+            "$['principal_identifier[account_id]']" => [ MatchingRule::Regex("\\w+".to_string()) ]
           }
         };
       }
 
       it "generates V2 matcher format" {
-        expect!(matchers.to_v2_json().to_string()).to(be_equal_to(
+        pretty_assertions::assert_eq!(matchers.to_v2_json().to_string(),
           "{\"$.body.a.b\":{\"match\":\"type\"},\
           \"$.header.item1\":{\"match\":\"regex\",\"regex\":\"5\"},\
+          \"$.header['principal_identifier[account_id]']\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"},\
           \"$.path\":{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"},\
-          \"$.query.a\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"}}"
-        ));
+          \"$.query.a\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"},\
+          \"$.query['principal_identifier[account_id]']\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"}\
+          }"
+        );
       }
 
       it "generates V3 matcher format" {
-        expect!(matchers.to_v3_json().to_string()).to(be_equal_to(
+        pretty_assertions::assert_eq!(matchers.to_v3_json().to_string(),
           "{\"body\":{\"$.a.b\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}},\
-          \"header\":{\"item1\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"5\"}]}},\
+          \"header\":{\"item1\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"5\"}]},\
+          \"principal_identifier[account_id]\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"\\\\w+\"}]}\
+          },\
           \"path\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"}]},\
-          \"query\":{\"a\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"\\\\w+\"}]}}}"
-        ));
+          \"query\":{\"a\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"\\\\w+\"}]},\
+          \"principal_identifier[account_id]\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"\\\\w+\"}]}\
+          }}"
+        );
       }
     }
   }
