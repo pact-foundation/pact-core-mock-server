@@ -1000,7 +1000,7 @@ fn from_integration_json_v2(
       _ => Either::Left(value.to_string())
     },
     Err(err) => {
-      error!("Failed to parse the value: {}", err);
+      warn!("Failed to parse the value, treating it as a plain string: {}", err);
       Either::Left(value.to_string())
     }
   }
@@ -2558,6 +2558,13 @@ pub extern fn pactffi_free_pact_handle(pact: PactHandle) -> c_uint {
 pub extern fn pactffi_free_message_pact_handle(pact: MessagePactHandle) -> c_uint {
   let mut handles = PACT_HANDLES.lock().unwrap();
   handles.remove(&pact.pact_ref).map(|_| 0).unwrap_or(1)
+}
+
+/// Returns the default file name for a Pact handle
+pub fn pact_default_file_name(handle: &PactHandle) -> Option<String> {
+  handle.with_pact(&|_, inner| {
+    inner.pact.default_file_name()
+  })
 }
 
 #[cfg(test)]

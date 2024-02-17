@@ -53,6 +53,13 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_request,
   pactffi_write_message_pact_file
 };
+use pact_ffi::mock_server::handles::{
+  pact_default_file_name,
+  pactffi_free_pact_handle,
+  pactffi_pact_handle_write_file,
+  pactffi_with_header_v2,
+  PactHandle
+};
 use pact_ffi::verifier::{
   OptionsFlags,
   pactffi_verifier_add_directory_source,
@@ -842,4 +849,84 @@ fn multiple_query_values_with_regex_matcher() {
   pactffi_cleanup_mock_server(port);
 
   expect!(mismatches).to(be_equal_to("[]"));
+}
+
+// Issue #389
+#[test_log::test]
+fn merging_pact_file() {
+  let pact_handle = PactHandle::new("MergingPactC", "MergingPactP");
+  pactffi_with_specification(pact_handle, PactSpecification::V4);
+
+  let description = CString::new("a request for an order with an unknown ID").unwrap();
+  let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+  let path = CString::new("/api/orders/404").unwrap();
+  let method = CString::new("GET").unwrap();
+  let result_1 = pactffi_with_request(i_handle, method.as_ptr(), path.as_ptr());
+
+  let accept = CString::new("Accept").unwrap();
+  let header = CString::new("application/json").unwrap();
+  let result_2 = pactffi_with_header_v2(i_handle, InteractionPart::Request, accept.as_ptr(), 0, header.as_ptr());
+
+  let result_3 = pactffi_response_status(i_handle, 200);
+
+  let tmp = tempfile::tempdir().unwrap();
+  let tmp_dir = CString::new(tmp.path().to_string_lossy().as_bytes().to_vec()).unwrap();
+  let result_4 = pactffi_pact_handle_write_file(pact_handle, tmp_dir.as_ptr(), false);
+
+  pactffi_with_header_v2(i_handle, InteractionPart::Request, accept.as_ptr(), 0, header.as_ptr());
+  let result_5 = pactffi_pact_handle_write_file(pact_handle, tmp_dir.as_ptr(), false);
+
+  let x_test = CString::new("X-Test").unwrap();
+  pactffi_with_header_v2(i_handle, InteractionPart::Request, x_test.as_ptr(), 0, header.as_ptr());
+  let result_6 = pactffi_pact_handle_write_file(pact_handle, tmp_dir.as_ptr(), false);
+
+  let pact_file = pact_default_file_name(&pact_handle);
+  pactffi_free_pact_handle(pact_handle);
+
+  expect!(result_1).to(be_true());
+  expect!(result_2).to(be_true());
+  expect!(result_3).to(be_true());
+  expect!(result_4).to(be_equal_to(0));
+  expect!(result_5).to(be_equal_to(0));
+  expect!(result_6).to(be_equal_to(0));
+
+  let pact_path = tmp.path().join(pact_file.unwrap());
+  let f= File::open(pact_path).unwrap();
+
+  let mut json: Value = serde_json::from_reader(f).unwrap();
+  json["metadata"] = Value::Null;
+  assert_eq!(serde_json::to_string_pretty(&json).unwrap(),
+  r#"{
+  "consumer": {
+    "name": "MergingPactC"
+  },
+  "interactions": [
+    {
+      "description": "a request for an order with an unknown ID",
+      "pending": false,
+      "request": {
+        "headers": {
+          "Accept": [
+            "application/json"
+          ],
+          "X-Test": [
+            "application/json"
+          ]
+        },
+        "method": "GET",
+        "path": "/api/orders/404"
+      },
+      "response": {
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": null,
+  "provider": {
+    "name": "MergingPactP"
+  }
+}"#
+  );
 }
