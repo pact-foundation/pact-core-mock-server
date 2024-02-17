@@ -428,7 +428,15 @@ ffi_fn! {
   }
 }
 
-/// Creates a new HTTP Interaction and returns a handle to it.
+fn find_interaction_with_description(pact: &V4Pact, description: &str) -> Option<usize> {
+  pact.interactions.iter().find_position(|i| {
+    i.description() == description
+  }).map(|(index, _)| index)
+}
+
+/// Creates a new HTTP Interaction and returns a handle to it. Calling this function with the
+/// same description as an existing interaction will result in that interaction being replaced
+/// with the new one.
 ///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 ///
@@ -441,8 +449,14 @@ pub extern fn pactffi_new_interaction(pact: PactHandle, description: *const c_ch
         description: description.to_string(),
         ..SynchronousHttp::default()
       };
-      inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      if let Some(index) = find_interaction_with_description(&inner.pact, description) {
+        warn!("There is an existing interaction with description '{}', it will be replaced", description);
+        inner.pact.interactions[index] = interaction.boxed_v4();
+        InteractionHandle::new(pact, (index + 1) as u16)
+      } else {
+        inner.pact.interactions.push(interaction.boxed_v4());
+        InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      }
     }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
     InteractionHandle::new(pact, 0)
@@ -461,8 +475,14 @@ pub extern fn pactffi_new_message_interaction(pact: PactHandle, description: *co
         description: description.to_string(),
         ..AsynchronousMessage::default()
       };
-      inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      if let Some(index) = find_interaction_with_description(&inner.pact, description) {
+        warn!("There is an existing interaction with description '{}', it will be replaced", description);
+        inner.pact.interactions[index] = interaction.boxed_v4();
+        InteractionHandle::new(pact, (index + 1) as u16)
+      } else {
+        inner.pact.interactions.push(interaction.boxed_v4());
+        InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      }
     }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
     InteractionHandle::new(pact, 0)
@@ -481,8 +501,14 @@ pub extern fn pactffi_new_sync_message_interaction(pact: PactHandle, description
         description: description.to_string(),
         ..SynchronousMessage::default()
       };
-      inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      if let Some(index) = find_interaction_with_description(&inner.pact, description) {
+        warn!("There is an existing interaction with description '{}', it will be replaced", description);
+        inner.pact.interactions[index] = interaction.boxed_v4();
+        InteractionHandle::new(pact, (index + 1) as u16)
+      } else {
+        inner.pact.interactions.push(interaction.boxed_v4());
+        InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+      }
     }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
     InteractionHandle::new(pact, 0)
