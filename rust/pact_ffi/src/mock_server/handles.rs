@@ -463,7 +463,10 @@ pub extern fn pactffi_new_interaction(pact: PactHandle, description: *const c_ch
   }
 }
 
-/// Creates a new message interaction and return a handle to it
+/// Creates a new message interaction and returns a handle to it. Calling this function with the
+/// same description as an existing interaction will result in that interaction being replaced
+/// with the new one.
+///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 ///
 /// Returns a new `InteractionHandle`.
@@ -489,7 +492,10 @@ pub extern fn pactffi_new_message_interaction(pact: PactHandle, description: *co
   }
 }
 
-/// Creates a new synchronous message interaction (request/response) and return a handle to it
+/// Creates a new synchronous message interaction (request/response) and returns a handle to it.
+/// Calling this function with the same description as an existing interaction will result in
+/// that interaction being replaced with the new one.
+///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 ///
 /// Returns a new `InteractionHandle`.
