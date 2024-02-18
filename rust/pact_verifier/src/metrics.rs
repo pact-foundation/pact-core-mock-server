@@ -1,6 +1,7 @@
 //! Structs for collecting metrics for verification
 
 /// Metrics data to send after running a verification
+#[derive(Clone, Debug)]
 pub struct VerificationMetrics {
   /// test framework used to run the tests
   pub test_framework: String,

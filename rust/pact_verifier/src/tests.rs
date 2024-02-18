@@ -273,7 +273,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
         provider_tags: vec![],
         .. super::PublishOptions::default()
       };
-      super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
+      super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options, None).await;
     })
   });
   expect!(server_response).to(be_err());
@@ -318,14 +318,15 @@ async fn publish_successful_result_to_broker() {
   
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links.clone());
   publish_result(&[VerificationInteractionResult {
-    interaction_id: Some("1".to_string()),
-    interaction_key: None,
-    description: "".to_string(),
-    interaction_description: "".to_string(),
-    result: Ok(()),
-    pending: false,
-    duration: Default::default(),
-  }], &source, &options).await;
+      interaction_id: Some("1".to_string()),
+      interaction_key: None,
+      description: "".to_string(),
+      interaction_description: "".to_string(),
+      result: Ok(()),
+      pending: false,
+      duration: Default::default(),
+    }], &source, &options, None
+  ).await;
 
   // Same publish but with dynamic configuration as pact source:
   let source = PactSource::BrokerWithDynamicConfiguration {
@@ -340,14 +341,15 @@ async fn publish_successful_result_to_broker() {
     links
   };
   super::publish_result(&[VerificationInteractionResult {
-    interaction_id: Some("1".to_string()),
-    interaction_key: None,
-    description: "".to_string(),
-    interaction_description: "".to_string(),
-    result: Ok(()),
-    pending: false,
-    duration: Default::default(),
-  }], &source, &options).await;
+      interaction_id: Some("1".to_string()),
+      interaction_key: None,
+      description: "".to_string(),
+      interaction_description: "".to_string(),
+      result: Ok(()),
+      pending: false,
+      duration: Default::default(),
+    }], &source, &options, None
+  ).await;
 }
 
 #[test]
@@ -1023,7 +1025,7 @@ async fn test_publish_results_from_url_source_with_provider_branch() {
   };
   let verification_result = vec![];
 
-  publish_result(&verification_result, &source, &options).await;
+  publish_result(&verification_result, &source, &options, None).await;
 }
 
 #[test_log::test(tokio::test)]

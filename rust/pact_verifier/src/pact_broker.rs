@@ -23,6 +23,7 @@ use tracing::{debug, error, info, trace, warn};
 use pact_matching::Mismatch;
 
 use crate::{MismatchResult, VERIFIER_VERSION};
+use crate::metrics::VerificationMetrics;
 use crate::utils::with_retries;
 
 fn is_true(object: &serde_json::Map<String, Value>, field: &str) -> bool {
@@ -790,7 +791,8 @@ pub async fn publish_verification_results(
   version: String,
   build_url: Option<String>,
   provider_tags: Vec<String>,
-  branch: Option<String>
+  branch: Option<String>,
+  metrics_data: Option<&VerificationMetrics>
 ) -> Result<serde_json::Value, PactBrokerError> {
   let hal_client = HALClient::with_url(broker_url, auth.clone());
 
@@ -810,11 +812,16 @@ pub async fn publish_verification_results(
           "Response from the pact broker has no 'pb:publish-verification-results' link".into()
       ))?;
 
-  let json = build_payload(result, version, build_url);
+  let json = build_payload(result, version, build_url, metrics_data);
   hal_client.post_json(publish_link.href.unwrap_or_default().as_str(), json.to_string().as_str()).await
 }
 
-fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
+fn build_payload(
+  result: TestResult,
+  version: String,
+  build_url: Option<String>,
+  metrics_data: Option<&VerificationMetrics>
+) -> serde_json::Value {
   let mut json = json!({
     "success": result.to_bool(),
     "providerApplicationVersion": version,
@@ -825,8 +832,16 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
   });
   let json_obj = json.as_object_mut().unwrap();
 
-  if build_url.is_some() {
-    json_obj.insert("buildUrl".into(), json!(build_url.unwrap()));
+  if let Some(build_url) = build_url {
+    json_obj.insert("buildUrl".into(), build_url.into());
+  }
+
+  if let Some(metrics_data) = metrics_data {
+    json_obj.get_mut("verifiedBy").unwrap()["clientLanguage"] = json!({
+      "testFramework": metrics_data.test_framework,
+      "name": metrics_data.app_name,
+      "version": metrics_data.app_version
+    });
   }
 
   match result {
@@ -1082,6 +1097,7 @@ mod tests {
   use pact_models::{Consumer, PactSpecification, Provider};
   use pact_models::prelude::RequestResponsePact;
   use pact_models::sync_interaction::RequestResponseInteraction;
+  use pretty_assertions::assert_eq;
 
   use pact_consumer::*;
   use pact_consumer::prelude::*;
@@ -2018,7 +2034,7 @@ mod tests {
   #[test]
   fn test_build_payload_with_success() {
     let result = TestResult::Ok(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), None);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
@@ -2033,7 +2049,7 @@ mod tests {
   #[test]
   fn test_build_payload_adds_the_build_url_if_provided() {
     let result = TestResult::Ok(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()), None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
@@ -2049,7 +2065,7 @@ mod tests {
   #[test]
   fn test_build_payload_adds_a_result_for_each_interaction() {
     let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
-    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()), None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
@@ -2069,7 +2085,7 @@ mod tests {
   #[test]
   fn test_build_payload_with_failure() {
     let result = TestResult::Failed(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), None);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": false,
@@ -2093,7 +2109,7 @@ mod tests {
         interaction_id: Some("1234abc".to_string())
       }))
     ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": false,
@@ -2120,7 +2136,7 @@ mod tests {
     let result = TestResult::Failed(vec![
       (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
     ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": false,
@@ -2156,7 +2172,7 @@ mod tests {
       (Some("12345678".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
       (Some("abc123".to_string()), None)
     ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": false,
@@ -2189,6 +2205,32 @@ mod tests {
         "version": VERIFIER_VERSION
       }
     })));
+  }
+
+  #[test]
+  fn test_build_payload_adds_client_language_version_if_provided() {
+    let result = TestResult::Ok(vec![]);
+    let metrics = VerificationMetrics {
+      test_framework: "TEST".to_string(),
+      app_name: "TESTER".to_string(),
+      app_version: "1.2.3".to_string()
+    };
+    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()), Some(&metrics));
+    assert_eq!(payload, json!({
+      "providerApplicationVersion": "1",
+      "success": true,
+      "buildUrl": "http://build-url",
+      "testResults": [],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": VERIFIER_VERSION,
+        "clientLanguage": {
+          "testFramework": "TEST",
+          "name": "TESTER",
+          "version": "1.2.3"
+        }
+      }
+    }));
   }
 
   #[test]

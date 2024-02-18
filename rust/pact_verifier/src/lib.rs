@@ -1074,7 +1074,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             verification_result.interaction_results.extend_from_slice(results.as_slice());
 
             if let Some(publish) = publish_options {
-              publish_result(results.as_slice(), &pact_source, &publish).await;
+              publish_result(results.as_slice(), &pact_source, &publish, metrics_data.as_ref()).await;
 
               if !errors.is_empty() || !pending_errors.is_empty() {
                 process_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH, &mut verification_result);
@@ -1566,17 +1566,18 @@ async fn publish_result(
   results: &[VerificationInteractionResult],
   source: &PactSource,
   options: &PublishOptions,
+  metrics_data: Option<&VerificationMetrics>
 ) {
   let publish_result = match source {
     PactSource::BrokerUrl(_, broker_url, auth, links) => {
       publish_to_broker(results, source, &options.build_url, &options.provider_tags,
         &options.provider_branch, &options.provider_version, links.clone(), broker_url.clone(),
-        auth.clone()
+        auth.clone(), metrics_data
       ).await
     }
     PactSource::BrokerWithDynamicConfiguration { broker_url, auth, links, provider_branch, provider_tags, .. } => {
       publish_to_broker(results, source, &options.build_url, &provider_tags, &provider_branch,
-        &options.provider_version, links.clone(), broker_url.clone(), auth.clone()
+        &options.provider_version, links.clone(), broker_url.clone(), auth.clone(), metrics_data
       ).await
     }
     _ => {
@@ -1600,6 +1601,7 @@ async fn publish_to_broker(
   links: Vec<Link>,
   broker_url: String,
   auth: Option<HttpAuth>,
+  metrics_data: Option<&VerificationMetrics>
 ) -> Result<Value, pact_broker::PactBrokerError> {
   info!("Publishing verification results back to the Pact Broker");
   let result = if results.iter().all(|r| r.result.is_ok()) {
@@ -1622,6 +1624,7 @@ async fn publish_to_broker(
     build_url.clone(),
     provider_tags.clone(),
     provider_branch.clone(),
+    metrics_data
   ).await
 }
 
