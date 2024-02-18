@@ -442,7 +442,11 @@ async fn verify_multiple_pacts() {
               "success": false
             }
           ],
-          "verifiedBy": { "implementation": "Pact-Rust", "version": like!("1.0.0") }
+          "verifiedBy": {
+            "implementation": "Pact-Rust",
+            "version": like!("1.0.0"),
+            "verifierVersion": like!("1.0.6")
+          }
         }));
       i
     })
@@ -468,7 +472,11 @@ async fn verify_multiple_pacts() {
               "success": false
             }
           ],
-          "verifiedBy":{ "implementation": "Pact-Rust", "version": like!("1.0.0") }
+          "verifiedBy":{
+            "implementation": "Pact-Rust",
+            "version": like!("1.0.0"),
+            "verifierVersion": like!("1.0.6")
+          }
         }));
       i
     })
@@ -661,7 +669,11 @@ async fn verify_message_pact_with_two_interactions() {
               "success": false
             }
           ],
-          "verifiedBy": { "implementation": "Pact-Rust", "version": like!("1.0.0") }
+          "verifiedBy": {
+            "implementation": "Pact-Rust",
+            "version": like!("1.0.0"),
+            "verifierVersion": like!("1.0.6")
+          }
         }));
       i
     })

@@ -23,6 +23,7 @@ use tracing::{debug, error, info, trace, warn};
 use pact_matching::Mismatch;
 
 use crate::MismatchResult;
+use crate::VERIFIER_VERSION;
 use crate::utils::with_retries;
 
 fn is_true(object: &serde_json::Map<String, Value>, field: &str) -> bool {
@@ -820,7 +821,8 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
     "providerApplicationVersion": version,
     "verifiedBy": {
       "implementation": "Pact-Rust",
-      "version": PACT_RUST_VERSION
+      "version": PACT_RUST_VERSION,
+      "verifierVersion": VERIFIER_VERSION
     }
   });
   let json_obj = json.as_object_mut().unwrap();
@@ -1082,6 +1084,7 @@ mod tests {
   use pact_models::{Consumer, PactSpecification, Provider};
   use pact_models::prelude::RequestResponsePact;
   use pact_models::sync_interaction::RequestResponseInteraction;
+  use pretty_assertions::assert_eq;
 
   use pact_consumer::*;
   use pact_consumer::prelude::*;
@@ -2019,38 +2022,40 @@ mod tests {
   fn test_build_payload_with_success() {
     let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_adds_the_build_url_if_provided() {
     let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "buildUrl": "http://build-url",
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_adds_a_result_for_each_interaction() {
     let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
     let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "buildUrl": "http://build-url",
@@ -2061,24 +2066,26 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_with_failure() {
     let result = TestResult::Failed(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
@@ -2094,7 +2101,7 @@ mod tests {
       }))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2110,9 +2117,10 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
@@ -2121,7 +2129,7 @@ mod tests {
       (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2137,9 +2145,10 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
@@ -2157,7 +2166,7 @@ mod tests {
       (Some("abc123".to_string()), None)
     ]);
     let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2186,9 +2195,10 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": PACT_RUST_VERSION,
+        "verifierVersion": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
