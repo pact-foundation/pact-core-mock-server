@@ -86,8 +86,9 @@ async fn main() {
         }
       })
     })
-    .filter_run_and_exit("pact-compatibility-suite/features/V3", |feature, _rule, _scenario| {
-      feature.tags.iter().any(|tag| tag == "message")
+    .filter_run_and_exit("pact-compatibility-suite/features/V3", |feature, _rule, scenario| {
+      feature.tags.iter().any(|tag| tag == "message") &&
+        !scenario.tags.iter().any(|t| t == "wip")
     })
     .await;
 

@@ -18,8 +18,9 @@ async fn main() {
     .before(|_feature, _, scenario, world| Box::pin(async move {
       world.scenario_id = scenario.name.clone();
     }))
-    .filter_run_and_exit("pact-compatibility-suite/features/V1", |feature, _rule, _scenario| {
-      feature.tags.iter().any(|tag| tag == "consumer")
+    .filter_run_and_exit("pact-compatibility-suite/features/V1", |feature, _rule, scenario| {
+      feature.tags.iter().any(|tag| tag == "consumer") &&
+        !scenario.tags.iter().any(|t| t == "wip")
     })
     .await;
 }
