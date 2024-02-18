@@ -53,13 +53,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_request,
   pactffi_write_message_pact_file
 };
-use pact_ffi::mock_server::handles::{
-  pact_default_file_name,
-  pactffi_free_pact_handle,
-  pactffi_pact_handle_write_file,
-  pactffi_with_header_v2,
-  PactHandle
-};
+use pact_ffi::mock_server::handles::{pact_default_file_name, pactffi_free_pact_handle, pactffi_given_with_params, pactffi_pact_handle_write_file, pactffi_with_header_v2, PactHandle};
 use pact_ffi::verifier::{
   OptionsFlags,
   pactffi_verifier_add_directory_source,
@@ -973,7 +967,7 @@ fn repeated_interaction() {
   let mut json: Value = serde_json::from_reader(f).unwrap();
   json["metadata"] = Value::Null;
   assert_eq!(serde_json::to_string_pretty(&json).unwrap(),
-             r#"{
+  r#"{
   "consumer": {
     "name": "MergingPactC2"
   },
@@ -999,6 +993,79 @@ fn repeated_interaction() {
   "metadata": null,
   "provider": {
     "name": "MergingPactP2"
+  }
+}"#
+  );
+}
+
+// Issue #298
+#[test_log::test]
+fn provider_states_ignoring_parameter_types() {
+  let pact_handle = PactHandle::new("PSIPTC", "PSIPTP");
+  pactffi_with_specification(pact_handle, PactSpecification::V4);
+
+  let description = CString::new("an order with ID {id} exists").unwrap();
+  let path = CString::new("/api/orders/404").unwrap();
+  let method = CString::new("GET").unwrap();
+  let accept = CString::new("Accept").unwrap();
+  let header = CString::new("application/json").unwrap();
+  let state_params = CString::new(r#"{"id": "1"}"#).unwrap();
+
+  let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+  pactffi_with_request(i_handle, method.as_ptr(), path.as_ptr());
+  pactffi_given_with_params(i_handle, description.as_ptr(), state_params.as_ptr());
+  pactffi_with_header_v2(i_handle, InteractionPart::Request, accept.as_ptr(), 0, header.as_ptr());
+  pactffi_response_status(i_handle, 200);
+
+  let tmp = tempfile::tempdir().unwrap();
+  let tmp_dir = CString::new(tmp.path().to_string_lossy().as_bytes().to_vec()).unwrap();
+  let result = pactffi_pact_handle_write_file(pact_handle, tmp_dir.as_ptr(), false);
+
+  let pact_file = pact_default_file_name(&pact_handle);
+  pactffi_free_pact_handle(pact_handle);
+
+  expect!(result).to(be_equal_to(0));
+
+  let pact_path = tmp.path().join(pact_file.unwrap());
+  let f= File::open(pact_path).unwrap();
+
+  let mut json: Value = serde_json::from_reader(f).unwrap();
+  json["metadata"] = Value::Null;
+  assert_eq!(serde_json::to_string_pretty(&json).unwrap(),
+  r#"{
+  "consumer": {
+    "name": "PSIPTC"
+  },
+  "interactions": [
+    {
+      "description": "an order with ID {id} exists",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an order with ID {id} exists",
+          "params": {
+            "id": "1"
+          }
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": [
+            "application/json"
+          ]
+        },
+        "method": "GET",
+        "path": "/api/orders/404"
+      },
+      "response": {
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": null,
+  "provider": {
+    "name": "PSIPTP"
   }
 }"#
   );
