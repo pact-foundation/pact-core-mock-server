@@ -11,7 +11,6 @@ use expectest::prelude::*;
 use maplit::*;
 use pact_models::Consumer;
 use pact_models::pact::Pact;
-use pact_models::PACT_RUST_VERSION;
 use pact_models::provider_states::*;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::sync_pact::RequestResponsePact;
@@ -25,6 +24,7 @@ use crate::{NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderStateEx
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
 use crate::verification_result::VerificationInteractionResult;
+use crate::VERIFIER_VERSION;
 
 use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 
@@ -293,7 +293,7 @@ async fn publish_successful_result_to_broker() {
         ],
         "verifiedBy": json!({
           "implementation": "Pact-Rust",
-          "version": PACT_RUST_VERSION
+          "version": VERIFIER_VERSION
         })
       }));
       i.response.status(201);

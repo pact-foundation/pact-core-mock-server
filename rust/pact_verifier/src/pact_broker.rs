@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use futures::stream::*;
 use itertools::Itertools;
 use maplit::hashmap;
-use pact_models::{http_utils, PACT_RUST_VERSION};
+use pact_models::http_utils;
 use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{load_pact_from_json, Pact};
@@ -22,7 +22,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use pact_matching::Mismatch;
 
-use crate::MismatchResult;
+use crate::{MismatchResult, VERIFIER_VERSION};
 use crate::utils::with_retries;
 
 fn is_true(object: &serde_json::Map<String, Value>, field: &str) -> bool {
@@ -820,7 +820,7 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
     "providerApplicationVersion": version,
     "verifiedBy": {
       "implementation": "Pact-Rust",
-      "version": PACT_RUST_VERSION
+      "version": VERIFIER_VERSION
     }
   });
   let json_obj = json.as_object_mut().unwrap();
@@ -2025,7 +2025,7 @@ mod tests {
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2041,7 +2041,7 @@ mod tests {
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2061,7 +2061,7 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2076,7 +2076,7 @@ mod tests {
       "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2110,7 +2110,7 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2137,7 +2137,7 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
@@ -2186,7 +2186,7 @@ mod tests {
       ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
+        "version": VERIFIER_VERSION
       }
     })));
   }
