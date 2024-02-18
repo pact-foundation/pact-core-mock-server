@@ -768,8 +768,9 @@ pub async fn fetch_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::
 pub enum TestResult {
   /// Test was OK
   Ok(Vec<Option<String>>),
-  /// Test failed verification
-  Failed(Vec<(Option<String>, Option<MismatchResult>)>)
+  /// Test failed verification. Each value is a tuple of interaction ID, interaction description,
+  /// mismatches
+  Failed(Vec<(Option<String>, Option<String>, Option<MismatchResult>)>)
 }
 
 impl TestResult {
@@ -847,11 +848,11 @@ fn build_payload(
   match result {
     TestResult::Failed(mismatches) => {
       let values = mismatches.iter()
-        .group_by(|(id, _)| id.clone().unwrap_or_default())
+        .group_by(|(id, _, _)| id.clone().unwrap_or_default())
         .into_iter()
         .map(|(key, mismatches)| {
-          let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
-          let values = mismatches.fold(acc, |mut acc, (_, result)| {
+          let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>, Option<String>) = (vec![], vec![], None);
+          let (mismatches, errors, desc) = mismatches.fold(acc, |mut acc, (_, desc, result)| {
             if let Some(mismatch) = result {
               match mismatch {
                 MismatchResult::Mismatches { mismatches, .. } => {
@@ -900,20 +901,29 @@ fn build_payload(
                 MismatchResult::Error(err, _) => acc.1.push(json!({ "message": err }))
               };
             };
+
+            if acc.2.is_none() {
+              acc.2 = desc.clone();
+            }
+
             acc
           });
 
           let mut json = json!({
             "interactionId": key,
-            "success": values.0.is_empty() && values.1.is_empty()
+            "success": mismatches.is_empty() && errors.is_empty()
           });
 
-          if !values.0.is_empty() {
-            json.as_object_mut().unwrap().insert("mismatches".into(), json!(values.0));
+          if !mismatches.is_empty() {
+            json["mismatches"] = json!(mismatches);
           }
 
-          if !values.1.is_empty() {
-            json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
+          if !errors.is_empty() {
+            json["exceptions"] = json!(errors);
+          }
+
+          if let Some(desc) = desc {
+            json["interactionDescription"] = json!(desc);
           }
 
           json
@@ -2035,7 +2045,7 @@ mod tests {
   fn test_build_payload_with_success() {
     let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None, None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "testResults": [],
@@ -2043,14 +2053,14 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_adds_the_build_url_if_provided() {
     let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "buildUrl": "http://build-url",
@@ -2059,14 +2069,14 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_adds_a_result_for_each_interaction() {
     let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
     let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()), None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": true,
       "buildUrl": "http://build-url",
@@ -2079,14 +2089,14 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_with_failure() {
     let result = TestResult::Failed(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None, None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [],
@@ -2094,13 +2104,13 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_with_failure_with_mismatches() {
     let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
+      (Some("1234abc".to_string()), None, Some(MismatchResult::Mismatches {
         mismatches: vec![
           MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
         ],
@@ -2110,7 +2120,7 @@ mod tests {
       }))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None, None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2128,16 +2138,16 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_with_failure_with_exception() {
     let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
+      (Some("1234abc".to_string()), None, Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None, None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2155,13 +2165,13 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
   fn test_build_payload_with_mixed_results() {
     let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
+      (Some("1234abc".to_string()), None, Some(MismatchResult::Mismatches {
         mismatches: vec![
           MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
         ],
@@ -2169,11 +2179,11 @@ mod tests {
         actual: Box::new(RequestResponseInteraction::default()),
         interaction_id: Some("1234abc".to_string())
       })),
-      (Some("12345678".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
-      (Some("abc123".to_string()), None)
+      (Some("12345678".to_string()), None, Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
+      (Some("abc123".to_string()), None, None)
     ]);
     let payload = super::build_payload(result, "1".to_string(), None, None);
-    expect!(payload).to(be_equal_to(json!({
+    assert_eq!(payload, json!({
       "providerApplicationVersion": "1",
       "success": false,
       "testResults": [
@@ -2204,7 +2214,7 @@ mod tests {
         "implementation": "Pact-Rust",
         "version": VERIFIER_VERSION
       }
-    })));
+    }));
   }
 
   #[test]
@@ -2229,6 +2239,41 @@ mod tests {
           "name": "TESTER",
           "version": "1.2.3"
         }
+      }
+    }));
+  }
+
+  #[test]
+  fn test_build_payload_with_failure_adds_the_interaction_desc_if_set() {
+    let result = TestResult::Failed(vec![
+      (Some("1234abc".to_string()), Some("int_desc".to_string()), Some(MismatchResult::Mismatches {
+        mismatches: vec![
+          MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
+        ],
+        expected: Box::new(RequestResponseInteraction::default()),
+        actual: Box::new(RequestResponseInteraction::default()),
+        interaction_id: Some("1234abc".to_string())
+      }))
+    ]);
+    let payload = super::build_payload(result, "1".to_string(), None, None);
+    assert_eq!(payload, json!({
+      "providerApplicationVersion": "1",
+      "success": false,
+      "testResults": [
+        {
+          "interactionId": "1234abc",
+          "interactionDescription": "int_desc",
+          "mismatches": [
+            {
+              "attribute": "method", "description": "Expected method of PUT but received POST"
+            }
+          ],
+          "success": false
+        }
+      ],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": VERIFIER_VERSION
       }
     }));
   }

@@ -1611,7 +1611,7 @@ async fn publish_to_broker(
     debug!("Publishing a failure result to {}", source);
     TestResult::Failed(
       results.iter()
-        .map(|r| (r.interaction_id.clone(), r.result.as_ref().err().cloned()))
+        .map(|r| (r.interaction_id.clone(), Some(r.interaction_description.clone()), r.result.as_ref().err().cloned()))
         .collect()
     )
   };

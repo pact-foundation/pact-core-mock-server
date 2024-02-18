@@ -427,6 +427,7 @@ async fn verify_multiple_pacts() {
           "testResults": [
             {
               "interactionId": "pact-one",
+              "interactionDescription": like!("description"),
               "mismatches": [
                 {
                   "attribute": "body",
@@ -458,6 +459,7 @@ async fn verify_multiple_pacts() {
           "testResults": [
             {
               "interactionId": "pact-two",
+              "interactionDescription": like!("description"),
               "mismatches": [
                 {
                   "attribute": "header",
@@ -647,10 +649,12 @@ async fn verify_message_pact_with_two_interactions() {
           "testResults": [
             {
               "interactionId": "message-one",
+              "interactionDescription": like!("description"),
               "success": true
             },
             {
               "interactionId": "message-two",
+              "interactionDescription": like!("description"),
               "mismatches": [
                 {
                   "attribute":"body",
