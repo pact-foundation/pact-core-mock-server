@@ -78,8 +78,6 @@ pub mod metrics;
 pub mod verification_result;
 mod utils;
 
-const VERIFIER_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 /// Source for loading pacts
 #[derive(Debug, Clone)]
 pub enum PactSource {

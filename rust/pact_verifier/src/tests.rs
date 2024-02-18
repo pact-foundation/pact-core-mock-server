@@ -25,7 +25,6 @@ use crate::{NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderStateEx
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
 use crate::verification_result::VerificationInteractionResult;
-use crate::VERIFIER_VERSION;
 
 use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 
@@ -294,8 +293,7 @@ async fn publish_successful_result_to_broker() {
         ],
         "verifiedBy": json!({
           "implementation": "Pact-Rust",
-          "version": PACT_RUST_VERSION,
-          "verifierVersion": VERIFIER_VERSION
+          "version": PACT_RUST_VERSION
         })
       }));
       i.response.status(201);
@@ -999,11 +997,7 @@ async fn test_publish_results_from_url_source_with_provider_branch() {
           "providerApplicationVersion": "1.2.3",
           "success": true,
           "testResults": [],
-          "verifiedBy": {
-            "implementation": "Pact-Rust",
-            "version": like!("0.4.5"),
-            "verifierVersion": like!("1.0.6")
-          }
+          "verifiedBy": { "implementation": "Pact-Rust", "version": like!("0.4.5") }
         }));
 
         i.response
