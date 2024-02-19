@@ -25,7 +25,7 @@ junit = ["dep:junit-report"] # suport for MIME multipart bodies
 ansi_term = "0.12.1"
 anyhow = "1.0.75"
 clap = { version = "~4.4.11", features = ["cargo", "env"] }
-env_logger = "0.10.1"
+env_logger = "0.11.2"
 junit-report = { version = "0.8.3", optional = true }
 log = "0.4.20"
 maplit = "1.0.2"
@@ -43,4 +43,4 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter", "tracing-lo
 
 [dev-dependencies]
 expectest = "0.12.0"
-trycmd = "0.14.19"
+trycmd = "0.15.0"
