@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.0 - Maintenance Release
+
+* 04959d7d - feat(verifier): Include interaction description in verification results #292 (Ronald Holshausen, Mon Feb 19 07:39:21 2024 +1100)
+* 2b5148b9 - feat(verifier): Add the client language to the verification results if set #307 (Ronald Holshausen, Mon Feb 19 06:44:24 2024 +1100)
+* 6975203e - chore(verifier): Bump minor version #307 (Ronald Holshausen, Mon Feb 19 06:15:47 2024 +1100)
+* 762f68e9 - feat(verifier): Add the verifier version to the published results #307 (Ronald Holshausen, Mon Feb 19 06:05:57 2024 +1100)
+* 167c4450 - Revert "feat(verifier): Add the verifier version to the published results #307" (Ronald Holshausen, Mon Feb 19 05:59:22 2024 +1100)
+* 6962fcee - feat(verifier): Add the verifier version to the published results #307 (Ronald Holshausen, Mon Feb 19 05:31:23 2024 +1100)
+* 208eb753 - chore: Add test with POST with body and no content type #386 (Ronald Holshausen, Sun Feb 18 09:45:08 2024 +1100)
+* a52e0ee9 - chore: Upgrade pact_matching to 1.1.10 (Ronald Holshausen, Wed Feb 7 13:20:45 2024 +1100)
+* 24a26cca - chore: Update pact_models to 1.1.18 (Ronald Holshausen, Wed Feb 7 10:53:22 2024 +1100)
+* 73578350 - chore: use local pact_models (JP-Ellis, Tue Feb 6 10:51:09 2024 +1100)
+* 310cb604 - feat: Print provider name in 'no pacts found' message to help debugging (tien.xuan.vo, Wed Feb 7 00:21:44 2024 +0700)
+* 95cbe5a9 - fix: Upgrade pact-plugin-driver to 0.5.1 (Ronald Holshausen, Wed Jan 31 19:56:04 2024 +1100)
+* 1c3208e4 - chore: Upgrade pact_consumer to 1.1.1 (Ronald Holshausen, Sat Jan 20 22:04:39 2024 +1100)
+* 86cb58dc - bump version to 1.0.6 (Ronald Holshausen, Sat Jan 20 20:37:10 2024 +1100)
+
 # 1.0.5 - Bugfix Release
 
 * bff1d573 - chore: Upgrade dependencies (Ronald Holshausen, Sat Jan 20 20:23:10 2024 +1100)
