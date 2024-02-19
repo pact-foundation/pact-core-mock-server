@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.0 - Feature + Bugfix release
+
+* 40391cb0 - chore(pact_verifier_cli): Bump minor version (Ronald Holshausen, Mon Feb 19 12:03:43 2024 +1100)
+* ba9eae1e - chore(pact_verifier_cli): Upgrade dependencies (Ronald Holshausen, Mon Feb 19 11:48:13 2024 +1100)
+* 82804395 - Revert "chore: Upgrade pact_verifier to 1.1.1" (Ronald Holshausen, Mon Feb 19 11:43:12 2024 +1100)
+* d17dac05 - chore: Upgrade pact_verifier to 1.1.1 (Ronald Holshausen, Mon Feb 19 11:42:50 2024 +1100)
+* 6975203e - chore(verifier): Bump minor version #307 (Ronald Holshausen, Mon Feb 19 06:15:47 2024 +1100)
+* 41faa544 - chore: Lock clap crate to 4.4 as 4.5 requires Rust 1.75 (Ronald Holshausen, Mon Feb 12 15:16:18 2024 +1100)
+* 8d197959 - chore: fixup path to aarch64-unknown-linux-musl artifact (Yousaf Nabi, Thu Feb 8 21:13:21 2024 +0000)
+* 9196efe4 - feat: verifier/mock_server clis - build for musl (Yousaf Nabi, Thu Feb 8 20:36:10 2024 +0000)
+* 24a26cca - chore: Update pact_models to 1.1.18 (Ronald Holshausen, Wed Feb 7 10:53:22 2024 +1100)
+* 73578350 - chore: use local pact_models (JP-Ellis, Tue Feb 6 10:51:09 2024 +1100)
+* f49e5d5a - bump version to 1.0.4 (Ronald Holshausen, Sat Jan 20 21:40:34 2024 +1100)
+
 # 1.0.3 - Bugfix Release
 
 * 8f1ea28d - chore: Upgrade dependencies (Ronald Holshausen, Sat Jan 20 21:35:41 2024 +1100)
