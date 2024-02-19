@@ -7,6 +7,7 @@ RUN apk --no-cache add gcc musl-dev protobuf protobuf-dev
 RUN rustup component add rustfmt
 
 # Fix the cargo manifest so it can be built standalone
+RUN sed -i -e 's/pact_models = {\s*version\s*=\s*"\([^"]*\).*/pact_models = "\1"/' /build/Cargo.toml
 RUN sed -i -e 's/pact_verifier = {\s*version\s*=\s*"\([^"]*\).*/pact_verifier = "\1"/' /build/Cargo.toml
 
 # Build our application.
