@@ -247,11 +247,14 @@ fn http_consumer_feature_test() {
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
   let response_body_with_matchers = CString::new("{\"created\": {\"value\":\"maybe\",\"pact:matcher:type\":\"regex\", \"regex\":\"(yes|no|maybe)\"}}").unwrap();
   let address = CString::new("127.0.0.1:0").unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let description = CString::new("a request to test the FFI interface").unwrap();
   let method = CString::new("POST").unwrap();
   let query =  CString::new("foo").unwrap();
   let header = CString::new("application/json").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   pactffi_upon_receiving(interaction.clone(), description.as_ptr());
   pactffi_with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
@@ -312,11 +315,14 @@ fn http_xml_consumer_feature_test() {
   let content_type = CString::new("Content-Type").unwrap();
   let response_body_with_matchers = CString::new(r#"{"version":"1.0","charset":"UTF-8","root":{"name":"ns1:projects","children":[{"pact:matcher:type":"type","value":{"name":"ns1:project","children":[{"name":"ns1:tasks","children":[{"pact:matcher:type":"type","value":{"name":"ns1:task","children":[],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"name":{"pact:matcher:type":"type","value":"Task 1"},"done":{"pact:matcher:type":"type","value":true}}},"examples":5}],"attributes":{}}],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"type":"activity","name":{"pact:matcher:type":"type","value":"Project 1"}}},"examples":2}],"attributes":{"id":"1234","xmlns:ns1":"http://some.namespace/and/more/stuff"}}}"#).unwrap();
   let address = CString::new("127.0.0.1:0").unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let description = CString::new("a request to test the FFI interface").unwrap();
   let method = CString::new("GET").unwrap();
   let path = CString::new("/xml").unwrap();
   let header = CString::new("application/xml").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   pactffi_upon_receiving(interaction.clone(), description.as_ptr());
   pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
@@ -367,9 +373,12 @@ fn message_consumer_feature_test() {
   let metadata_key = CString::new("message-queue-name").unwrap();
   let metadata_val = CString::new("message-queue-val").unwrap();
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let given = CString::new("a functioning FFI interface").unwrap();
   let receive_description = CString::new("a request to test the FFI interface").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   let message_pact_handle = pactffi_new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
   let message_handle = pactffi_new_message(message_pact_handle.clone(), description.as_ptr());
@@ -394,9 +403,12 @@ fn message_xml_consumer_feature_test() {
   let metadata_key = CString::new("message-queue-name").unwrap();
   let metadata_val = CString::new("message-queue-val").unwrap();
   let request_body_with_matchers = CString::new(r#"{"version":"1.0","charset":"UTF-8","root":{"name":"ns1:projects","children":[{"pact:matcher:type":"type","value":{"name":"ns1:project","children":[{"name":"ns1:tasks","children":[{"pact:matcher:type":"type","value":{"name":"ns1:task","children":[],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"name":{"pact:matcher:type":"type","value":"Task 1"},"done":{"pact:matcher:type":"type","value":true}}},"examples":5}],"attributes":{}}],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"type":"activity","name":{"pact:matcher:type":"type","value":"Project 1"}}},"examples":2}],"attributes":{"id":"1234","xmlns:ns1":"http://some.namespace/and/more/stuff"}}}"#).unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let given = CString::new("a functioning FFI interface").unwrap();
   let receive_description = CString::new("a request to test the FFI interface").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   let message_pact_handle = pactffi_new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
   let message_handle = pactffi_new_message(message_pact_handle.clone(), description.as_ptr());
@@ -421,9 +433,12 @@ fn message_consumer_with_matchers_and_generators_test() {
   let metadata_key = CString::new("message-queue-name").unwrap();
   let metadata_val = CString::new("{\"pact:generator:type\":\"RandomString\",\"value\":\"some text\",\"pact:matcher:type\":\"type\"}").unwrap();
   let request_body_with_matchers = CString::new("{\"id\": {\"pact:generator:type\":\"RandomInt\",\"min\":1,\"pact:matcher:type\":\"integer\"}}").unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let given = CString::new("a functioning FFI interface").unwrap();
   let receive_description = CString::new("a request to test the FFI interface").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   let message_pact_handle = pactffi_new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
   let message_handle = pactffi_new_message(message_pact_handle.clone(), description.as_ptr());
@@ -484,9 +499,12 @@ fn pactffi_with_binary_file_feature_test(specification: PactSpecification, expec
   let content_type = CString::new("image/gif").unwrap();
   let path = CString::new("/upload").unwrap();
   let address = CString::new("127.0.0.1:0").unwrap();
-  let file_path = CString::new("/tmp/pact").unwrap();
   let description = CString::new("a request to test the FFI interface").unwrap();
   let method = CString::new("POST").unwrap();
+
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
 
   let mut buffer = Vec::new();
   let gif_file = fixture_path("1px.gif");
@@ -643,7 +661,9 @@ fn each_value_matcher() {
 
   expect!(mismatches).to(be_equal_to("[]"));
 
-  let file_path = CString::new("/tmp/pact").unwrap();
+  let tmp = TempDir::new().unwrap();
+  let tmp_path = tmp.path().to_string_lossy().to_string();
+  let file_path = CString::new(tmp_path.as_str()).unwrap();
   pactffi_write_pact_file(port, file_path.as_ptr(), true);
   pactffi_cleanup_mock_server(port);
 }

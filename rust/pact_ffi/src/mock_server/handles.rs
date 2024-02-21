@@ -2423,7 +2423,7 @@ pub extern fn pactffi_message_reify(message_handle: MessageHandle) -> *const c_c
 pub extern fn pactffi_write_message_pact_file(pact: MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
   let result = pact.with_pact(&|_, inner, spec_version| {
     let filename = path_from_dir(directory, Some(inner.default_file_name().as_str()));
-    write_pact(inner.boxed(), &filename.unwrap(), spec_version, overwrite)
+    write_pact(inner.boxed(), &filename.unwrap_or_else(|| PathBuf::from(inner.default_file_name().as_str())), spec_version, overwrite)
   });
 
   match result {
