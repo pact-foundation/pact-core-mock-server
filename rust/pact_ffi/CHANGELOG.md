@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.17 - Bugfix Release
+
+* 82804395 - Revert "chore: Upgrade pact_verifier to 1.1.1" (Ronald Holshausen, Mon Feb 19 11:43:12 2024 +1100)
+* d17dac05 - chore: Upgrade pact_verifier to 1.1.1 (Ronald Holshausen, Mon Feb 19 11:42:50 2024 +1100)
+* 6975203e - chore(verifier): Bump minor version #307 (Ronald Holshausen, Mon Feb 19 06:15:47 2024 +1100)
+* b6a0e66b - chore(FFI): Add a test using pactffi_given_with_params #298 (Ronald Holshausen, Sun Feb 18 11:11:04 2024 +1100)
+* c4e5ffe5 - fix(FFI): Update doc comments to include details of replacing interactions #389 (Ronald Holshausen, Sun Feb 18 08:56:33 2024 +1100)
+* 5dad90cb - fix(FFI): creating a new interaction with the same description as an existiong one will now replace it #389 (Ronald Holshausen, Sun Feb 18 06:55:23 2024 +1100)
+* 8b35aab4 - chore(FFI): add a test that calls write pact functions multiple types #389 (Ronald Holshausen, Sun Feb 18 06:12:02 2024 +1100)
+* db3c3818 - Merge pull request #388 from YOU54F/feat/convert_musl_static_to_dynamic_so (Ronald Holshausen, Wed Feb 14 09:17:25 2024 +1100)
+* df22043e - feat: convert musl static .a to .so (Yousaf Nabi, Tue Feb 13 21:51:02 2024 +0000)
+* 41e9c469 - bump version to 0.4.17 (Ronald Holshausen, Mon Feb 12 17:06:33 2024 +1100)
+
 # 0.4.16 - Bugfix Release
 
 * 29b326e5 - fix(FFI): Metadata matching rules from plugins were being ignored (Ronald Holshausen, Thu Feb 8 18:31:05 2024 +1100)
