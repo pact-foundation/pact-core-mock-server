@@ -21,7 +21,7 @@ use semver::Version;
 use tracing::{debug, instrument, trace};
 
 use crate::binary_utils::match_content_type;
-use crate::{MatchingContext, Mismatch};
+use crate::{MatchingContext, CommonMismatch};
 
 #[cfg(feature = "plugins")]
 lazy_static! {
@@ -829,7 +829,7 @@ pub fn match_strings(
   expected: &str,
   actual: &str,
   context: &dyn MatchingContext
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path {}", path);
     match_values(&path, &context.select_best_matcher(&path), expected, actual)
@@ -841,11 +841,11 @@ pub fn match_strings(
   debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path, matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
-      Mismatch::BodyMismatch {
+      CommonMismatch {
         path: path.to_string(),
-        expected: Some(Bytes::from(expected.as_bytes().to_vec())),
-        actual: Some(Bytes::from(actual.as_bytes().to_vec())),
-        mismatch: message.clone()
+        expected: expected.to_string(),
+        actual: actual.to_string(),
+        description: message.clone()
       }
     }).collect()
   })
