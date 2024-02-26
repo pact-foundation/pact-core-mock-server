@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.18 - Maintenance Release
+
+* 93f02c74 - feat(ffi): allow setting comments (JP-Ellis, Mon Feb 26 11:26:39 2024 +1100)
+* 8ac21bdb - feat(ffi): allow toggling pending state (JP-Ellis, Mon Feb 26 10:48:32 2024 +1100)
+* 0d12bee4 - feat(ffi): allow setting interaction key (JP-Ellis, Mon Feb 26 10:40:00 2024 +1100)
+* 634bc589 - chore(FFI): FFI Feature tests were writing to the same Pact file and can cause race conditions (Ronald Holshausen, Wed Feb 21 11:58:37 2024 +1100)
+* e902c532 - bump version to 0.4.18 (Ronald Holshausen, Wed Feb 21 11:29:01 2024 +1100)
+
 # 0.4.17 - Bugfix Release
 
 * 82804395 - Revert "chore: Upgrade pact_verifier to 1.1.1" (Ronald Holshausen, Mon Feb 19 11:43:12 2024 +1100)
