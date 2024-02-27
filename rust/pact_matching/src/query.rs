@@ -8,7 +8,8 @@ use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
 use tracing::debug;
 
-use crate::{matchers, Matches, MatchingContext, merge_result, Mismatch};
+use crate::{matchers, Matches, MatchingContext, merge_result, Mismatch, CommonMismatch};
+use crate::matchingrules::compare_lists_with_matchingrules;
 
 /// Match the query parameters as Maps
 pub(crate) fn match_query_maps(
@@ -20,9 +21,10 @@ pub(crate) fn match_query_maps(
   for (key, value) in &expected {
     match actual.get(key) {
       Some(actual_value) => {
-        let matches = match_query_values(key, value, actual_value, context);
+        let mismatches: Result<(), Vec<super::Mismatch>> = match_query_values(key, value, actual_value, context)
+          .map_err(|mismatches| mismatches.iter().map(|mismatch| mismatch.to_query_mismatch()).collect());
         let v = result.entry(key.clone()).or_default();
-        v.extend(matches.err().unwrap_or_default());
+        v.extend(mismatches.err().unwrap_or_default());
       },
       None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch {
         parameter: key.clone(),
@@ -51,37 +53,28 @@ fn match_query_values(
   expected: &[String],
   actual: &[String],
   context: &dyn MatchingContext
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let path = DocPath::root().join(key);
   if context.matcher_is_defined(&path) {
     debug!("match_query_values: Matcher defined for query parameter '{}", key);
-    merge_result(
-      matchers::match_values(&path, &context.select_best_matcher(&path), expected, actual)
-        .map_err(|err| err.iter().map(|msg| {
-          Mismatch::QueryMismatch {
-            parameter: key.to_string(),
-            expected: format!("{:?}", expected),
-            actual: format!("{:?}", actual),
-            mismatch: msg.clone()
-          }
-        }).collect()),
-      compare_query_parameter_values(&path, expected, actual, context)
-    )
+    compare_lists_with_matchingrules(&path, &context.select_best_matcher(&path), expected, actual, context.clone_with(context.matchers()).as_ref(), &mut |p, expected, actual, context| {
+      compare_query_parameter_value(p, expected, actual, 0, context)
+    })
   } else {
     if expected.is_empty() && !actual.is_empty() {
-      Err(vec![ Mismatch::QueryMismatch {
-        parameter: key.to_string(),
+      Err(vec![ CommonMismatch {
+        path: key.to_string(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
-        mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual)
+        description: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual)
       } ])
     } else {
       let mismatch = if expected.len() != actual.len() {
-        Err(vec![ Mismatch::QueryMismatch {
-          parameter: key.to_string(),
+        Err(vec![ CommonMismatch {
+          path: key.to_string(),
           expected: format!("{:?}", expected),
           actual: format!("{:?}", actual),
-          mismatch: format!(
+          description: format!(
             "Expected query parameter '{}' with {} value(s) but received {} value(s)",
             key, expected.len(), actual.len())
         } ])
@@ -99,7 +92,7 @@ fn compare_query_parameter_value(
   actual: &str,
   index: usize,
   context: &dyn MatchingContext
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let index = index.to_string();
   let index_path = path.join(index.as_str());
   let matcher_result = if context.matcher_is_defined(&index_path) {
@@ -117,11 +110,11 @@ fn compare_query_parameter_value(
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
-      Mismatch::QueryMismatch {
-        parameter: path.first_field().unwrap_or_default().to_string(),
+      CommonMismatch {
+        path: path.first_field().unwrap_or_default().to_string(),
         expected: expected.to_string(),
         actual: actual.to_string(),
-        mismatch: message.clone()
+        description: message.clone()
       }
     }).collect()
   })
@@ -132,9 +125,9 @@ fn compare_query_parameter_values(
   expected: &[String],
   actual: &[String],
   context: &dyn MatchingContext
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let empty = String::new();
-  let result: Vec<Mismatch> = expected.iter()
+  let result: Vec<CommonMismatch> = expected.iter()
     .pad_using(actual.len(), |_| &empty)
     .enumerate()
     .flat_map(|(index, val)| {
@@ -147,11 +140,11 @@ fn compare_query_parameter_values(
         vec![]
       } else {
         let key = path.first_field().unwrap_or_default().to_string();
-        vec![ Mismatch::QueryMismatch {
-          parameter: key.clone(),
+        vec![ CommonMismatch {
+          path: key.clone(),
           expected: format!("{:?}", expected),
           actual: format!("{:?}", actual),
-          mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
+          description: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
         } ]
       }
     })

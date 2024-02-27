@@ -20,7 +20,7 @@ use tracing::debug;
 use crate::{DiffConfig, MatchingContext, Mismatch, CommonMismatch, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
-use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
+use crate::matchingrules::{compare_lists_with_matchingrules, compare_maps_with_matchingrule};
 
 lazy_static! {
   static ref DEC_REGEX: Regex = Regex::new(r"\d+\.\d+").unwrap();
@@ -476,15 +476,9 @@ fn compare_lists(
   let spath = path.to_string();
   if context.matcher_is_defined(path) {
     debug!("compare_lists: matcher defined for path '{}'", path);
-    let mut result = Ok(());
-    let rule_list = context.select_best_matcher(path);
-    for matcher in rule_list.rules {
-      let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, rule_list.cascaded, &mut |p, expected, actual, context| {
+    compare_lists_with_matchingrules(path, &context.select_best_matcher(path), expected, actual, context, &mut |p, expected, actual, context| {
         compare_json(p, expected, actual, context)
-      });
-      result = merge_result(result, values_result);
-    }
-    result
+    })
   } else if expected.is_empty() && !actual.is_empty() {
     Err(vec![ CommonMismatch {
       path: spath,

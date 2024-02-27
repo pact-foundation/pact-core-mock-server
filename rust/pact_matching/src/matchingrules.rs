@@ -11,7 +11,7 @@ use onig::Regex;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList, RuleLogic};
 use pact_models::path_exp::DocPath;
 use serde_json::{self, json, Value};
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::{Either, MatchingContext, merge_result, CommonMismatch};
 use crate::binary_utils::match_content_type;
@@ -451,6 +451,55 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
     Ok(())
   } else {
     Err(result)
+  }
+}
+
+/// Compare the expected and actual lists using matching rules
+pub fn compare_lists_with_matchingrules<T>(
+  path: &DocPath,
+  matching_rules: &RuleList,
+  expected: &[T],
+  actual: &[T],
+  context: &(dyn MatchingContext + Send + Sync),
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<CommonMismatch>>
+) -> Result<(), Vec<CommonMismatch>>
+  where T: Display + Debug + PartialEq + Clone + Sized {
+  trace!("compare_lists_with_matchingrules: {} -> {}", std::any::type_name::<T>(), std::any::type_name::<T>());
+  let mut mismatches = vec![];
+  if matching_rules.is_empty() {
+    mismatches.push(CommonMismatch {
+      path: path.to_string(),
+      expected: format!("{:?}", expected),
+      actual: format!("{:?}", actual),
+      description: format!("No matcher found for path '{}'", path)
+    })
+  } else {
+    let results = matching_rules.rules.iter().map(|rule| {
+      compare_lists_with_matchingrule(&rule, path, expected, actual, context, matching_rules.cascaded, callback)
+    }).collect::<Vec<Result<(), Vec<CommonMismatch>>>>();
+    match matching_rules.rule_logic {
+      RuleLogic::And => for result in results {
+        if let Err(err) = result {
+          mismatches.extend(err)
+        }
+      },
+      RuleLogic::Or => {
+        if results.iter().all(|result| result.is_err()) {
+          for result in results {
+            if let Err(err) = result {
+              mismatches.extend(err)
+            }
+          }
+        }
+      }
+    }
+  }
+  trace!(?mismatches, "compare_lists_with_matchingrules: {} -> {}", std::any::type_name::<T>(), std::any::type_name::<T>());
+
+  if mismatches.is_empty() {
+    Ok(())
+  } else {
+    Err(mismatches.clone())
   }
 }
 
