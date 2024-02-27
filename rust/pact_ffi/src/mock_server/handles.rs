@@ -205,25 +205,31 @@ pub enum InteractionPart {
 impl PactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
-    let mut handles = PACT_HANDLES.lock().unwrap();
-
-    let keys: HashSet<&u16> = handles.keys().collect();
-    let mut id: u16 = 1;
-    while keys.contains(&id) {
-      id = id + 1;
-    }
-
     let mut pact = V4Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
       ..V4Pact::default()
     };
     pact.add_md_version("ffi", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-    handles.insert(id, RefCell::new(PactHandleInner {
-      pact,
-      mock_server_started: false,
-      specification_version: PactSpecification::V3
-    }));
+
+    let id = {
+      let mut handles = PACT_HANDLES.lock().unwrap();
+
+      let keys: HashSet<&u16> = handles.keys().collect();
+      let mut id: u16 = rand::random();
+      while keys.contains(&id) {
+        id = rand::random();
+      }
+
+      handles.insert(id, RefCell::new(PactHandleInner {
+        pact,
+        mock_server_started: false,
+        specification_version: PactSpecification::V3
+      }));
+
+      id
+    };
+
     PactHandle {
       pact_ref: id
     }
@@ -239,7 +245,7 @@ impl PactHandle {
     trace!("with_pact - ref = {}, keys = {:?}", self.pact_ref, handles.keys());
     handles.get_mut(&self.pact_ref).map(|inner| {
       trace!("with_pact before - ref = {}, inner = {:?}", self.pact_ref, inner);
-      let result = f(self.pact_ref - 1, &mut inner.borrow_mut());
+      let result = f(self.pact_ref, &mut inner.borrow_mut());
       trace!("with_pact after - ref = {}, inner = {:?}", self.pact_ref, inner);
       result
     })
@@ -265,7 +271,7 @@ impl InteractionHandle {
   pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let index = (self.interaction_ref >> 16) as u16;
-    handles.get_mut(&index).map(|inner| f(index - 1, &mut inner.borrow_mut()))
+    handles.get_mut(&index).map(|inner| f(index, &mut inner.borrow_mut()))
   }
 
   /// Invokes the closure with the inner Interaction model
@@ -318,19 +324,30 @@ pub struct MessageHandle {
 impl MessagePactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
-    let mut handles = PACT_HANDLES.lock().unwrap();
-    let id = (handles.len() + 1) as u16;
     let mut pact = V4Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
       ..V4Pact::default()
     };
     pact.add_md_version("ffi", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-    handles.insert(id, RefCell::new(PactHandleInner {
-      pact,
-      mock_server_started: false,
-      specification_version: PactSpecification::V3
-    }));
+
+    let id = {
+      let mut handles = PACT_HANDLES.lock().unwrap();
+
+      let keys: HashSet<&u16> = handles.keys().collect();
+      let mut id: u16 = rand::random();
+      while keys.contains(&id) {
+        id = rand::random();
+      }
+
+      handles.insert(id, RefCell::new(PactHandleInner {
+        pact,
+        mock_server_started: false,
+        specification_version: PactSpecification::V3
+      }));
+      id
+    };
+
     MessagePactHandle {
       pact_ref: id
     }
@@ -342,7 +359,7 @@ impl MessagePactHandle {
     handles.get_mut(&self.pact_ref).map(|inner| {
       let mut ref_mut = inner.borrow_mut();
       let specification = ref_mut.specification_version;
-      f(self.pact_ref - 1, &mut ref_mut.pact, specification)
+      f(self.pact_ref, &mut ref_mut.pact, specification)
     })
   }
 }
@@ -371,11 +388,11 @@ impl MessageHandle {
   /// Invokes the closure with the inner model
   pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    let index = self.interaction_ref as u16;
+    let index = (self.interaction_ref >> 16) as u16;
     handles.get_mut(&index).map(|inner| {
       let mut ref_mut = inner.borrow_mut();
       let specification = ref_mut.specification_version;
-      f(index - 1, & mut ref_mut.pact, specification)
+      f(index, &mut ref_mut.pact, specification)
     })
   }
 
@@ -2777,7 +2794,7 @@ mod tests {
     expect!(i_handle2.interaction_ref).to(be_equal_to(((pact_handle.pact_ref as u32) << 16) + 2));
 
     pact_handle.with_pact(&|pact_ref, inner| {
-      expect!(pact_ref).to(be_equal_to(pact_handle.pact_ref - 1));
+      expect!(pact_ref).to(be_equal_to(pact_handle.pact_ref));
       expect!(inner.pact.consumer.name.as_str()).to(be_equal_to("TestHandlesC"));
       expect!(inner.pact.provider.name.as_str()).to(be_equal_to("TestHandlesP"));
       expect!(inner.pact.interactions.len()).to(be_equal_to(2));
