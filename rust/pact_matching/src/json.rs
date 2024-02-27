@@ -17,12 +17,10 @@ use pact_models::path_exp::DocPath;
 #[cfg(feature = "datetime")] use pact_models::time_utils::validate_datetime;
 use tracing::debug;
 
-use crate::{DiffConfig, MatchingContext, merge_result};
+use crate::{DiffConfig, MatchingContext, Mismatch, CommonMismatch, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
 use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
-
-use super::Mismatch;
 
 lazy_static! {
   static ref DEC_REGEX: Regex = Regex::new(r"\d+\.\d+").unwrap();
@@ -331,6 +329,7 @@ pub fn match_json(
     Err(mismatches.clone())
   } else {
     compare_json(&DocPath::root(), &expected_json.unwrap(), &actual_json.unwrap(), context)
+      .map_err(|mismatches| mismatches.iter().map(|mismatch| mismatch.to_body_mismatch()).collect())
   }
 }
 
@@ -396,26 +395,26 @@ pub fn compare_json(
   expected: &Value,
   actual: &Value,
   context: &(dyn MatchingContext + Send + Sync)
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   debug!("compare: Comparing path {}", path);
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
     (&Value::Object(_), _) => {
-      Err(vec![ Mismatch::BodyMismatch {
+      Err(vec![ CommonMismatch {
         path: path.to_string(),
-        expected: Some(json_to_string(expected).into()),
-        actual: Some(json_to_string(actual).into()),
-        mismatch: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
+        expected: json_to_string(expected),
+        actual: json_to_string(actual),
+        description: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
           value_of(actual), type_of(actual), value_of(expected), type_of(expected))
       } ])
     }
     (&Value::Array(ref elist), &Value::Array(ref alist)) => compare_lists(path, elist, alist, context),
     (&Value::Array(_), _) => {
-      Err(vec![ Mismatch::BodyMismatch {
+      Err(vec![ CommonMismatch {
         path: path.to_string(),
-        expected: Some(json_to_string(expected).into()),
-        actual: Some(json_to_string(actual).into()),
-        mismatch: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
+        expected: json_to_string(expected),
+        actual: json_to_string(actual),
+        description: format!("Type mismatch: Expected {} ({}) to be the same type as {} ({})",
           value_of(actual), type_of(actual), value_of(expected), type_of(expected)),
       } ])
     }
@@ -428,16 +427,16 @@ fn compare_maps(
   expected: &serde_json::Map<String, Value>,
   actual: &serde_json::Map<String, Value>,
   context: &(dyn MatchingContext + Send + Sync)
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let spath = path.to_string();
   debug!("compare_maps: Comparing maps at {}: {:?} -> {:?}", spath, expected, actual);
   if expected.is_empty() && context.config() == DiffConfig::NoUnexpectedKeys && !actual.is_empty() {
     debug!("compare_maps: Expected map is empty, but actual is not");
-    Err(vec![ Mismatch::BodyMismatch {
+    Err(vec![ CommonMismatch {
       path: spath,
-      expected: Some(json_to_string(&json!(expected)).into()),
-      actual: Some(json_to_string(&json!(actual)).into()),
-      mismatch: format!("Expected an empty Map but received {}", json_to_string(&json!(actual))),
+      expected: json_to_string(&json!(expected)),
+      actual: json_to_string(&json!(actual)),
+      description: format!("Expected an empty Map but received {}", json_to_string(&json!(actual))),
     } ])
   } else {
     let mut result = Ok(());
@@ -473,7 +472,7 @@ fn compare_lists(
   expected: &[Value],
   actual: &[Value],
   context: &(dyn MatchingContext + Send + Sync)
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let spath = path.to_string();
   if context.matcher_is_defined(path) {
     debug!("compare_lists: matcher defined for path '{}'", path);
@@ -487,20 +486,20 @@ fn compare_lists(
     }
     result
   } else if expected.is_empty() && !actual.is_empty() {
-    Err(vec![ Mismatch::BodyMismatch {
+    Err(vec![ CommonMismatch {
       path: spath,
-      expected: Some(json_to_string(&json!(expected)).into()),
-      actual: Some(json_to_string(&json!(actual)).into()),
-      mismatch: format!("Expected an empty List but received {}", json_to_string(&json!(actual))),
+      expected: json_to_string(&json!(expected)),
+      actual: json_to_string(&json!(actual)),
+      description: format!("Expected an empty List but received {}", json_to_string(&json!(actual))),
     } ])
   } else {
     let result = compare_list_content(path, expected, actual, context);
     if expected.len() != actual.len() {
-      merge_result(result, Err(vec![ Mismatch::BodyMismatch {
+      merge_result(result, Err(vec![ CommonMismatch {
         path: spath,
-        expected: Some(json_to_string(&json!(expected)).into()),
-        actual: Some(json_to_string(&json!(actual)).into()),
-        mismatch: format!("Expected a List with {} elements but received {} elements",
+        expected: json_to_string(&json!(expected)),
+        actual: json_to_string(&json!(actual)),
+        description: format!("Expected a List with {} elements but received {} elements",
                           expected.len(), actual.len()),
       } ]))
     } else {
@@ -514,7 +513,7 @@ fn compare_list_content(
   expected: &[Value],
   actual: &[Value],
   context: &(dyn MatchingContext + Send + Sync)
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
     let ps = index.to_string();
@@ -523,11 +522,11 @@ fn compare_list_content(
     if index < actual.len() {
       result = merge_result(result, compare_json(&p, value, &actual[index], context));
     } else if !context.matcher_is_defined(&p) {
-      result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+      result = merge_result(result,Err(vec![ CommonMismatch {
         path: path.to_string(),
-        expected: Some(json_to_string(&json!(expected)).into()),
-        actual: Some(json_to_string(&json!(actual)).into()),
-        mismatch: format!("Expected {} but was missing", json_to_string(value)) } ]))
+        expected: json_to_string(&json!(expected)),
+        actual: json_to_string(&json!(actual)),
+        description: format!("Expected {} but was missing", json_to_string(value)) } ]))
     }
   }
   result
@@ -538,7 +537,7 @@ fn compare_values(
   expected: &Value,
   actual: &Value,
   context: &(dyn MatchingContext + Send + Sync)
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let matcher_result = if context.matcher_is_defined(path) {
     debug!("compare_values: Calling match_values for path {}", path);
     match_values(path, &context.select_best_matcher(&path), expected, actual)
@@ -548,11 +547,11 @@ fn compare_values(
   debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.to_string(), matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
-      Mismatch::BodyMismatch {
+      CommonMismatch {
         path: path.to_string(),
-        expected: Some(format!("{}", expected).into()),
-        actual: Some(format!("{}", actual).into()),
-        mismatch: message.clone()
+        expected: format!("{}", expected),
+        actual: format!("{}", actual),
+        description: message.clone()
       }
     }).collect()
   })

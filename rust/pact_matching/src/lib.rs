@@ -438,7 +438,7 @@ pub trait MatchingContext: Debug {
   fn direct_matcher_defined(&self, path: &DocPath, matchers: &HashSet<&str>) -> bool;
 
   /// Matches the keys of the expected and actual maps
-  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>>;
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<CommonMismatch>>;
 
   /// Returns the plugin configuration associated with the context
   fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig>;
@@ -558,7 +558,7 @@ impl MatchingContext for CoreMatchingContext {
     }
   }
 
-  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<CommonMismatch>> {
     let mut expected_keys = expected.iter().cloned().collect::<Vec<String>>();
     expected_keys.sort();
     let mut actual_keys = actual.iter().cloned().collect::<Vec<String>>();
@@ -569,19 +569,19 @@ impl MatchingContext for CoreMatchingContext {
     if !self.direct_matcher_defined(path, &hashset! { "values", "each-value", "each-key" }) {
       match self.config {
         DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
-          result.push(Mismatch::BodyMismatch {
+          result.push(CommonMismatch {
             path: path.to_string(),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
+            expected: expected.for_mismatch(),
+            actual: actual.for_mismatch(),
+            description: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
           });
         }
         DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
-          result.push(Mismatch::BodyMismatch {
+          result.push(CommonMismatch {
             path: path.to_string(),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Expected a Map with keys [{}] but received one with keys [{}]",
+            expected: expected.for_mismatch(),
+            actual: actual.for_mismatch(),
+            description: format!("Expected a Map with keys [{}] but received one with keys [{}]",
                               expected_keys.join(", "), actual_keys.join(", ")),
           });
         }
@@ -600,21 +600,21 @@ impl MatchingContext for CoreMatchingContext {
                   for key in &actual_keys {
                     let key_path = path.join(key);
                     if let Err(err) = String::default().matches_with(key, &rule, false) {
-                      result.push(Mismatch::BodyMismatch {
+                      result.push(CommonMismatch {
                         path: key_path.to_string(),
-                        expected: Some("".to_string().into()),
-                        actual: Some(key.clone().into()),
-                        mismatch: err.to_string(),
+                        expected: "".to_string(),
+                        actual: key.clone(),
+                        description: err.to_string(),
                       });
                     }
                   }
                 }
                 Either::Right(name) => {
-                  result.push(Mismatch::BodyMismatch {
+                  result.push(CommonMismatch {
                     path: path.to_string(),
-                    expected: Some(expected.for_mismatch().into()),
-                    actual: Some(actual.for_mismatch().into()),
-                    mismatch: format!("Expected a matching rule, found an unresolved reference '{}'",
+                    expected: expected.for_mismatch(),
+                    actual: actual.for_mismatch(),
+                    description: format!("Expected a matching rule, found an unresolved reference '{}'",
                       name.name),
                   });
                 }
@@ -703,7 +703,7 @@ impl MatchingContext for HeaderMatchingContext {
     self.inner_context.direct_matcher_defined(path, matchers)
   }
 
-  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<CommonMismatch>> {
     self.inner_context.match_keys(path, expected, actual)
   }
 
@@ -757,6 +757,59 @@ fn match_xml(
   {
     warn!("Matching XML documents requires the xml feature to be enabled");
     match_text(&expected.body().value(), &actual.body().value(), context)
+  }
+}
+
+/// Store common mismatch information so it can be converted to different type of mismatches
+#[derive(Debug, Clone, PartialOrd, Ord, Eq)]
+pub struct CommonMismatch {
+  path: String,
+  expected: String,
+  actual: String,
+  description: String
+}
+
+impl CommonMismatch {
+  /// Convert common mismatch to body mismatch
+  pub fn to_body_mismatch(&self) -> Mismatch {
+    Mismatch::BodyMismatch {
+      path: self.path.clone(),
+      expected: Some(self.expected.clone().into()),
+      actual: Some(self.actual.clone().into()),
+      mismatch: self.description.clone()
+    }
+  }
+
+  /// Convert common mismatch to query mismatch
+  pub fn to_query_mismatch(&self) -> Mismatch {
+    Mismatch::QueryMismatch {
+      parameter: self.path.clone(),
+      expected: self.expected.clone().into(),
+      actual: self.actual.clone().into(),
+      mismatch: self.description.clone()
+    }
+  }
+
+  /// Convert common mismatch to header mismatch
+  pub fn to_header_mismatch(&self) -> Mismatch {
+    Mismatch::HeaderMismatch {
+      key: self.path.clone(),
+      expected: self.expected.clone().into(),
+      actual: self.actual.clone().into(),
+      mismatch: self.description.clone()
+    }
+  }
+}
+
+impl Display for CommonMismatch {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.description)
+  }
+}
+
+impl PartialEq for CommonMismatch {
+  fn eq(&self, other: &CommonMismatch) -> bool {
+    self.path == other.path && self.expected == other.expected && self.actual == other.actual
   }
 }
 
@@ -1051,7 +1104,7 @@ impl Display for Mismatch {
   }
 }
 
-fn merge_result(res1: Result<(), Vec<Mismatch>>, res2: Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
+fn merge_result<T: Clone>(res1: Result<(), Vec<T>>, res2: Result<(), Vec<T>>) -> Result<(), Vec<T>> {
   match (&res1, &res2) {
     (Ok(_), Ok(_)) => res1.clone(),
     (Err(_), Ok(_)) => res1.clone(),

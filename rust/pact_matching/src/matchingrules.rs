@@ -13,7 +13,7 @@ use pact_models::path_exp::DocPath;
 use serde_json::{self, json, Value};
 use tracing::debug;
 
-use crate::{Either, MatchingContext, merge_result, Mismatch};
+use crate::{Either, MatchingContext, merge_result, CommonMismatch};
 use crate::binary_utils::match_content_type;
 use crate::matchers::Matches;
 
@@ -280,8 +280,8 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug + Clone + PartialEq>(
   expected: &BTreeMap<String, T>,
   actual: &BTreeMap<String, T>,
   context: &(dyn MatchingContext + Send + Sync),
-  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
-) -> Result<(), Vec<Mismatch>> {
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<CommonMismatch>>
+) -> Result<(), Vec<CommonMismatch>> {
   let mut result = Ok(());
   if !cascaded && rule.is_values_matcher() {
     debug!("Values matcher is defined for path {}", path);
@@ -291,11 +291,11 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug + Clone + PartialEq>(
         match rule {
           Either::Left(rule) => Some(rule.clone()),
           Either::Right(reference) => {
-            result = merge_result(result.clone(), Err(vec![Mismatch::BodyMismatch {
+            result = merge_result(result.clone(), Err(vec![CommonMismatch {
               path: path.to_string(),
-              expected: Some(format!("{:?}", expected).into()),
-              actual: Some(format!("{:?}", actual).into()),
-              mismatch: format!("Found an un-resolved reference {}", reference.name)
+              expected: format!("{:?}", expected),
+              actual: format!("{:?}", actual),
+              description: format!("Found an un-resolved reference {}", reference.name)
             }]));
             None
           }
@@ -326,11 +326,11 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug + Clone + PartialEq>(
     }
   } else {
     if let Err(mismatch) = expected.matches_with(actual, rule, cascaded) {
-      result = merge_result(result, Err(vec![Mismatch::BodyMismatch {
+      result = merge_result(result, Err(vec![CommonMismatch {
         path: path.to_string(),
-        expected: Some(expected.for_mismatch().into()),
-        actual: Some(actual.for_mismatch().into()),
-        mismatch: mismatch.to_string()
+        expected: expected.for_mismatch(),
+        actual: actual.for_mismatch(),
+        description: mismatch.to_string()
       }]));
     }
     let expected_keys = expected.keys().cloned().collect();
@@ -355,8 +355,8 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
   actual: &[T],
   context: &(dyn MatchingContext + Send + Sync),
   cascaded: bool,
-  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
-) -> Result<(), Vec<Mismatch>> {
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<CommonMismatch>>
+) -> Result<(), Vec<CommonMismatch>> {
   let mut result = vec![];
 
   if !expected.is_empty() {
@@ -383,20 +383,20 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
                 callback(&DocPath::root(), expected_value, value, context.as_ref()).is_ok()
               }).is_none() {
-                result.push(Mismatch::BodyMismatch {
+                result.push(CommonMismatch {
                   path: path.to_string(),
-                  expected: Some(expected_value.to_string().into()),
-                  actual: Some(actual.for_mismatch().into()),
-                  mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
+                  expected: expected_value.to_string(),
+                  actual: actual.for_mismatch(),
+                  description: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
                 });
               };
             },
             None => {
-              result.push(Mismatch::BodyMismatch {
+              result.push(CommonMismatch {
                 path: path.to_string(),
-                expected: Some(expected.for_mismatch().into()),
-                actual: Some(actual.for_mismatch().into()),
-                mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
+                expected: expected.for_mismatch(),
+                actual: actual.for_mismatch(),
+                description: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
                                   index, expected.len())
               });
             }
@@ -409,11 +409,11 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
           match rule {
             Either::Left(rule) => Some(rule.clone()),
             Either::Right(reference) => {
-              result.push(Mismatch::BodyMismatch {
+              result.push(CommonMismatch {
                 path: path.to_string(),
-                expected: Some(expected.for_mismatch().into()),
-                actual: Some(actual.for_mismatch().into()),
-                mismatch: format!("Found an un-resolved reference {}", reference.name)
+                expected: expected.for_mismatch(),
+                actual: actual.for_mismatch(),
+                description: format!("Found an un-resolved reference {}", reference.name)
               });
               None
             }
@@ -434,11 +434,11 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
       }
       _ => {
         if let Err(mismatch) = expected.matches_with(actual, rule, cascaded) {
-          result.push(Mismatch::BodyMismatch {
+          result.push(CommonMismatch {
             path: path.to_string(),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: mismatch.to_string()
+            expected: expected.for_mismatch(),
+            actual: actual.for_mismatch(),
+            description: mismatch.to_string()
           });
         }
 
@@ -459,8 +459,8 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
   expected: &[T],
   actual: &[T],
   context: &(dyn MatchingContext + Send + Sync),
-  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>
-) -> Vec<Mismatch> {
+  callback: &mut dyn FnMut(&DocPath, &T, &T, &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<CommonMismatch>>
+) -> Vec<CommonMismatch> {
   let mut result = vec![];
 
   let mut expected_list = expected.to_vec();
@@ -479,11 +479,11 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
         result.extend(mismatches);
       }
     } else if !context.matcher_is_defined(&p) {
-      result.push(Mismatch::BodyMismatch {
+      result.push(CommonMismatch {
         path: path.to_string(),
-        expected: Some(expected.for_mismatch().into()),
-        actual: Some(actual.for_mismatch().into()),
-        mismatch: format!("Expected {} ({}) but was missing", value, index)
+        expected: expected.for_mismatch(),
+        actual: actual.for_mismatch(),
+        description: format!("Expected {} ({}) but was missing", value, index)
       });
     }
   }
@@ -495,7 +495,6 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
 mod tests {
   use std::collections::{BTreeSet, HashMap, HashSet};
   use std::sync::RwLock;
-  use bytes::Bytes;
 
   use expectest::prelude::*;
   use maplit::{btreemap, hashmap};
@@ -506,7 +505,7 @@ mod tests {
   #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PluginInteractionConfig;
   #[cfg(not(feature = "plugins"))] use crate::PluginInteractionConfig;
 
-  use crate::{CoreMatchingContext, DiffConfig, MatchingContext, Mismatch};
+  use crate::{CoreMatchingContext, DiffConfig, MatchingContext, CommonMismatch};
   use crate::matchers::match_strings;
   use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
@@ -539,7 +538,7 @@ mod tests {
       todo!()
     }
 
-    fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
+    fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<CommonMismatch>> {
       let mut w = self.calls.write().unwrap();
       w.push(format!("match_keys({}, {:?}, {:?})", path, expected, actual));
       Ok(())
@@ -709,11 +708,11 @@ mod tests {
                                                 &expected, &actual, &context, &mut callback);
 
     expect!(result.unwrap_err()).to(be_equal_to(vec![
-      Mismatch::BodyMismatch {
+      CommonMismatch {
         path: "$".to_string(),
-        expected: Some(Bytes::from(b"{\"a\":\"100\",\"b\":\"101\",\"c\":\"102\"}".to_vec())),
-        actual: Some(Bytes::from(b"{\"b\":\"103\"}".to_vec())),
-        mismatch: "Expected {\"b\": \"103\"} (size 1) to have minimum size of 2".to_string()
+        expected: "{\"a\":\"100\",\"b\":\"101\",\"c\":\"102\"}".to_string(),
+        actual: "{\"b\":\"103\"}".to_string(),
+        description: "Expected {\"b\": \"103\"} (size 1) to have minimum size of 2".to_string()
       }
     ]));
 
@@ -747,11 +746,11 @@ mod tests {
                                                 &expected, &actual, &context, &mut callback);
 
     expect!(result.unwrap_err()).to(be_equal_to(vec![
-      Mismatch::BodyMismatch {
+      CommonMismatch {
         path: "$".to_string(),
-        expected: Some(Bytes::from(b"{\"a\":\"100\"}".to_vec())),
-        actual: Some(Bytes::from(b"{\"a\":\"101\",\"b\":\"102\",\"c\":\"103\"}".to_vec())),
-        mismatch: "Expected {\"a\": \"101\", \"b\": \"102\", \"c\": \"103\"} (size 3) to have maximum size of 2".to_string()
+        expected: "{\"a\":\"100\"}".to_string(),
+        actual: "{\"a\":\"101\",\"b\":\"102\",\"c\":\"103\"}".to_string(),
+        description: "Expected {\"a\": \"101\", \"b\": \"102\", \"c\": \"103\"} (size 3) to have maximum size of 2".to_string()
       }
     ]));
 
