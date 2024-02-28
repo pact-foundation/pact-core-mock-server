@@ -8,10 +8,11 @@ use maplit::hashmap;
 use pact_models::headers::PARAMETERISED_HEADERS;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
-use tracing::instrument;
+use tracing::{instrument, debug};
 
-use crate::{matchers, MatchingContext, Mismatch};
+use crate::{matchers, MatchingContext, Mismatch, CommonMismatch};
 use crate::matchers::Matches;
+use crate::matchingrules::compare_lists_with_matchingrules;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).filter(|v| !v.is_empty()).collect()
@@ -79,7 +80,7 @@ pub(crate) fn match_header_value(
   actual: &str,
   context: &dyn MatchingContext,
   single_value: bool
-) -> Result<(), Vec<Mismatch>> {
+) -> Result<(), Vec<CommonMismatch>> {
   let path = DocPath::root().join(key.to_lowercase());
   let indexed_path = path.join(index.to_string());
   let expected = expected.trim();
@@ -114,11 +115,11 @@ pub(crate) fn match_header_value(
 
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
-      Mismatch::HeaderMismatch {
-        key: key.to_string(),
+      CommonMismatch {
+        path: key.to_string(),
         expected: expected.to_string(),
         actual: actual.to_string(),
-        mismatch: format!("Mismatch with header '{}': {}", key, message)
+        description: format!("Mismatch with header '{}': {}", key, message)
       }
     }).collect()
   })
@@ -155,29 +156,38 @@ fn match_header_maps(
             .unwrap_or_default();
           mismatches.extend(comparison_result.iter().cloned());
         } else {
-          let empty = String::new();
-          for (index, val) in value.iter()
-            .pad_using(actual_values.len(), |_| &empty)
-            .enumerate() {
-            if let Some(actual_value) = actual_values.get(index) {
-              let comparison_result = match_header_value(key, index, val,
-                actual_value, context, false)
-                .err()
-                .unwrap_or_default();
-              mismatches.extend(comparison_result.iter().cloned());
-            } else {
-              mismatches.push(Mismatch::HeaderMismatch {
-                key: key.clone(),
-                expected: val.clone(),
-                actual: "".to_string(),
-                mismatch: format!("Mismatch with header '{}': Expected value '{}' at index {} but was missing (actual has {} value(s))",
-                                  key, val, index, actual_values.len())
-              });
+          let path = DocPath::root().join(key.to_lowercase());
+          if context.matcher_is_defined(&path) {
+            debug!("match_header_maps: Matcher is defined for path {}", path);
+            let values_result = compare_lists_with_matchingrules(&path, &context.select_best_matcher(&path), value, &actual_values, context.clone_with(context.matchers()).as_ref(), &mut |_, expected, actual, context| {
+              match_header_value(key, 0, expected, actual, context, false)
+            });
+            mismatches.extend(values_result.err().unwrap_or_default());
+          } else {
+            let empty = String::new();
+            for (index, val) in value.iter()
+              .pad_using(actual_values.len(), |_| &empty)
+              .enumerate() {
+              if let Some(actual_value) = actual_values.get(index) {
+                let comparison_result = match_header_value(key, index, val,
+                  actual_value, context, false)
+                  .err()
+                  .unwrap_or_default();
+                mismatches.extend(comparison_result.iter().cloned());
+              } else {
+                mismatches.push(CommonMismatch {
+                  path: key.clone(),
+                  expected: val.clone(),
+                  actual: "".to_string(),
+                  description: format!("Mismatch with header '{}': Expected value '{}' at index {} but was missing (actual has {} value(s))",
+                                    key, val, index, actual_values.len())
+                });
+              }
             }
           }
         }
 
-        result.insert(key.clone(), mismatches);
+        result.insert(key.clone(), mismatches.iter().map(|mismatch| mismatch.to_header_mismatch()).collect());
       },
       None => {
         result.insert(key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
@@ -215,9 +225,10 @@ mod tests {
   use maplit::*;
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
+  use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pretty_assertions::assert_eq;
 
-  use crate::{CoreMatchingContext, DiffConfig, HeaderMatchingContext, Mismatch};
+  use crate::{CoreMatchingContext, DiffConfig, HeaderMatchingContext, Mismatch, CommonMismatch};
   use crate::headers::{match_header_value, match_headers, parse_charset_parameters};
 
   #[test]
@@ -234,11 +245,11 @@ mod tests {
       &CoreMatchingContext::default(), true
     ).unwrap_err();
     expect!(mismatches.iter()).to_not(be_empty());
-    assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
-      key: "HEADER".to_string(),
+    assert_eq!(mismatches[0], CommonMismatch {
+      path: "HEADER".to_string(),
       expected: "HEADER".to_string(),
       actual: "HEADER2".to_string(),
-      mismatch: "".to_string()
+      description: "".to_string()
     });
   }
 
@@ -249,8 +260,8 @@ mod tests {
     );
 
     match mismatches.unwrap_err()[0] {
-      Mismatch::HeaderMismatch { ref mismatch, .. } =>
-        assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER2' to be equal to 'HEADER_VALUE'"),
+      CommonMismatch { ref description, .. } =>
+        assert_eq!(description, "Mismatch with header 'HEADER': Expected 'HEADER2' to be equal to 'HEADER_VALUE'"),
       _ => panic!("Unexpected mismatch response")
     }
   }
@@ -326,8 +337,8 @@ mod tests {
     );
 
     match mismatches.unwrap_err()[0] {
-      Mismatch::HeaderMismatch { ref mismatch, .. } =>
-        assert_eq!(mismatch, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'"),
+      CommonMismatch { ref description, .. } =>
+        assert_eq!(description, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'"),
       _ => panic!("Unexpected mismatch response")
     }
   }
@@ -378,8 +389,8 @@ mod tests {
       &CoreMatchingContext::default(), true
     );
     match mismatches.unwrap_err()[0] {
-      Mismatch::HeaderMismatch { ref mismatch, .. } =>
-        assert_eq!(mismatch, "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),
+      CommonMismatch { ref description, .. } =>
+        assert_eq!(description, "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),
       _ => panic!("Unexpected mismatch response")
     }
   }
@@ -418,11 +429,11 @@ mod tests {
     ));
     let mismatches = match_header_value(&"HEADER".to_string(), 0,
       &"HEADER".to_string(), &"HEADER".to_string(), &context, true);
-    expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {
-      key: "HEADER".to_string(),
+    expect!(mismatches).to(be_err().value(vec![ CommonMismatch {
+      path: "HEADER".to_string(),
       expected: "HEADER".to_string(),
       actual: "HEADER".to_string(),
-      mismatch: String::default(),
+      description: String::default(),
     } ]));
   }
 
@@ -618,6 +629,35 @@ mod tests {
     expect!(result.values().flatten()).to(be_empty());
   }
 
+  #[test]
+  fn match_header_with_min_type_matching_rules_fails() {
+    let expected = hashmap! { "id".to_string() => vec![
+      "1".to_string(),
+      "2".to_string(),
+      "3".to_string(),
+      "4".to_string()
+    ]};
+    let actual = hashmap! { "id".to_string() => vec!["1".to_string()] };
+    let rules = matchingrules! {
+      "header" => { "id" => [ MatchingRule::MinType(2) ] }
+    };
+    let context = CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &rules.rules_for_category("header").unwrap_or_default(),
+      &hashmap!{}
+    );
+
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.get("id").unwrap().to_vec()).to(be_equal_to(vec![
+      Mismatch::HeaderMismatch {
+        key: "$.id".to_string(),
+        expected: "[\"1\",\"2\",\"3\",\"4\"]".to_string(),
+        actual: "[\"1\"]".to_string(),
+        mismatch: "Expected [1] (size 1) to have minimum size of 2".to_string(),
+      }
+    ]));
+  }
+
   #[test_log::test]
   fn last_modified_header_matches_when_headers_are_equal() {
     let expected = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
@@ -659,7 +699,7 @@ mod tests {
       "application/xml;charset=UTF-8", &CoreMatchingContext::default(), false
     );
     let mismatches = result.unwrap_err();
-    assert_eq!(mismatches[0].description(), "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' at index 1 to have value 'application/json;charset=UTF-8' but was 'application/xml;charset=UTF-8'");
+    assert_eq!(mismatches[0].description, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' at index 1 to have value 'application/json;charset=UTF-8' but was 'application/xml;charset=UTF-8'");
   }
 
   // Issue #331
@@ -718,5 +758,101 @@ mod tests {
     };
     let result = match_headers(Some(expected.clone()), Some(actual), &context);
     expect!(result.values().flatten()).to(be_empty());
+  }
+
+  #[test]
+  fn match_headers_with_array_contains_matcher() {
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "X-Id" => [
+            MatchingRule::ArrayContains(vec![])
+          ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    ));
+    let expected = hashmap! { "X-Id".to_string() => vec!["1".to_string(), "3".to_string()] };
+    let actual = hashmap! { "X-Id".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]};
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to(be_empty());
+  }
+
+  #[test]
+  fn match_headers_with_array_contains_matcher_fails() {
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "X-Id" => [
+            MatchingRule::ArrayContains(vec![])
+          ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    ));
+    let expected = hashmap! { "X-Id".to_string() => vec!["1".to_string(), "3".to_string()] };
+    let actual = hashmap! { "X-Id".to_string() => vec!["2".to_string(), "3".to_string(), "4".to_string()]};
+    let result = match_headers(Some(expected), Some(actual), &context);
+    let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
+    expect!(mismatches).to(be_equal_to(vec![
+      Mismatch::HeaderMismatch {
+        key: "$['x-id']".to_string(),
+        expected: "1".to_string(),
+        actual: "[\"2\",\"3\",\"4\"]".to_string(),
+        mismatch: "Variant at index 0 (1) was not found in the actual list".to_string(),
+      }
+    ]));
+  }
+
+  #[test]
+  fn match_headers_with_each_value_matcher() {
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "X-Id" => [
+            MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+              MatchingRule::Regex("\\d+".to_string()), None))
+          ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    ));
+    let expected = hashmap! { "X-Id".to_string() => vec!["1".to_string(), "2".to_string()] };
+    let actual = hashmap! { "X-Id".to_string() => vec!["3".to_string(), "4".to_string(), "567".to_string()]};
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to(be_empty());
+  }
+
+  #[test]
+  fn match_headers_with_each_value_matcher_fails() {
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "X-Id" => [
+            MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+              MatchingRule::Regex("\\d+".to_string()), None))
+          ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    ));
+    let expected = hashmap! { "X-Id".to_string() => vec!["1".to_string(), "2".to_string()] };
+    let actual = hashmap! { "X-Id".to_string() => vec!["3".to_string(), "abc123".to_string(), "test".to_string()]};
+    let result = match_headers(Some(expected), Some(actual), &context);
+    let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
+    expect!(mismatches).to(be_equal_to(vec![
+      Mismatch::HeaderMismatch {
+        key: "X-Id".to_string(),
+        expected: "2".to_string(),
+        actual: "abc123".to_string(),
+        mismatch: "Mismatch with header 'X-Id': Expected 'abc123' to match '\\d+' for value at index 0".to_string(),
+      },
+      Mismatch::HeaderMismatch {
+        key: "X-Id".to_string(),
+        expected: "1".to_string(),
+        actual: "test".to_string(),
+        mismatch: "Mismatch with header 'X-Id': Expected 'test' to match '\\d+' for value at index 0".to_string(),
+      }
+    ]));
   }
 }
