@@ -1,19 +1,42 @@
-#!/bin/bash -xe
+#!/bin/bash
 
-cargo clean
+set -e
+set -x
 
-mkdir -p ../release_artifacts
-cargo build --release
-gzip -c ../target/release/pact_mock_server_cli > ../release_artifacts/pact_mock_server_cli-osx-x86_64.gz
-#cargo build --release --target x86_64-apple-ios
-#gzip -c ../target/x86_64-apple-ios/release/pact_mock_server_cli > ../release_artifacts/pact_mock_server_cli-ios-x86_64.gz
-openssl dgst -sha256 -r ../release_artifacts/pact_mock_server_cli-osx-x86_64.gz > ../release_artifacts/pact_mock_server_cli-osx-x86_64.gz.sha256
+RUST_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd )"
 
+source "$RUST_DIR/scripts/gzip-and-sum.sh"
+ARTIFACTS_DIR=${ARTIFACTS_DIR:-"$RUST_DIR/release_artifacts"}
+mkdir -p "$ARTIFACTS_DIR"
+export CARGO_TARGET_DIR=${CARO_TARGET_DIR:-"$RUST_DIR/target"}
 
-# M1
-export SDKROOT=$(xcrun -sdk macosx11.1 --show-sdk-path)
-export MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx11.1 --show-sdk-platform-version)
-cargo build --target aarch64-apple-darwin --release
+# We target the oldest supported version of macOS.
+export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-12}
 
-gzip -c ../target/aarch64-apple-darwin/release/pact_mock_server_cli > ../release_artifacts/pact_mock_server_cli-osx-aarch64.gz
-openssl dgst -sha256 -r ../release_artifacts/pact_mock_server_cli-osx-aarch64.gz > ../release_artifacts/pact_mock_server_cli-osx-aarch64.gz.sha256
+# All flags passed to this script are passed to cargo.
+cargo_flags=( "$@" )
+
+# Build the x86_64 darwin release
+build_x86_64() {
+    cargo build --target x86_64-apple-darwin "${cargo_flags[@]}"
+
+    if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
+        gzip_and_sum \
+            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pact_mock_server_cli" \
+            "$ARTIFACTS_DIR/pact_mock_server_cli-osx-x86_64.gz"
+    fi
+}
+
+# Build the aarch64 darwin release
+build_aarch64() {
+    cargo build --target aarch64-apple-darwin "${cargo_flags[@]}"
+
+    if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
+        gzip_and_sum \
+            "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/pact_mock_server_cli" \
+            "$ARTIFACTS_DIR/pact_mock_server_cli-osx-aarch64.gz"
+    fi
+}
+
+build_x86_64
+build_aarch64
