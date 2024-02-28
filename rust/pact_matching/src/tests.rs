@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use expectest::prelude::*;
 
 use pact_models::{matchingrules, matchingrules_list};
+use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{JSON, TEXT};
 use pact_models::HttpStatus;
@@ -243,6 +244,35 @@ fn match_query_with_min_type_matching_rules() {
 }
 
 #[test]
+fn match_query_with_min_type_matching_rules_fails() {
+  let expected = hashmap! { "id".to_string() => vec![
+    "1".to_string(),
+    "2".to_string(),
+    "3".to_string(),
+    "4".to_string()
+  ]};
+  let actual = hashmap! { "id".to_string() => vec!["1".to_string()] };
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::MinType(2) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.get("id").unwrap().to_vec()).to(be_equal_to(vec![
+    Mismatch::QueryMismatch {
+      parameter: "$.id".to_string(),
+      expected: "[\"1\",\"2\",\"3\",\"4\"]".to_string(),
+      actual: "[\"1\"]".to_string(),
+      mismatch: "Expected [1] (size 1) to have minimum size of 2".to_string(),
+    }
+  ]));
+}
+
+#[test]
 fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a_matcher() {
   let context = CoreMatchingContext::new(
     DiffConfig::AllowUnexpectedKeys,
@@ -317,6 +347,102 @@ fn match_query_with_query_parameters_with_brackets() {
   };
   let result = match_query(Some(expected), Some(actual), &context);
   expect!(result.get("Q[]").unwrap().iter()).to(be_empty());
+}
+
+
+#[test]
+fn match_query_with_array_contains_matching_rules() {
+  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "3".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec![
+    "1".to_string(),
+    "2".to_string(),
+    "3".to_string(),
+    "4".to_string()
+  ]};
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::ArrayContains(vec![]) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.values().flatten()).to(be_empty());
+}
+
+#[test]
+fn match_query_with_array_contains_matching_rules_fails() {
+  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "3".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec!["2".to_string(), "3".to_string(), "4".to_string()] };
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::ArrayContains(vec![]) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.get("id").unwrap().to_vec()).to(be_equal_to(vec![
+    Mismatch::QueryMismatch {
+      parameter: "$.id".to_string(),
+      expected: "1".to_string(),
+      actual: "[\"2\",\"3\",\"4\"]".to_string(),
+      mismatch: "Variant at index 0 (1) was not found in the actual list".to_string(),
+    }
+  ]));
+}
+
+#[test]
+fn match_query_with_each_value_matching_rules() {
+  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec!["3".to_string(), "4".to_string(), "567".to_string()] };
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+      MatchingRule::Regex("\\d+".to_string()), None)) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.values().flatten()).to(be_empty());
+}
+
+#[test]
+fn match_query_with_each_value_matching_rules_fails() {
+  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec!["3".to_string(), "abc123".to_string(), "test".to_string()] };
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+      MatchingRule::Regex("\\d+".to_string()), None)) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(),
+    &hashmap!{}
+  );
+
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.get("id").unwrap().to_vec()).to(be_equal_to(vec![
+    Mismatch::QueryMismatch {
+      parameter: "id".to_string(),
+      expected: "2".to_string(),
+      actual: "abc123".to_string(),
+      mismatch: "Expected 'abc123' to match '\\d+'".to_string(),
+    },
+    Mismatch::QueryMismatch {
+      parameter: "id".to_string(),
+      expected: "1".to_string(),
+      actual: "test".to_string(),
+      mismatch: "Expected 'test' to match '\\d+'".to_string(),
+    }
+  ]));
 }
 
 #[tokio::test]
