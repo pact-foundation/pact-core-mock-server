@@ -1103,6 +1103,65 @@ mod tests {
   }
 
   #[test]
+  fn compare_lists_with_each_value_matcher() {
+    let expected = request!(r#"
+    [1, 2]
+    "#);
+    let actual = request!(r#"
+    [3, 4, 567]
+    "#);
+
+    let rules = matchingrules! {
+      "body" => { "$" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+        MatchingRule::Integer, None)) ] }
+    };
+    let context = CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &rules.rules_for_category("body").unwrap_or_default(),
+      &hashmap!{}
+    );
+
+    let result = match_json(&expected, &actual, &context);
+    expect!(result).to(be_ok());
+  }
+
+  #[test]
+  fn compare_lists_with_each_value_matcher_fails() {
+    let expected = request!(r#"
+    [1, 2]
+    "#);
+    let actual = request!(r#"
+    [3, "abc123", "test"]
+    "#);
+
+    let rules = matchingrules! {
+      "body" => { "$" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
+        MatchingRule::Integer, None)) ] }
+    };
+    let context = CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &rules.rules_for_category("body").unwrap_or_default(),
+      &hashmap!{}
+    );
+
+    let result = match_json(&expected, &actual, &context);
+    expect!(result).to(be_err().value(vec![
+      BodyMismatch {
+        path: "$[1]".to_string(),
+        expected: Some("2".into()),
+        actual: Some("\"abc123\"".into()),
+        mismatch: "Expected 'abc123' (String) to be an integer number".to_string(),
+      },
+      BodyMismatch {
+        path: "$[2]".to_string(),
+        expected: Some("1".into()),
+        actual: Some("\"test\"".into()),
+        mismatch: "Expected 'test' (String) to be an integer number".to_string(),
+      }
+    ]));
+  }
+
+  #[test]
   fn compare_lists_with_array_contains_matcher_with_more_complex_object() {
     let expected = request!(r#"
     {
