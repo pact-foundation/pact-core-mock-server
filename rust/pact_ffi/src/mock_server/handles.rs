@@ -2233,7 +2233,7 @@ fn convert_ptr_to_body(body: *const u8, size: size_t, content_type: Option<Conte
   } else if size == 0 {
     OptionalBody::Empty
   } else {
-    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), content_type, None)
+    OptionalBody::Present(Bytes::copy_from_slice(unsafe { std::slice::from_raw_parts(body, size) }), content_type, None)
   }
 }
 
