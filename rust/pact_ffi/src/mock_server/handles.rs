@@ -2171,6 +2171,10 @@ ffi_fn!{
   /// Note that a `value` that deserialize to a JSON null will result in a
   /// comment being added, with the value being the JSON null.
   ///
+  /// Note that the `text` key is special and is used by
+  /// [`pactffi_add_text_comment`] to append comments to the array of comments.
+  /// Overwriting the `text` key is allowed, but should be done with caution.
+  ///
   /// # Safety
   ///
   /// The comments parameter must be a valid pointer to a NULL terminated UTF-8,
@@ -2221,6 +2225,51 @@ ffi_fn!{
         error!("Interaction is an unknown type, is {}", inner.type_of());
         Err(anyhow!("Interaction is an unknown type, is {}", inner.type_of()))
       }
+    }).unwrap_or(Err(anyhow!("Not value to unwrap"))).is_ok()
+  } {
+    false
+  }
+}
+
+ffi_fn!{
+  /// Add a text comment to the interaction.
+  ///
+  /// * `interaction` - Interaction handle to set the comments for.
+  /// * `comment` - Comment value.
+  ///
+  /// This function will return `true` if the comments were successfully
+  /// updated. The `comment` must be a valid UTF-8 null-terminated string.
+  ///
+  /// Unlike [`pactffi_set_comment`], this function will always append the
+  /// comment to the array of comments under the `text` key.
+  ///
+  /// If, for any reason, the `text` key is not present or the associated
+  /// value not an array, it will be created as/replaced by an array and the
+  /// comment will be appended to it.
+  ///
+  /// # Safety
+  ///
+  /// The comments parameter must be a valid pointer to a NULL terminated UTF-8,
+  /// or NULL if the comment is to be cleared.
+  fn pactffi_add_text_comment(interaction: InteractionHandle, comment: *const c_char) -> bool {
+    let comment = match convert_cstr("comment", comment) {
+      Some(comment) => comment,
+      None => {
+        error!("add_text_comment: Comment value is not valid (NULL or non-UTF-8)");
+        return Err(anyhow!("Comment value is not valid (NULL or non-UTF-8)"));
+      }
+    };
+
+    interaction.with_interaction(&|_, _, inner| {
+      match inner.comments_mut().entry("text".to_string()).or_insert(serde_json::Value::Array(vec![])) {
+        serde_json::Value::Array(array) => {
+          array.push(serde_json::Value::String(comment.to_string()));
+        },
+        other_value => {
+          *other_value = serde_json::Value::Array(vec![serde_json::Value::String(comment.to_string())]);
+        }
+      };
+      Ok(())
     }).unwrap_or(Err(anyhow!("Not value to unwrap"))).is_ok()
   } {
     false

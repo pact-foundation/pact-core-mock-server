@@ -33,6 +33,7 @@ use pact_ffi::mock_server::handles::{
   InteractionPart,
   PactHandle,
   pact_default_file_name,
+  pactffi_add_text_comment,
   pactffi_free_pact_handle,
   pactffi_given_with_params,
   pactffi_message_expects_to_receive,
@@ -343,6 +344,52 @@ fn set_comment() {
       interaction.comments,
       hashmap!{}
     )
+  });
+}
+
+#[test]
+fn add_text_comment() {
+  let consumer_name = CString::new("consumer").unwrap();
+  let provider_name = CString::new("provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("set_comment").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+  let values = vec![
+    CString::new("foo").unwrap(),
+    CString::new("bar").unwrap(),
+    CString::new("hello").unwrap(),
+    CString::new("world").unwrap(),
+  ];
+
+  // Testing appending (regular use case)
+  assert!(pactffi_add_text_comment(interaction, values[0].as_ptr()));
+  interaction.with_interaction(&|_, _, i| {
+    let interaction = i.as_v4_http().unwrap();
+    assert_eq!(interaction.comments["text"], json!(["foo"]));
+  });
+
+  assert!(pactffi_add_text_comment(interaction, values[1].as_ptr()));
+  interaction.with_interaction(&|_, _, i| {
+    let interaction = i.as_v4_http().unwrap();
+    assert_eq!(interaction.comments["text"], json!(["foo", "bar"]));
+  });
+
+  // Test appending to a non-array value
+  let text_key = CString::new("text").unwrap();
+  let int_value = CString::new("123").unwrap();
+  pactffi_set_comment(interaction, text_key.as_ptr(), int_value.as_ptr());
+
+  assert!(pactffi_add_text_comment(interaction, values[2].as_ptr()));
+  interaction.with_interaction(&|_, _, i| {
+    let interaction = i.as_v4_http().unwrap();
+    assert_eq!(interaction.comments["text"], json!(["hello"]));
+  });
+
+  assert!(pactffi_add_text_comment(interaction, values[3].as_ptr()));
+  interaction.with_interaction(&|_, _, i| {
+    let interaction = i.as_v4_http().unwrap();
+    assert_eq!(interaction.comments["text"], json!(["hello", "world"]));
   });
 }
 
