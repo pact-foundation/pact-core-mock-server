@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.5 - Maintenance Release
+
+* 2f974fc4 - chore(pact_mock_server_cli): Update dependencies (Ronald Holshausen, Fri Mar 15 15:15:40 2024 +1100)
+* ffffa61d - chore: Upgrade pact_mock_server to 1.2.5 (Ronald Holshausen, Fri Mar 15 15:13:04 2024 +1100)
+* 6406e9ae - refactor(release): Rename OSX to MacOS (Ronald Holshausen, Fri Mar 15 14:28:06 2024 +1100)
+* 7732a637 - chore(ci): refactor release pipeline (JP-Ellis, Mon Feb 26 17:54:18 2024 +1100)
+* 41faa544 - chore: Lock clap crate to 4.4 as 4.5 requires Rust 1.75 (Ronald Holshausen, Mon Feb 12 15:16:18 2024 +1100)
+* 8d197959 - chore: fixup path to aarch64-unknown-linux-musl artifact (Yousaf Nabi, Thu Feb 8 21:13:21 2024 +0000)
+* 9196efe4 - feat: verifier/mock_server clis - build for musl (Yousaf Nabi, Thu Feb 8 20:36:10 2024 +0000)
+* a52e0ee9 - chore: Upgrade pact_matching to 1.1.10 (Ronald Holshausen, Wed Feb 7 13:20:45 2024 +1100)
+* 24a26cca - chore: Update pact_models to 1.1.18 (Ronald Holshausen, Wed Feb 7 10:53:22 2024 +1100)
+* 73578350 - chore: use local pact_models (JP-Ellis, Tue Feb 6 10:51:09 2024 +1100)
+* 113470ca - chore: Update release script (Ronald Holshausen, Sat Jan 20 19:19:40 2024 +1100)
+* ba1f77a9 - bump version to 1.0.5 (Ronald Holshausen, Sat Jan 20 19:18:42 2024 +1100)
+
 # 1.0.4 - Maintenance Release
 
 * 0496fb75 - chore(pact_mock_server_cli): Upgrade dependencies (Ronald Holshausen, Sat Jan 20 19:06:50 2024 +1100)
