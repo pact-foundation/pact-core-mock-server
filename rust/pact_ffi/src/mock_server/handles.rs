@@ -2203,28 +2203,11 @@ ffi_fn!{
     };
 
     interaction.with_interaction(&|_, _, inner| {
-      if let Some(reqres) = inner.as_v4_http_mut() {
-        match &value {
-          Some(value) => reqres.comments.insert(key.to_string(), value.clone()),
-          None => reqres.comments.remove(key)
-        };
-        Ok(())
-      } else if let Some(message) = inner.as_v4_async_message_mut() {
-        match &value {
-          Some(value) => message.comments.insert(key.to_string(), value.clone()),
-          None => message.comments.remove(key)
-        };
-        Ok(())
-      } else if let Some(sync_message) = inner.as_v4_sync_message_mut() {
-        match &value {
-          Some(value) => sync_message.comments.insert(key.to_string(), value.clone()),
-          None => sync_message.comments.remove(key)
-        };
-        Ok(())
-      } else {
-        error!("Interaction is an unknown type, is {}", inner.type_of());
-        Err(anyhow!("Interaction is an unknown type, is {}", inner.type_of()))
-      }
+      match &value {
+        Some(value) => inner.comments_mut().insert(key.to_string(), value.clone()),
+        None => inner.comments_mut().remove(key)
+      };
+      Ok(())
     }).unwrap_or(Err(anyhow!("Not value to unwrap"))).is_ok()
   } {
     false
