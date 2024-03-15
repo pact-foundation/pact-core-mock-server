@@ -50,6 +50,6 @@ webmachine-rust = "0.3.0"
 [dev-dependencies]
 quickcheck = "1"
 expectest = "0.12.0"
-trycmd = "0.14.19"
+trycmd = "0.15.0"
 test-log = "0.2.14"
-env_logger = "0.10.1"
+env_logger = "0.11.3"

@@ -1996,7 +1996,7 @@ version = "1.0.5"
 dependencies = [
  "anyhow",
  "clap 4.4.18",
- "env_logger 0.10.2",
+ "env_logger 0.11.3",
  "expectest",
  "futures",
  "http",
@@ -2019,7 +2019,7 @@ dependencies = [
  "tracing-appender",
  "tracing-core",
  "tracing-subscriber",
- "trycmd 0.14.21",
+ "trycmd",
  "url",
  "uuid",
  "webmachine-rust",
@@ -2136,7 +2136,7 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-subscriber",
- "trycmd 0.15.0",
+ "trycmd",
 ]
 
 [[package]]
@@ -3002,28 +3002,6 @@ checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
 
 [[package]]
 name = "snapbox"
-version = "0.4.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b831b6e80fbcd2889efa75b185d24005f85981431495f995292b25836519d84"
-dependencies = [
- "anstream",
- "anstyle",
- "content_inspector",
- "dunce",
- "filetime",
- "libc",
- "normalize-line-endings",
- "os_pipe",
- "similar",
- "snapbox-macros",
- "tempfile",
- "wait-timeout",
- "walkdir",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "snapbox"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ac441e1ecf678f68423d47f376d53fabce1afba92c8f68e31508eb27df8562a"
@@ -3653,22 +3631,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "trycmd"
-version = "0.14.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d41014f614932fff67cd3b780e0eb0ecb14e698a831a0e555ef2a5137be968d5"
-dependencies = [
- "glob",
- "humantime",
- "humantime-serde",
- "rayon",
- "serde",
- "shlex",
- "snapbox 0.4.17",
- "toml_edit 0.22.7",
-]
-
-[[package]]
-name = "trycmd"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "464edb3603a81a50b4c8f47b11dfade69ef48ffdc0af2f8b194ad87cbda75317"
@@ -3679,7 +3641,7 @@ dependencies = [
  "rayon",
  "serde",
  "shlex",
- "snapbox 0.5.9",
+ "snapbox",
  "toml_edit 0.22.7",
 ]
 
