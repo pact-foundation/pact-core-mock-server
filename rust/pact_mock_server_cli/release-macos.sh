@@ -22,11 +22,11 @@ build_x86_64() {
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/libpact_ffi.dylib" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-x86_64.dylib.gz"
+            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pact_mock_server_cli" \
+            "$ARTIFACTS_DIR/pact_mock_server_cli-osx-x86_64.gz"
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-x86_64.a"
+                    "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pact_mock_server_cli" \
+                    "$ARTIFACTS_DIR/pact_mock_server_cli-macos-x86_64.gz"
     fi
 }
 
@@ -36,11 +36,11 @@ build_aarch64() {
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/libpact_ffi.dylib" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-aarch64-apple-darwin.dylib.gz"
+            "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/pact_mock_server_cli" \
+            "$ARTIFACTS_DIR/pact_mock_server_cli-osx-aarch64.gz"
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-aarch64-apple-darwin.a"
+                    "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/pact_mock_server_cli" \
+                    "$ARTIFACTS_DIR/pact_mock_server_cli-macos-aarch64.gz"
     fi
 }
 

@@ -61,7 +61,7 @@ jobs:
           elif [[ "${{ runner.os }}" = "Windows" ]]; then
             echo "platform=win" >> "$GITHUB_OUTPUT"
           elif [[ "${{ runner.os }}" = "macOS" ]]; then
-            echo "platform=osx" >> "$GITHUB_OUTPUT"
+            echo "platform=macos" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown platform"
             exit 1
