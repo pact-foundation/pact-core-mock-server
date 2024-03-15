@@ -135,6 +135,7 @@ jobs:
         with:
           pattern: release-artifacts-*
           path: rust/release_artifacts
+          merge-multiple: true
 
       - name: Upload Release Assets
         uses: svenstaro/upload-release-action@v2
