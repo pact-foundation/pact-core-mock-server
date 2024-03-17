@@ -28,7 +28,7 @@ install_cross() {
     cargo install cross@0.2.5
 }
 
-build_aarch64_musl() {
+build_aarch64() {
     install_cross
     cross build --target aarch64-unknown-linux-musl "${cargo_flags[@]}"
 
