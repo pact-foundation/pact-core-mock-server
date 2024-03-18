@@ -24,6 +24,9 @@ build_x86_64() {
         gzip_and_sum \
             "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pact_verifier_cli" \
             "$ARTIFACTS_DIR/pact_verifier_cli-osx-x86_64.gz"
+        gzip_and_sum \
+            "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/pact_verifier_cli" \
+            "$ARTIFACTS_DIR/pact_verifier_cli-macos-x86_64.gz"
     fi
 }
 
@@ -35,6 +38,9 @@ build_aarch64() {
         gzip_and_sum \
             "$CARGO_TARGET_DIR//aarch64-apple-darwin/release/pact_verifier_cli" \
             "$ARTIFACTS_DIR/pact_verifier_cli-osx-aarch64.gz"
+        gzip_and_sum \
+            "$CARGO_TARGET_DIR//aarch64-apple-darwin/release/pact_verifier_cli" \
+            "$ARTIFACTS_DIR/pact_verifier_cli-macos-aarch64.gz"
     fi
 }
 
