@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.1 - Maintenance Release
+
+* e08dc260 - chore(pact_verifier_cli): Create multi-arch docker images (Ronald Holshausen, Mon Mar 18 11:27:24 2024 +1100)
+* b674c051 - chore(pact_verifier_cli): Create macos named binary files (Ronald Holshausen, Mon Mar 18 11:21:46 2024 +1100)
+* ae02dc10 - chore(ci): verifier - fix ref to build_aarch64 func post building with musl only (Yousaf Nabi, Sat Mar 16 09:58:39 2024 +0000)
+* 6406e9ae - refactor(release): Rename OSX to MacOS (Ronald Holshausen, Fri Mar 15 14:28:06 2024 +1100)
+* a6d68190 - chore(pact_verifier_cli): Only build musl variants of the Linux binaries (Ronald Holshausen, Fri Mar 15 14:11:57 2024 +1100)
+* 7732a637 - chore(ci): refactor release pipeline (JP-Ellis, Mon Feb 26 17:54:18 2024 +1100)
+* c6da65d3 - Merge branch 'release/1.1.0-docker' (Ronald Holshausen, Mon Feb 19 13:03:38 2024 +1100)
+* b697c1fa - fix(pact_verifier_cli): Correct docker file not that pact_models is a relative path (Ronald Holshausen, Mon Feb 19 13:03:24 2024 +1100)
+* d5cd18dd - bump version to 1.1.1 (Ronald Holshausen, Mon Feb 19 12:21:48 2024 +1100)
+
 # 1.1.0 - Feature + Bugfix release
 
 * 40391cb0 - chore(pact_verifier_cli): Bump minor version (Ronald Holshausen, Mon Feb 19 12:03:43 2024 +1100)
