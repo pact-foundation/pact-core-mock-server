@@ -1,23 +1,17 @@
-FROM rust:1-alpine3.18 AS builder
+ARG ARCH=
+FROM rust:1-alpine3.15 AS builder
+ARG BIN_ARCH=x86_64
+ARG VERSION=1.1.1
 
-# Add our source code.
-ADD . /build
-
-RUN apk --no-cache add gcc musl-dev protobuf protobuf-dev
-RUN rustup component add rustfmt
-
-# Fix the cargo manifest so it can be built standalone
-RUN sed -i -e 's/pact_models = {\s*version\s*=\s*"\([^"]*\).*/pact_models = "\1"/' /build/Cargo.toml
-RUN sed -i -e 's/pact_verifier = {\s*version\s*=\s*"\([^"]*\).*/pact_verifier = "\1"/' /build/Cargo.toml
-
-# Build our application.
-RUN cd build && cargo build --release
+RUN wget -O pact_verifier_cli.gz https://github.com/pact-foundation/pact-reference/releases/download/pact_verifier_cli-v${VERSION}/pact_verifier_cli-linux-${BIN_ARCH}.gz
+RUN gunzip pact_verifier_cli.gz
+RUN chmod +x pact_verifier_cli
 
 # Now, we need to build our _real_ Docker container, copying in the executable.
 FROM alpine:3.18
 RUN apk --no-cache add ca-certificates
 COPY --from=builder \
-    /build/target/release/pact_verifier_cli \
+    /pact_verifier_cli \
     /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/pact_verifier_cli"]
