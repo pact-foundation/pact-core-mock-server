@@ -9,6 +9,7 @@ use bytes::Bytes;
 use expectest::prelude::*;
 use itertools::Itertools;
 use libc::c_char;
+use log::LevelFilter;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
 use pact_models::PactSpecification;
@@ -26,7 +27,8 @@ use pact_ffi::mock_server::{
   pactffi_create_mock_server,
   pactffi_create_mock_server_for_pact,
   pactffi_mock_server_mismatches,
-  pactffi_write_pact_file
+  pactffi_write_pact_file,
+  pactffi_mock_server_logs
 };
 #[allow(deprecated)]
 use pact_ffi::mock_server::handles::{
@@ -74,6 +76,7 @@ use pact_ffi::verifier::{
   pactffi_verifier_set_provider_info,
   pactffi_verifier_shutdown
 };
+use pact_ffi::log::pactffi_log_to_buffer;
 
 #[test]
 fn post_to_mock_server_with_mismatches() {
@@ -405,7 +408,7 @@ fn http_consumer_feature_test() {
   let content_type = CString::new("Content-Type").unwrap();
   let authorization = CString::new("Authorization").unwrap();
   let path_matcher = CString::new("{\"value\":\"/request/1234\",\"pact:matcher:type\":\"regex\", \"regex\":\"\\/request\\/[0-9]+\"}").unwrap();
-  let value_header_with_matcher = CString::new("{\"value\":\"application/json\",\"pact:matcher:type\":\"dummy\"}").unwrap();
+  let value_header_with_matcher = CString::new("{\"value\":\"application/json\",\"pact:matcher:type\":\"regex\",\"regex\":\"\\\\w+\\/\\\\w+\"}").unwrap();
   let auth_header_with_matcher = CString::new("{\"value\":\"Bearer 1234\",\"pact:matcher:type\":\"regex\", \"regex\":\"Bearer [0-9]+\"}").unwrap();
   let query_param_matcher = CString::new("{\"value\":\"bar\",\"pact:matcher:type\":\"regex\", \"regex\":\"(bar|baz|bat)\"}").unwrap();
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
@@ -1253,4 +1256,89 @@ fn provider_states_ignoring_parameter_types() {
   }
 }"#
   );
+}
+
+// Issue #399
+#[test_log::test]
+fn combined_each_key_and_each_value_matcher() {
+  let consumer_name = CString::new("combined_matcher-consumer").unwrap();
+  let provider_name = CString::new("combined_matcher-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("combined_matcher").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+
+  let content_type = CString::new("application/json").unwrap();
+  let path = CString::new("/query").unwrap();
+  let json = json!({
+    "results": {
+      "pact:matcher:type": [
+        {
+          "pact:matcher:type": "each-key",
+          "value": "AUK-155332",
+          "rules": [
+            {
+              "pact:matcher:type": "regex",
+              "regex": "\\w{3}-\\d+"
+            }
+          ]
+        }, {
+          "pact:matcher:type": "each-value",
+          "rules": [
+            {
+              "pact:matcher:type": "type"
+            }
+          ]
+        }
+      ],
+      "AUK-155332": {
+        "title": "...",
+        "description": "...",
+        "link": "http://....",
+        "relatesTo": ["BAF-88654"]
+      }
+    }
+  });
+  let body = CString::new(json.to_string()).unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let method = CString::new("PUT").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_body(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), body.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let json_body = json!({
+    "results": {
+      "KGK-9954356": {
+        "title": "Some title",
+        "description": "Tells us what this is in more or less detail",
+        "link": "http://....",
+        "relatesTo": ["BAF-88654"]
+      }
+    }
+  });
+  let result = client.put(format!("http://127.0.0.1:{}/query", port).as_str())
+    .header("Content-Type", "application/json")
+    .body(json_body.to_string())
+    .send();
+
+  let mismatches = pactffi_mock_server_mismatches(port);
+  println!("{}", unsafe { CStr::from_ptr(mismatches) }.to_string_lossy());
+
+  pactffi_cleanup_mock_server(port);
+  pactffi_free_pact_handle(pact_handle);
+
+  match result {
+    Ok(res) => {
+      expect!(res.status()).to(be_eq(200));
+    },
+    Err(err) => {
+      panic!("expected 200 response but request failed: {}", err);
+    }
+  };
 }

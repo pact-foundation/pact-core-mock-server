@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use bytes::{Bytes, BytesMut};
 use lazy_static::lazy_static;
 use pact_models::bodies::OptionalBody;
@@ -91,53 +91,50 @@ fn process_matcher(
   skip_matchers: bool,
   matcher_type: &Value
 ) -> Value {
-  let matcher_type = json_to_string(matcher_type);
-  let matching_rule = match matcher_type.as_str() {
-    "arrayContains" | "array-contains" => {
-      match obj.get("variants") {
-        Some(Value::Array(variants)) => {
-          let mut json_values = vec![];
+  let is_array_contains = match matcher_type {
+    Value::String(s) => s == "arrayContains" || s == "array-contains",
+    _ => false
+  };
 
-          let values = variants.iter().enumerate().map(|(index, variant)| {
-            let mut category = MatchingRuleCategory::empty("body");
-            let mut generators = Generators::default();
-            let value = match variant {
-              Value::Object(map) => {
-                process_object(map, &mut category, &mut generators, DocPath::root(), false)
-              }
-              _ => {
-                warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant);
-                Value::Null
-              }
-            };
-            json_values.push(value);
-            (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
-          }).collect();
+  let matching_rule_result = if is_array_contains {
+    match obj.get("variants") {
+      Some(Value::Array(variants)) => {
+        let mut json_values = vec![];
 
-          Ok((Some(MatchingRule::ArrayContains(values)), Value::Array(json_values)))
-        }
-        _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
+        let values = variants.iter().enumerate().map(|(index, variant)| {
+          let mut category = MatchingRuleCategory::empty("body");
+          let mut generators = Generators::default();
+          let value = match variant {
+            Value::Object(map) => {
+              process_object(map, &mut category, &mut generators, DocPath::root(), false)
+            }
+            _ => {
+              warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant);
+              Value::Null
+            }
+          };
+          json_values.push(value);
+          (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
+        }).collect();
+
+        Ok((vec!(MatchingRule::ArrayContains(values)), Value::Array(json_values)))
       }
-    },
-    _ => {
-      let attributes = Value::Object(obj.clone());
-      let (rule, is_values_matcher) = match MatchingRule::create(matcher_type.as_str(), &attributes) {
-        Ok(rule) => (Some(rule.clone()), rule.is_values_matcher()),
-        Err(err) => {
-          error!("Failed to parse matching rule from JSON - {}", err);
-          (None, false)
-        }
-      };
+      _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
+    }
+  } else {
+    matchers_from_integration_json(obj).map(|rules| {
+      let has_values_matcher = rules.iter().any(MatchingRule::is_values_matcher);
+
       let json_value = match obj.get("value") {
         Some(inner) => match inner {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, path.clone(), is_values_matcher),
+          Value::Object(map) => process_object(map, matching_rules, generators, path.clone(), has_values_matcher),
           Value::Array(array) => process_array(array, matching_rules, generators, path.clone(), true, skip_matchers),
           _ => inner.clone()
         },
         None => Value::Null
       };
-      Ok((rule, json_value))
-    }
+      (rules, json_value)
+    })
   };
 
   if let Some(gen) = obj.get("pact:generator:type") {
@@ -158,10 +155,10 @@ fn process_matcher(
     }
   }
 
-  trace!("matching_rule = {matching_rule:?}");
-  match &matching_rule {
-    Ok((rule, value)) => {
-      if let Some(rule) = rule {
+  trace!("matching_rules = {matching_rule_result:?}");
+  match &matching_rule_result {
+    Ok((rules, value)) => {
+      for rule in rules {
         matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
       }
       value.clone()
@@ -174,7 +171,7 @@ fn process_matcher(
 }
 
 /// Builds a `MatchingRule` from a `Value` struct used by language integrations
-#[deprecated(note = "Replace with MatchingRule::create")]
+#[deprecated(note = "Replace with MatchingRule::create or matchers_from_integration_json")]
 pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
   match m.get("pact:matcher:type") {
     Some(value) => {
@@ -184,6 +181,43 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
         .ok()
     },
     _ => None
+  }
+}
+
+/// Builds a list of `MatchingRule` from a `Value` struct used by language integrations
+pub fn matchers_from_integration_json(m: &Map<String, Value>) -> anyhow::Result<Vec<MatchingRule>> {
+  match m.get("pact:matcher:type") {
+    Some(value) => match value {
+      Value::Array(arr) => {
+        let mut rules = vec![];
+        for v in arr {
+          match v.get("pact:matcher:type") {
+            Some(t) => {
+              let val = json_to_string(t);
+              let rule = MatchingRule::create(val.as_str(), &v)
+                .inspect_err(|err| {
+                  error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
+                })?;
+              rules.push(rule);
+            }
+            None => {
+              error!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", v);
+              bail!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", v);
+            }
+          }
+        }
+        Ok(rules)
+      }
+      _ => {
+        let val = json_to_string(value);
+        MatchingRule::create(val.as_str(), &Value::Object(m.clone()))
+          .map(|r| vec![r])
+          .inspect_err(|err| {
+            error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
+          })
+      }
+    },
+    _ => Ok(vec![])
   }
 }
 
@@ -375,6 +409,7 @@ mod test {
   use pact_models::path_exp::DocPath;
   use serde_json::json;
   use pretty_assertions::assert_eq;
+  use rstest::rstest;
 
   #[allow(deprecated)]
   use crate::mock_server::bodies::{matcher_from_integration_json, process_object};
@@ -764,6 +799,104 @@ mod test {
         rules: vec![],
         generator: None,
       })));
+  }
+
+  #[rstest]
+  #[case(json!({}), vec![])]
+  #[case(json!({ "pact:matcher:type": "regex", "regex": "[a-z]" }), vec![MatchingRule::Regex("[a-z]".to_string())])]
+  #[case(json!({ "pact:matcher:type": "equality" }), vec![MatchingRule::Equality])]
+  #[case(json!({ "pact:matcher:type": "include", "value": "[a-z]" }), vec![MatchingRule::Include("[a-z]".to_string())])]
+  #[case(json!({ "pact:matcher:type": "type" }), vec![MatchingRule::Type])]
+  #[case(json!({ "pact:matcher:type": "type", "min": 100 }), vec![MatchingRule::MinType(100)])]
+  #[case(json!({ "pact:matcher:type": "type", "max": 100 }), vec![MatchingRule::MaxType(100)])]
+  #[case(json!({ "pact:matcher:type": "type", "min": 10, "max": 100 }), vec![MatchingRule::MinMaxType(10, 100)])]
+  #[case(json!({ "pact:matcher:type": "number" }), vec![MatchingRule::Number])]
+  #[case(json!({ "pact:matcher:type": "integer" }), vec![MatchingRule::Integer])]
+  #[case(json!({ "pact:matcher:type": "decimal" }), vec![MatchingRule::Decimal])]
+  #[case(json!({ "pact:matcher:type": "real" }), vec![MatchingRule::Decimal])]
+  #[case(json!({ "pact:matcher:type": "min", "min": 100 }), vec![MatchingRule::MinType(100)])]
+  #[case(json!({ "pact:matcher:type": "max", "max": 100 }), vec![MatchingRule::MaxType(100)])]
+  #[case(json!({ "pact:matcher:type": "timestamp" }), vec![MatchingRule::Timestamp("".to_string())])]
+  #[case(json!({ "pact:matcher:type": "timestamp", "format": "yyyy-MM-dd" }), vec![MatchingRule::Timestamp("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "timestamp", "timestamp": "yyyy-MM-dd" }), vec![MatchingRule::Timestamp("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "datetime" }), vec![MatchingRule::Timestamp("".to_string())])]
+  #[case(json!({ "pact:matcher:type": "datetime", "format": "yyyy-MM-dd" }), vec![MatchingRule::Timestamp("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "datetime", "datetime": "yyyy-MM-dd" }), vec![MatchingRule::Timestamp("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "date" }), vec![MatchingRule::Date("".to_string())])]
+  #[case(json!({ "pact:matcher:type": "date", "format": "yyyy-MM-dd" }), vec![MatchingRule::Date("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "date", "date": "yyyy-MM-dd" }), vec![MatchingRule::Date("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "time" }), vec![MatchingRule::Time("".to_string())])]
+  #[case(json!({ "pact:matcher:type": "time", "format": "yyyy-MM-dd" }), vec![MatchingRule::Time("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "time", "time": "yyyy-MM-dd" }), vec![MatchingRule::Time("yyyy-MM-dd".to_string())])]
+  #[case(json!({ "pact:matcher:type": "null" }), vec![MatchingRule::Null])]
+  #[case(json!({ "pact:matcher:type": "boolean" }), vec![MatchingRule::Boolean])]
+  #[case(json!({ "pact:matcher:type": "contentType", "value": "text/plain" }), vec![MatchingRule::ContentType("text/plain".to_string())])]
+  #[case(json!({ "pact:matcher:type": "content-type", "value": "text/plain" }), vec![MatchingRule::ContentType("text/plain".to_string())])]
+  #[case(json!({ "pact:matcher:type": "arrayContains", "variants": [] }), vec![MatchingRule::ArrayContains(vec![])])]
+  #[case(json!({ "pact:matcher:type": "array-contains", "variants": [] }), vec![MatchingRule::ArrayContains(vec![])])]
+  #[case(json!({ "pact:matcher:type": "values" }), vec![MatchingRule::Values])]
+  #[case(json!({ "pact:matcher:type": "statusCode" }), vec![MatchingRule::StatusCode(HttpStatus::Success)])]
+  #[case(json!({ "pact:matcher:type": "statusCode" }), vec![MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200]))])]
+  #[case(json!({ "pact:matcher:type": "status-code" }), vec![MatchingRule::StatusCode(HttpStatus::Success)])]
+  #[case(json!({ "pact:matcher:type": "status-code" }), vec![MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200]))])]
+  #[case(json!({ "pact:matcher:type": "notEmpty" }), vec![MatchingRule::NotEmpty])]
+  #[case(json!({ "pact:matcher:type": "not-empty" }), vec![MatchingRule::NotEmpty])]
+  #[case(json!({ "pact:matcher:type": "semver" }), vec![MatchingRule::Semver])]
+  #[case(json!({ "pact:matcher:type": "eachKey" }), vec![MatchingRule::EachKey(MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![],
+      generator: None,
+    })])]
+  #[case(json!({ "pact:matcher:type": "each-key" }), vec![MatchingRule::EachKey(MatchingRuleDefinition {
+    value: "".to_string(),
+    value_type: ValueType::Unknown,
+    rules: vec![],
+    generator: None,
+    })])]
+  #[case(json!({ "pact:matcher:type": "eachValue" }), vec![MatchingRule::EachValue(MatchingRuleDefinition {
+    value: "".to_string(),
+    value_type: ValueType::Unknown,
+    rules: vec![],
+    generator: None,
+    })])]
+  #[case(json!({ "pact:matcher:type": "each-value" }), vec![MatchingRule::EachValue(MatchingRuleDefinition {
+    value: "".to_string(),
+    value_type: ValueType::Unknown,
+    rules: vec![],
+    generator: None,
+    })])]
+  #[case(json!({ "pact:matcher:type": [{"pact:matcher:type": "regex", "regex": "[a-z]"}] }), vec![MatchingRule::Regex("[a-z]".to_string())])]
+  #[case(json!({ "pact:matcher:type": [
+    { "pact:matcher:type": "regex", "regex": "[a-z]" },
+    { "pact:matcher:type": "equality" },
+    { "pact:matcher:type": "include", "value": "[a-z]" }
+  ] }), vec![MatchingRule::Regex("[a-z]".to_string()), MatchingRule::Equality, MatchingRule::Include("[a-z]".to_string())])]
+  fn matchers_from_integration_json_ok_test(#[case] json: Value, #[case] value: Vec<MatchingRule>) {
+    expect!(matchers_from_integration_json(&json.as_object().unwrap())).to(be_ok().value(value));
+  }
+
+  #[rstest]
+  #[case(json!({ "pact:matcher:type": "Other" }), "Other is not a valid matching rule type")]
+  #[case(json!({ "pact:matcher:type": "regex" }), "Regex matcher missing 'regex' field")]
+  #[case(json!({ "pact:matcher:type": "include" }), "Include matcher missing 'value' field")]
+  #[case(json!({ "pact:matcher:type": "min" }), "Min matcher missing 'min' field")]
+  #[case(json!({ "pact:matcher:type": "max" }), "Max matcher missing 'max' field")]
+  #[case(json!({ "pact:matcher:type": "contentType" }), "ContentType matcher missing 'value' field")]
+  #[case(json!({ "pact:matcher:type": "content-type" }), "ContentType matcher missing 'value' field")]
+  #[case(json!({ "pact:matcher:type": "arrayContains" }), "ArrayContains matcher missing 'variants' field")]
+  #[case(json!({ "pact:matcher:type": "array-contains" }), "ArrayContains matcher missing 'variants' field")]
+  #[case(json!({ "pact:matcher:type": "arrayContains", "variants": "text" }), "ArrayContains matcher 'variants' field is not an Array")]
+  #[case(json!({ "pact:matcher:type": "array-contains", "variants": "text" }), "ArrayContains matcher 'variants' field is not an Array")]
+  #[case(json!({ "pact:matcher:type": [
+    { "pact:matcher:type": "regex", "regex": "[a-z]" },
+    { "pact:matcher:type": "equality" },
+    { "pact:matcher:type": "include" }
+  ]}), "Include matcher missing 'value' field")]
+  fn matchers_from_integration_json_error_test(#[case] json: Value, #[case] error: &str) {
+    expect!(matchers_from_integration_json(&json.as_object().unwrap())
+      .unwrap_err().to_string())
+      .to(be_equal_to(error));
   }
 
   #[test_log::test]

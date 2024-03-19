@@ -13,7 +13,7 @@
 //!   pactffi_response_status,
 //!   pactffi_upon_receiving,
 //!   pactffi_with_body,
-//!   pactffi_with_header,
+//!   pactffi_with_header_v2,
 //!   pactffi_with_query_parameter_v2,
 //!   pactffi_with_request
 //! };
@@ -50,14 +50,14 @@
 //! // Setup the request
 //! pactffi_upon_receiving(interaction.clone(), description.as_ptr());
 //! pactffi_with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
-//! pactffi_with_header(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
-//! pactffi_with_header(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
+//! pactffi_with_header_v2(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_header_v2(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
 //! pactffi_with_query_parameter_v2(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
 //! pactffi_with_body(interaction.clone(), InteractionPart::Request, header.as_ptr(), request_body_with_matchers.as_ptr());
 //!
 //! // will respond with...
-//! pactffi_with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
-//! pactffi_with_header(interaction.clone(), InteractionPart::Response, special_header.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_header_v2(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_header_v2(interaction.clone(), InteractionPart::Response, special_header.as_ptr(), 0, value_header_with_matcher.as_ptr());
 //! pactffi_with_body(interaction.clone(), InteractionPart::Response, header.as_ptr(), response_body_with_matchers.as_ptr());
 //! pactffi_response_status(interaction.clone(), 200);
 //!
@@ -150,7 +150,7 @@ use crate::mock_server::{StringResult, xml};
 use crate::mock_server::bodies::{
   empty_multipart_body,
   file_as_multipart_body,
-  matcher_from_integration_json,
+  matchers_from_integration_json,
   MultipartBody,
   process_array,
   process_json,
@@ -973,10 +973,9 @@ fn from_integration_json_v2(
     Ok(json) => match json {
       Value::Object(ref map) => {
         let result = if map.contains_key("pact:matcher:type") {
-          debug!("detected pact:matcher:type, will configure a matcher");
-          #[allow(deprecated)]
-          let matching_rule = matcher_from_integration_json(map);
-          trace!("matching_rule = {matching_rule:?}");
+          debug!("detected pact:matcher:type, will configure any matchers");
+          let rules = matchers_from_integration_json(map);
+          trace!("matching_rules = {rules:?}");
 
           let (path, result_value) = match map.get("value") {
             Some(val) => match val {
@@ -989,7 +988,7 @@ fn from_integration_json_v2(
             None => (path.clone(), Value::Null)
           };
 
-          if let Some(rule) = &matching_rule {
+          if let Ok(rules) = &rules {
             let path = if path_or_status {
               path.parent().unwrap_or(DocPath::root())
             } else {
@@ -1000,16 +999,21 @@ fn from_integration_json_v2(
                 // If the index > 0, and there is an existing entry with the base name, we need
                 // to re-key that with an index of 0
                 let mut parent = path.parent().unwrap_or(DocPath::root());
-                if let Entry::Occupied(rule) = matching_rules.rules.entry(parent.clone()) {
-                  let rules = rule.remove();
-                  matching_rules.rules.insert(parent.push_index(0).clone(), rules);
+                if let Entry::Occupied(rule_entry) = matching_rules.rules.entry(parent.clone()) {
+                  let rules_list = rule_entry.remove();
+                  matching_rules.rules.insert(parent.push_index(0).clone(), rules_list);
                 }
               }
-              matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
+              for rule in rules {
+                matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+              }
             } else {
-              matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
+              for rule in rules {
+                matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+              }
             }
           }
+
           if let Some(gen) = map.get("pact:generator:type") {
             debug!("detected pact:generator:type, will configure a generators");
             if let Some(generator) = Generator::from_map(&json_to_string(gen), map) {
