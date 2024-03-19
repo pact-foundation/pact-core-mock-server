@@ -9,7 +9,6 @@ use bytes::Bytes;
 use expectest::prelude::*;
 use itertools::Itertools;
 use libc::c_char;
-use log::LevelFilter;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
 use pact_models::PactSpecification;
@@ -27,8 +26,7 @@ use pact_ffi::mock_server::{
   pactffi_create_mock_server,
   pactffi_create_mock_server_for_pact,
   pactffi_mock_server_mismatches,
-  pactffi_write_pact_file,
-  pactffi_mock_server_logs
+  pactffi_write_pact_file
 };
 #[allow(deprecated)]
 use pact_ffi::mock_server::handles::{
@@ -76,7 +74,6 @@ use pact_ffi::verifier::{
   pactffi_verifier_set_provider_info,
   pactffi_verifier_shutdown
 };
-use pact_ffi::log::pactffi_log_to_buffer;
 
 #[test]
 fn post_to_mock_server_with_mismatches() {

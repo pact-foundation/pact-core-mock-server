@@ -195,8 +195,9 @@ pub fn matchers_from_integration_json(m: &Map<String, Value>) -> anyhow::Result<
             Some(t) => {
               let val = json_to_string(t);
               let rule = MatchingRule::create(val.as_str(), &v)
-                .inspect_err(|err| {
+                .map_err(|err| {
                   error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
+                  err
                 })?;
               rules.push(rule);
             }
@@ -212,8 +213,9 @@ pub fn matchers_from_integration_json(m: &Map<String, Value>) -> anyhow::Result<
         let val = json_to_string(value);
         MatchingRule::create(val.as_str(), &Value::Object(m.clone()))
           .map(|r| vec![r])
-          .inspect_err(|err| {
+          .map_err(|err| {
             error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
+            err
           })
       }
     },
