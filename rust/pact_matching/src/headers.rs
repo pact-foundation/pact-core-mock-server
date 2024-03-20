@@ -259,11 +259,8 @@ mod tests {
       &CoreMatchingContext::default(), true
     );
 
-    match mismatches.unwrap_err()[0] {
-      CommonMismatch { ref description, .. } =>
-        assert_eq!(description, "Mismatch with header 'HEADER': Expected 'HEADER2' to be equal to 'HEADER_VALUE'"),
-      _ => panic!("Unexpected mismatch response")
-    }
+    let CommonMismatch { ref description, .. } = mismatches.unwrap_err()[0];
+    assert_eq!(description, "Mismatch with header 'HEADER': Expected 'HEADER2' to be equal to 'HEADER_VALUE'");
   }
 
   #[test]
@@ -336,11 +333,8 @@ mod tests {
       &CoreMatchingContext::default(), true
     );
 
-    match mismatches.unwrap_err()[0] {
-      CommonMismatch { ref description, .. } =>
-        assert_eq!(description, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'"),
-      _ => panic!("Unexpected mismatch response")
-    }
+    let CommonMismatch { ref description, .. } = mismatches.unwrap_err()[0];
+    assert_eq!(description, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'");
   }
 
   #[test]
@@ -388,11 +382,8 @@ mod tests {
     let mismatches = match_header_value("ACCEPT", 0, "ACCEPT-VALUE", "HEADER2",
       &CoreMatchingContext::default(), true
     );
-    match mismatches.unwrap_err()[0] {
-      CommonMismatch { ref description, .. } =>
-        assert_eq!(description, "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),
-      _ => panic!("Unexpected mismatch response")
-    }
+    assert_eq!(mismatches.unwrap_err()[0].description,
+      "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'");
   }
 
   #[test]

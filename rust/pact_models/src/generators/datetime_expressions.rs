@@ -159,7 +159,7 @@ pub fn execute_date_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str
     let mut date = base_date(&result, dt);
     for adjustment in &result.adjustments {
       date = match adjustment.operation {
-        Operation::PLUS => forward_date_by(adjustment, &date),
+        Operation::PLUS => forward_date_by(adjustment, &date)?,
         Operation::MINUS => reverse_date_by(adjustment, &date)?
       }
     }
@@ -172,46 +172,53 @@ pub fn execute_time_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str
   if expression.is_empty() {
     Ok(dt.clone())
   } else {
-    parse_time_expression(expression).map(|result| {
-      let time = dt.with_minute(0)
-        .map(|t| t.with_second(0))
-        .flatten()
-        .map(|t| t.with_nanosecond(0))
-        .flatten()
-        .unwrap_or(dt.clone());
-      let base_time = match result.base {
-        TimeBase::Now => dt.clone(),
-        TimeBase::Midnight => time.with_hour(0).unwrap_or(dt.clone()),
-        TimeBase::Noon => time.with_hour(12).unwrap_or(dt.clone()),
-        TimeBase::Am { hour } => time.with_hour(hour as u32).unwrap_or(dt.clone()),
-        TimeBase::Pm { hour } => time.with_hour((12 + hour) as u32).unwrap_or(dt.clone()),
-        TimeBase::Next { hour } => if dt.hour() < 12 {
-          time.with_hour((12 + hour) as u32).unwrap_or(dt.clone())
-        } else {
-          time.with_hour(hour as u32).unwrap_or(dt.clone())
-        }
-      };
+    let result = parse_time_expression(expression)?;
+    let time = dt.with_minute(0)
+      .map(|t| t.with_second(0))
+      .flatten()
+      .map(|t| t.with_nanosecond(0))
+      .flatten()
+      .unwrap_or(dt.clone());
+    let base_time = match result.base {
+      TimeBase::Now => dt.clone(),
+      TimeBase::Midnight => time.with_hour(0).unwrap_or(dt.clone()),
+      TimeBase::Noon => time.with_hour(12).unwrap_or(dt.clone()),
+      TimeBase::Am { hour } => time.with_hour(hour as u32).unwrap_or(dt.clone()),
+      TimeBase::Pm { hour } => time.with_hour((12 + hour) as u32).unwrap_or(dt.clone()),
+      TimeBase::Next { hour } => if dt.hour() < 12 {
+        time.with_hour((12 + hour) as u32).unwrap_or(dt.clone())
+      } else {
+        time.with_hour(hour as u32).unwrap_or(dt.clone())
+      }
+    };
 
-      let mut date_time = base_time.clone();
-      for adjustment in &result.adjustments {
-        date_time = match adjustment.operation {
-          Operation::PLUS => match adjustment.adjustment_type {
-            TimeOffsetType::HOUR => date_time.add(Duration::hours(adjustment.value as i64)),
-            TimeOffsetType::MINUTE => date_time.add(Duration::minutes(adjustment.value as i64)),
-            TimeOffsetType::SECOND => date_time.add(Duration::seconds(adjustment.value as i64)),
-            TimeOffsetType::MILLISECOND => date_time.add(Duration::milliseconds(adjustment.value as i64))
-          },
-          Operation::MINUS => match adjustment.adjustment_type {
-            TimeOffsetType::HOUR => date_time.sub(Duration::hours(adjustment.value as i64)),
-            TimeOffsetType::MINUTE => date_time.sub(Duration::minutes(adjustment.value as i64)),
-            TimeOffsetType::SECOND => date_time.sub(Duration::seconds(adjustment.value as i64)),
-            TimeOffsetType::MILLISECOND => date_time.sub(Duration::milliseconds(adjustment.value as i64))
-          }
+    let mut date_time = base_time.clone();
+    for adjustment in &result.adjustments {
+      date_time = match adjustment.operation {
+        Operation::PLUS => match adjustment.adjustment_type {
+          TimeOffsetType::HOUR => date_time.add(Duration::try_hours(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::MINUTE => date_time.add(Duration::try_minutes(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::SECOND => date_time.add(Duration::try_seconds(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::MILLISECOND => date_time.add(Duration::try_milliseconds(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?)
+        },
+        Operation::MINUS => match adjustment.adjustment_type {
+          TimeOffsetType::HOUR => date_time.sub(Duration::try_hours(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::MINUTE => date_time.sub(Duration::try_minutes(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::SECOND => date_time.sub(Duration::try_seconds(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+          TimeOffsetType::MILLISECOND => date_time.sub(Duration::try_milliseconds(adjustment.value as i64)
+            .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?)
         }
       }
+    }
 
-      date_time
-    })
+    Ok(date_time)
   }
 }
 
@@ -238,10 +245,12 @@ pub fn execute_datetime_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: 
   }
 }
 
-fn forward_date_by<Tz: TimeZone>(adjustment: &Adjustment<DateOffsetType>, date: &DateTime<Tz>) -> DateTime<Tz> {
-  match adjustment.adjustment_type {
-    DateOffsetType::DAY => date.clone().add(Duration::days(adjustment.value as i64)),
-    DateOffsetType::WEEK => date.clone().add(Duration::weeks(adjustment.value as i64)),
+fn forward_date_by<Tz: TimeZone>(adjustment: &Adjustment<DateOffsetType>, date: &DateTime<Tz>) -> anyhow::Result<DateTime<Tz>> {
+  Ok(match adjustment.adjustment_type {
+    DateOffsetType::DAY => date.clone().add(Duration::try_days(adjustment.value as i64)
+      .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
+    DateOffsetType::WEEK => date.clone().add(Duration::try_weeks(adjustment.value as i64)
+      .ok_or_else(|| anyhow!("Adjustment value {} overflows the bounds", adjustment.value))?),
     DateOffsetType::MONTH => roll_month(date, adjustment.value as i64),
     DateOffsetType::YEAR => {
       let date = date.clone();
@@ -267,7 +276,7 @@ fn forward_date_by<Tz: TimeZone>(adjustment: &Adjustment<DateOffsetType>, date: 
     DateOffsetType::OCT => adjust_date_up_to(date, |d| d.month() == 10),
     DateOffsetType::NOV => adjust_date_up_to(date, |d| d.month() == 11),
     DateOffsetType::DEC => adjust_date_up_to(date, |d| d.month() == 12)
-  }
+  })
 }
 
 /// Rolls the date forward one day at a time until the predicate is true
@@ -295,7 +304,7 @@ fn adjust_date_down_to<Tz: TimeZone>(
   predicate: fn(&DateTime<Tz>) -> bool
 ) -> DateTime<Tz> {
   let mut date = date.clone();
-  let one_day_duration = Duration::days(1);
+  let one_day_duration = Duration::try_days(1).unwrap(); // OK to unwrap, 1 will never overflow;
 
   while predicate(&date) {
     date = date.sub(one_day_duration);
@@ -497,61 +506,61 @@ mod tests {
     let dt = Utc.with_ymd_and_hms(2020, 1, 1, 10, 0, 0).unwrap();
     let dt2 = Utc.with_ymd_and_hms(2020, 12, 1, 10, 0, 0).unwrap();
 
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 2, 10, 0, 0).unwrap()));
 
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 2, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 4, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 4, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 5, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 13, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 13, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2021, 2, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt2))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt2).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
 
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::YEAR, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::YEAR, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEEK, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEEK, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 8, 10, 0, 0).unwrap()));
 
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 6, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::TUESDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::TUESDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 7, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEDNESDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEDNESDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 8, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::THURSDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::THURSDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 2, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FRIDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FRIDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 3, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SATURDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SATURDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 4, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SUNDAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SUNDAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 5, 10, 0, 0).unwrap()));
 
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JAN, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JAN, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FEB, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FEB, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 2, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAR, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAR, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 3, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::APR, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::APR, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 4, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 5, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JUNE, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JUNE, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 6, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JULY, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JULY, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 7, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::AUG, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::AUG, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 8, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SEP, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SEP, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 9, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::OCT, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::OCT, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 10, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::NOV, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::NOV, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 11, 1, 10, 0, 0).unwrap()));
-    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DEC, value: 1, operation: Operation::PLUS }, &dt))
+    expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DEC, value: 1, operation: Operation::PLUS }, &dt).unwrap())
       .to(be_equal_to(Utc.with_ymd_and_hms(2020, 12, 1, 10, 0, 0).unwrap()));
   }
 

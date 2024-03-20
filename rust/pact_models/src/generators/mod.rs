@@ -2031,7 +2031,7 @@ mod tests {
       },
       &NoopVariantMatcher.boxed()
     );
-    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::hours(1)).time().format("%H:%M:%S").to_string()));
+    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::try_hours(1).unwrap()).time().format("%H:%M:%S").to_string()));
   }
 
   #[test]
@@ -2051,7 +2051,7 @@ mod tests {
       },
       &NoopVariantMatcher.boxed()
     );
-    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::days(1)).format("%Y-%m-%d %H:%M:%S").to_string()));
+    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::try_days(1).unwrap()).format("%Y-%m-%d %H:%M:%S").to_string()));
   }
 
   #[test]
