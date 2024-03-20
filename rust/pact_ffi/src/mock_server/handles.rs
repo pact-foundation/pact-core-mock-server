@@ -970,17 +970,17 @@ fn from_integration_json_v2(
   let query_or_header = [Category::QUERY, Category::HEADER].contains(&matching_rules.name);
 
   match serde_json::from_str(value) {
-    Ok(mut json) => match &mut json {
+    Ok(json) => match &json {
       Value::Object(map) => {
         let result = if map.contains_key("pact:matcher:type") {
           debug!("detected pact:matcher:type, will configure any matchers");
           let rules = matchers_from_integration_json(map);
           trace!("matching_rules = {rules:?}");
 
-          let (path, result_value) = match map.get_mut("value") {
+          let (path, result_value) = match map.get("value") {
             Some(val) => match val {
               Value::Array(array) => {
-                let array = process_array(array.as_mut_slice(), matching_rules, generators, path.clone(), true, false);
+                let array = process_array(array.as_slice(), matching_rules, generators, path.clone(), true, false);
                 (path.clone(), array)
               },
               _ => (path.clone(), val.clone())
@@ -1062,7 +1062,7 @@ fn from_integration_json_v2(
 pub(crate) fn process_xml(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
   trace!("process_xml");
   match serde_json::from_str(&body) {
-    Ok(mut json) => match &mut json {
+    Ok(json) => match &json {
       Value::Object(map) => xml::generate_xml_body(map, matching_rules, generators),
       _ => Err(format!("JSON document is invalid (expected an Object), have {}", json))
     },
