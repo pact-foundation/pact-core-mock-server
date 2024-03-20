@@ -20,7 +20,11 @@ use pact_models::path_exp::DocPath;
 
 use crate::mock_server::bodies::matchers_from_integration_json;
 
-pub fn generate_xml_body(attributes: &Map<String, Value>, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
+pub fn generate_xml_body(
+  attributes: &Map<String, Value>,
+  matching_rules: &mut MatchingRuleCategory,
+  generators: &mut Generators
+) -> Result<Vec<u8>, String> {
   let package = Package::new();
   let doc = package.as_document();
 
@@ -71,14 +75,19 @@ fn create_element_from_json<'a>(
         updated_path.push(&name);
         let doc_path = DocPath::new(updated_path.join(".").to_string()).unwrap_or(DocPath::root());
 
-        if let Ok(rules) = matchers_from_integration_json(object) {
+        if let Ok((rules, generator)) = matchers_from_integration_json(object) {
           for rule in rules {
             matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
           }
+
+          if let Some(generator) = generator {
+            generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path.clone(), generator);
+          }
         }
+
         if let Some(gen) = object.get("pact:generator:type") {
           match Generator::from_map(&json_to_string(gen), object) {
-            Some(generator) => generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path, generator),
+            Some(generator) => generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path.clone(), generator),
             _ => ()
           };
         }
@@ -126,9 +135,13 @@ fn create_element_from_json<'a>(
       let doc_path = DocPath::new(&text_path.join(".")).unwrap_or(DocPath::root());
 
       if let Value::Object(matcher) = matcher {
-        if let Ok(rules) = matchers_from_integration_json(matcher) {
+        if let Ok((rules, generator)) = matchers_from_integration_json(matcher) {
           for rule in rules {
             matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
+          }
+
+          if let Some(generator) = generator {
+            generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path.clone(), generator);
           }
         }
       }
@@ -216,12 +229,16 @@ fn add_attributes(
     let value = match v {
       Value::Object(matcher_definition) => if matcher_definition.contains_key("pact:matcher:type") {
         let doc_path = DocPath::new(path).unwrap_or(DocPath::root());
-        #[allow(deprecated)]
-        if let Ok(rules) = matchers_from_integration_json(matcher_definition) {
+        if let Ok((rules, generator)) = matchers_from_integration_json(matcher_definition) {
           for rule in rules {
             matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
           }
+
+          if let Some(generator) = generator {
+            generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path.clone(), generator);
+          }
         }
+
         if let Some(gen) = matcher_definition.get("pact:generator:type") {
           match Generator::from_map(&json_to_string(gen), matcher_definition) {
             Some(generator) => generators.add_generator_with_subcategory(&GeneratorCategory::BODY, doc_path, generator),

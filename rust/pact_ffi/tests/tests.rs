@@ -1339,3 +1339,70 @@ fn combined_each_key_and_each_value_matcher() {
     }
   };
 }
+
+// Issue #399
+#[test_log::test]
+fn matching_definition_expressions_matcher() {
+  let consumer_name = CString::new("combined_matcher-consumer").unwrap();
+  let provider_name = CString::new("combined_matcher-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("matching_definition_expressions").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+
+  let content_type = CString::new("application/json").unwrap();
+  let path = CString::new("/query").unwrap();
+  let json = json!({
+    "results": {
+      "pact:matcher:type": "eachKey(matching(regex, '\\w{3}-\\d+', 'AUK-155332')), eachValue(matching(type, ''))",
+      "AUK-155332": {
+        "title": "...",
+        "description": "...",
+        "link": "http://....",
+        "relatesTo": ["BAF-88654"]
+      }
+    }
+  });
+  let body = CString::new(json.to_string()).unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let method = CString::new("PUT").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_body(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), body.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let json_body = json!({
+    "results": {
+      "KGK-9954356": {
+        "title": "Some title",
+        "description": "Tells us what this is in more or less detail",
+        "link": "http://....",
+        "relatesTo": ["BAF-88654"]
+      }
+    }
+  });
+  let result = client.put(format!("http://127.0.0.1:{}/query", port).as_str())
+    .header("Content-Type", "application/json")
+    .body(json_body.to_string())
+    .send();
+
+  let mismatches = pactffi_mock_server_mismatches(port);
+  println!("{}", unsafe { CStr::from_ptr(mismatches) }.to_string_lossy());
+
+  pactffi_cleanup_mock_server(port);
+  pactffi_free_pact_handle(pact_handle);
+
+  match result {
+    Ok(res) => {
+      expect!(res.status()).to(be_eq(200));
+    },
+    Err(err) => {
+      panic!("expected 200 response but request failed: {}", err);
+    }
+  };
+}

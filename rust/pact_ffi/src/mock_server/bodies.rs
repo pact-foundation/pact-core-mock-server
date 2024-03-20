@@ -4,17 +4,22 @@ use std::path::Path;
 
 use anyhow::{anyhow, bail};
 use bytes::{Bytes, BytesMut};
+use either::Either;
 use lazy_static::lazy_static;
+use regex::Regex;
+use serde_json::{Map, Value};
+use tracing::{debug, error, trace, warn};
+
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentTypeHint;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::matchingrules::expressions::{is_matcher_def, parse_matcher_def};
 use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
-use regex::Regex;
-use serde_json::{Map, Value};
-use tracing::{debug, error, trace, warn};
+
+use crate::mock_server::generator_category;
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -41,8 +46,8 @@ pub fn process_array(
       item_path.push_index(index);
     }
     match val {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
-      Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
+      Value::Object(map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
+      Value::Array(array) => process_array(array.as_slice(), matching_rules, generators, item_path, false, skip_matchers),
       _ => val.clone()
     }
   }).collect())
@@ -60,7 +65,7 @@ pub fn process_object(
   debug!("Path = {path}");
   let result = if let Some(matcher_type) = obj.get("pact:matcher:type") {
     debug!("detected pact:matcher:type, will configure a matcher");
-    process_matcher(obj, matching_rules, generators, &path, type_matcher, matcher_type)
+    process_matcher(obj, matching_rules, generators, &path, type_matcher, &matcher_type.clone())
   } else {
     debug!("Configuring a normal object");
     Value::Object(obj.iter()
@@ -122,17 +127,23 @@ fn process_matcher(
       _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
     }
   } else {
-    matchers_from_integration_json(obj).map(|rules| {
+    matchers_from_integration_json(obj).map(|(rules, generator)| {
       let has_values_matcher = rules.iter().any(MatchingRule::is_values_matcher);
 
       let json_value = match obj.get("value") {
         Some(inner) => match inner {
-          Value::Object(map) => process_object(map, matching_rules, generators, path.clone(), has_values_matcher),
-          Value::Array(array) => process_array(array, matching_rules, generators, path.clone(), true, skip_matchers),
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path.clone(), has_values_matcher),
+          Value::Array(ref array) => process_array(array, matching_rules, generators, path.clone(), true, skip_matchers),
           _ => inner.clone()
         },
         None => Value::Null
       };
+
+      if let Some(generator) = generator {
+        let category = generator_category(matching_rules);
+        generators.add_generator_with_subcategory(category, path.clone(), generator);
+      }
+
       (rules, json_value)
     })
   };
@@ -140,17 +151,7 @@ fn process_matcher(
   if let Some(gen) = obj.get("pact:generator:type") {
     debug!("detected pact:generator:type, will configure a generators");
     if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
-      let category = match matching_rules.name {
-        Category::BODY => &GeneratorCategory::BODY,
-        Category::HEADER => &GeneratorCategory::HEADER,
-        Category::PATH => &GeneratorCategory::PATH,
-        Category::QUERY => &GeneratorCategory::QUERY,
-        Category::METADATA => &GeneratorCategory::METADATA,
-        _ => {
-          warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
-          &GeneratorCategory::BODY
-        }
-      };
+      let category = generator_category(matching_rules);
       generators.add_generator_with_subcategory(category, path.clone(), generator);
     }
   }
@@ -185,41 +186,62 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
 }
 
 /// Builds a list of `MatchingRule` from a `Value` struct used by language integrations
-pub fn matchers_from_integration_json(m: &Map<String, Value>) -> anyhow::Result<Vec<MatchingRule>> {
+pub fn matchers_from_integration_json(m: &Map<String, Value>) -> anyhow::Result<(Vec<MatchingRule>, Option<Generator>)> {
   match m.get("pact:matcher:type") {
-    Some(value) => match value {
-      Value::Array(arr) => {
-        let mut rules = vec![];
-        for v in arr {
-          match v.get("pact:matcher:type") {
-            Some(t) => {
-              let val = json_to_string(t);
-              let rule = MatchingRule::create(val.as_str(), &v)
-                .map_err(|err| {
-                  error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
-                  err
-                })?;
-              rules.push(rule);
-            }
-            None => {
-              error!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", v);
-              bail!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", v);
+    Some(value) => {
+      let json_str = value.to_string();
+      match value {
+        Value::Array(arr) => {
+          let mut rules = vec![];
+          for v in arr.clone() {
+            match v.get("pact:matcher:type") {
+              Some(t) => {
+                let val = json_to_string(t);
+                let rule = MatchingRule::create(val.as_str(), &v)
+                  .map_err(|err| {
+                    error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
+                    err
+                  })?;
+                rules.push(rule);
+              }
+              None => {
+                error!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", json_str);
+                bail!("Failed to create matching rule from JSON '{:?}': there is no 'pact:matcher:type' attribute", json_str);
+              }
             }
           }
+          Ok((rules, None))
         }
-        Ok(rules)
-      }
-      _ => {
-        let val = json_to_string(value);
-        MatchingRule::create(val.as_str(), &Value::Object(m.clone()))
-          .map(|r| vec![r])
-          .map_err(|err| {
-            error!("Failed to create matching rule from JSON '{:?}': {}", m, err);
-            err
-          })
+        _ => {
+          let val = json_to_string(value);
+          if val != "eachKey" && val != "eachValue" && val != "notEmpty" && is_matcher_def(val.as_str()) {
+            let mut rules = vec![];
+            let def = parse_matcher_def(val.as_str())?;
+            for rule in def.rules {
+              match rule {
+                Either::Left(rule) => rules.push(rule),
+                Either::Right(reference) => if m.contains_key(reference.name.as_str()) {
+                  rules.push(MatchingRule::Type);
+                  // TODO: We need to somehow drop the reference otherwise the matching will try compare it
+                } else {
+                  error!("Failed to create matching rules from JSON '{:?}': reference '{}' was not found", json_str, reference.name);
+                  bail!("Failed to create matching rules from JSON '{:?}': reference '{}' was not found", json_str, reference.name);
+                }
+              }
+            }
+            Ok((rules, def.generator))
+          } else {
+            MatchingRule::create(val.as_str(), &Value::Object(m.clone()))
+              .map(|r| (vec![r], None))
+              .map_err(|err| {
+                error!("Failed to create matching rule from JSON '{:?}': {}", json_str, err);
+                err
+              })
+          }
+        }
       }
     },
-    _ => Ok(vec![])
+    _ => Ok((vec![], None))
   }
 }
 
@@ -403,18 +425,20 @@ fn format_multipart_error(e: std::io::Error) -> String {
 mod test {
   use expectest::prelude::*;
   use maplit::hashmap;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+  use serde_json::json;
+
   use pact_models::{generators, HttpStatus, matchingrules_list};
   use pact_models::content_types::ContentType;
   use pact_models::generators::{Generator, Generators};
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
   use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pact_models::path_exp::DocPath;
-  use serde_json::json;
-  use pretty_assertions::assert_eq;
-  use rstest::rstest;
 
   #[allow(deprecated)]
   use crate::mock_server::bodies::{matcher_from_integration_json, process_object};
+
   use super::*;
 
   #[test]
@@ -875,7 +899,7 @@ mod test {
     { "pact:matcher:type": "include", "value": "[a-z]" }
   ] }), vec![MatchingRule::Regex("[a-z]".to_string()), MatchingRule::Equality, MatchingRule::Include("[a-z]".to_string())])]
   fn matchers_from_integration_json_ok_test(#[case] json: Value, #[case] value: Vec<MatchingRule>) {
-    expect!(matchers_from_integration_json(&json.as_object().unwrap())).to(be_ok().value(value));
+    expect!(matchers_from_integration_json(&json.as_object().unwrap())).to(be_ok().value((value, None)));
   }
 
   #[rstest]

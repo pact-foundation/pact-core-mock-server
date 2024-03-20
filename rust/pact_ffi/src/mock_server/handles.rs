@@ -120,7 +120,7 @@ use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, detect_content_type_from_string, JSON, TEXT, XML};
-use pact_models::generators::{Generator, GeneratorCategory, Generators};
+use pact_models::generators::{Generator, Generators};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
@@ -145,7 +145,7 @@ use futures::executor::block_on;
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::error::set_error_msg;
-use crate::mock_server::{StringResult, xml};
+use crate::mock_server::{generator_category, StringResult, xml};
 #[allow(deprecated)]
 use crate::mock_server::bodies::{
   empty_multipart_body,
@@ -939,8 +939,8 @@ fn from_integration_json(
 
   match serde_json::from_str(value) {
     Ok(json) => match json {
-      Value::Object(ref map) => {
-        let json: Value = process_object(map, category, generators, path, false);
+      Value::Object(map) => {
+        let json: Value = process_object(&map, category, generators, path, false);
         // These are simple JSON primitives (strings), so we must unescape them
         json_to_string(&json)
       },
@@ -970,17 +970,17 @@ fn from_integration_json_v2(
   let query_or_header = [Category::QUERY, Category::HEADER].contains(&matching_rules.name);
 
   match serde_json::from_str(value) {
-    Ok(json) => match json {
-      Value::Object(ref map) => {
+    Ok(mut json) => match &mut json {
+      Value::Object(map) => {
         let result = if map.contains_key("pact:matcher:type") {
           debug!("detected pact:matcher:type, will configure any matchers");
           let rules = matchers_from_integration_json(map);
           trace!("matching_rules = {rules:?}");
 
-          let (path, result_value) = match map.get("value") {
+          let (path, result_value) = match map.get_mut("value") {
             Some(val) => match val {
               Value::Array(array) => {
-                let array = process_array(&array, matching_rules, generators, path.clone(), true, false);
+                let array = process_array(array.as_mut_slice(), matching_rules, generators, path.clone(), true, false);
                 (path.clone(), array)
               },
               _ => (path.clone(), val.clone())
@@ -988,7 +988,7 @@ fn from_integration_json_v2(
             None => (path.clone(), Value::Null)
           };
 
-          if let Ok(rules) = &rules {
+          if let Ok((rules, generator)) = &rules {
             let path = if path_or_status {
               path.parent().unwrap_or(DocPath::root())
             } else {
@@ -1012,22 +1012,22 @@ fn from_integration_json_v2(
                 matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
               }
             }
+
+            if let Some(generator) = generator {
+              let category = generator_category(matching_rules);
+              let path = if path_or_status {
+                path.parent().unwrap_or(DocPath::root())
+              } else {
+                path.clone()
+              };
+              generators.add_generator_with_subcategory(category, path.clone(), generator.clone());
+            }
           }
 
           if let Some(gen) = map.get("pact:generator:type") {
             debug!("detected pact:generator:type, will configure a generators");
             if let Some(generator) = Generator::from_map(&json_to_string(gen), map) {
-              let category = match matching_rules.name {
-                Category::BODY => &GeneratorCategory::BODY,
-                Category::HEADER => &GeneratorCategory::HEADER,
-                Category::PATH => &GeneratorCategory::PATH,
-                Category::QUERY => &GeneratorCategory::QUERY,
-                Category::STATUS => &GeneratorCategory::STATUS,
-                _ => {
-                  warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
-                  &GeneratorCategory::BODY
-                }
-              };
+              let category = generator_category(matching_rules);
               let path = if path_or_status {
                 path.parent().unwrap_or(DocPath::root())
               } else {
@@ -1062,8 +1062,8 @@ fn from_integration_json_v2(
 pub(crate) fn process_xml(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
   trace!("process_xml");
   match serde_json::from_str(&body) {
-    Ok(json) => match json {
-      Value::Object(ref map) => xml::generate_xml_body(map, matching_rules, generators),
+    Ok(mut json) => match &mut json {
+      Value::Object(map) => xml::generate_xml_body(map, matching_rules, generators),
       _ => Err(format!("JSON document is invalid (expected an Object), have {}", json))
     },
     Err(err) => Err(format!("Failed to parse XML builder document: {}", err))
@@ -2543,12 +2543,10 @@ pub extern fn pactffi_message_with_metadata_v2(message_handle: MessageHandle, ke
         let generators = &mut message.contents.generators;
         let value = match serde_json::from_str(value) {
           Ok(json) => match json {
-            Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::new(key).unwrap(), false),
-            Value::Array(ref array) => process_array(array, matching_rules, generators, DocPath::new(key).unwrap(), false, false),
+            Value::Object(map) => process_object(&map, matching_rules, generators, DocPath::new(key).unwrap(), false),
+            Value::Array(array) => process_array(array.as_slice(), matching_rules, generators, DocPath::new(key).unwrap(), false, false),
             Value::Null => Value::Null,
-            Value::String(string) => Value::String(string),
-            Value::Bool(bool) => Value::Bool(bool),
-            Value::Number(number) => Value::Number(number),
+            _ => json
           },
           Err(err) => {
             warn!("Failed to parse metadata value '{}' as JSON - {}. Will treat it as string", value, err);
@@ -3748,7 +3746,7 @@ mod tests {
     }));
   }
 
-  #[test]
+  #[test_log::test]
   fn status_with_matcher_and_generator() {
     let pact_handle = PactHandle::new("TestPC3", "TestPP");
     let description = CString::new("status_with_matcher_and_generator").unwrap();

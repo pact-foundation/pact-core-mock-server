@@ -60,7 +60,7 @@ use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 use rand::prelude::*;
 use serde_json::Value;
 use tokio_rustls::rustls::ServerConfig;
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
@@ -68,6 +68,8 @@ use pact_matching::metrics::{MetricEvent, send_metrics};
 use pact_mock_server::{MANAGER, mock_server_mismatches, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::server_manager::ServerManager;
+use pact_models::generators::GeneratorCategory;
+use pact_models::matchingrules::{Category, MatchingRuleCategory};
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::handles::{PactHandle, path_from_dir};
@@ -699,4 +701,19 @@ pub unsafe extern fn pactffi_free_string(s: *mut c_char) {
     return;
   }
   drop(CString::from_raw(s));
+}
+
+pub(crate) fn generator_category(matching_rules: &mut MatchingRuleCategory) -> &GeneratorCategory {
+  match matching_rules.name {
+    Category::BODY => &GeneratorCategory::BODY,
+    Category::HEADER => &GeneratorCategory::HEADER,
+    Category::PATH => &GeneratorCategory::PATH,
+    Category::QUERY => &GeneratorCategory::QUERY,
+    Category::METADATA => &GeneratorCategory::METADATA,
+    Category::STATUS => &GeneratorCategory::STATUS,
+    _ => {
+      warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
+      &GeneratorCategory::BODY
+    }
+  }
 }
