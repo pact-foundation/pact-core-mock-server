@@ -26,13 +26,13 @@ build_x86_64() {
             "$ARTIFACTS_DIR/libpact_ffi-osx-x86_64.dylib.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-x86_64.a"
+            "$ARTIFACTS_DIR/libpact_ffi-osx-x86_64.a.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/libpact_ffi.dylib" \
             "$ARTIFACTS_DIR/libpact_ffi-macos-x86_64.dylib.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-macos-x86_64.a"
+            "$ARTIFACTS_DIR/libpact_ffi-macos-x86_64.a.gz"
     fi
 }
 
@@ -46,13 +46,13 @@ build_aarch64() {
             "$ARTIFACTS_DIR/libpact_ffi-osx-aarch64-apple-darwin.dylib.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-osx-aarch64-apple-darwin.a"
+            "$ARTIFACTS_DIR/libpact_ffi-osx-aarch64-apple-darwin.a.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/libpact_ffi.dylib" \
             "$ARTIFACTS_DIR/libpact_ffi-macos-aarch64-apple-darwin.dylib.gz"
         gzip_and_sum \
             "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/libpact_ffi.a" \
-            "$ARTIFACTS_DIR/libpact_ffi-macos-aarch64-apple-darwin.a"
+            "$ARTIFACTS_DIR/libpact_ffi-macos-aarch64-apple-darwin.a.gz"
     fi
 }
 
