@@ -1,5 +1,28 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.19 - Bugfix Release
+
+* d3c18d21 - chore(ffi): Remove unecessary mutable references #399 (Ronald Holshausen, Wed Mar 20 14:47:54 2024 +1100)
+* 21406631 - feat(ffi): Update intermediate JSON to support matching rule expressions #399 (Ronald Holshausen, Wed Mar 20 11:59:46 2024 +1100)
+* 09077457 - chore(ffi): Fix for failing musl build #399 (Ronald Holshausen, Tue Mar 19 14:16:55 2024 +1100)
+* 85dc3e95 - feat(ffi): Update intermediate JSON to support combining matching rules #399 (Ronald Holshausen, Tue Mar 19 13:57:54 2024 +1100)
+* 6d9ddb76 - Merge pull request #401 from pact-foundation/feat/add-text-comment (Ronald Holshausen, Mon Mar 18 11:05:40 2024 +1100)
+* f6430bf0 - refactor(ffi): simply `set_comment` using `comments_mut` (JP-Ellis, Fri Mar 15 15:59:02 2024 +1100)
+* f310e8ec - feat(ffi): add `add_text_comment` (JP-Ellis, Fri Mar 15 09:02:49 2024 +1100)
+* ffffa61d - chore: Upgrade pact_mock_server to 1.2.5 (Ronald Holshausen, Fri Mar 15 15:13:04 2024 +1100)
+* 6406e9ae - refactor(release): Rename OSX to MacOS (Ronald Holshausen, Fri Mar 15 14:28:06 2024 +1100)
+* fca0c4a5 - fix: binary body lifetime issue (JP-Ellis, Tue Mar 12 16:36:43 2024 +1100)
+* 72f83688 - Merge pull request #391 from pact-foundation/chore/fix-pactffi-release (Ronald Holshausen, Wed Feb 28 14:39:04 2024 +1100)
+* e5eee74c - fix(FFI): Use random handle IDs instead of sequentual ones (Ronald Holshausen, Wed Feb 28 10:41:07 2024 +1100)
+* 7732a637 - chore(ci): refactor release pipeline (JP-Ellis, Mon Feb 26 17:54:18 2024 +1100)
+* 84dfc194 - bump version to 0.4.19 (Ronald Holshausen, Mon Feb 26 14:47:29 2024 +1100)
+* 6bfa4a94 - update changelog for release 0.4.18 (Ronald Holshausen, Mon Feb 26 14:44:33 2024 +1100)
+* 93f02c74 - feat(ffi): allow setting comments (JP-Ellis, Mon Feb 26 11:26:39 2024 +1100)
+* 8ac21bdb - feat(ffi): allow toggling pending state (JP-Ellis, Mon Feb 26 10:48:32 2024 +1100)
+* 0d12bee4 - feat(ffi): allow setting interaction key (JP-Ellis, Mon Feb 26 10:40:00 2024 +1100)
+* 634bc589 - chore(FFI): FFI Feature tests were writing to the same Pact file and can cause race conditions (Ronald Holshausen, Wed Feb 21 11:58:37 2024 +1100)
+* e902c532 - bump version to 0.4.18 (Ronald Holshausen, Wed Feb 21 11:29:01 2024 +1100)
+
 # 0.4.18 - Maintenance Release
 
 * 93f02c74 - feat(ffi): allow setting comments (JP-Ellis, Mon Feb 26 11:26:39 2024 +1100)
