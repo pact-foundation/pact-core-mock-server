@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.0 - Maintenance Release
+
+* 6234fe35 - chore(pact_consumer): Upgrade pact-plugin-driver to 0.6.0 (Ronald Holshausen, Tue Apr 16 11:58:35 2024 +1000)
+* de579415 - chore(pact_consumer): Upgrade dependencies (Ronald Holshausen, Tue Apr 16 11:54:47 2024 +1000)
+* dffbc8e7 - chore(pact_consumer): Bump minor version (Ronald Holshausen, Tue Apr 16 11:49:14 2024 +1000)
+* d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
+* ffffa61d - chore: Upgrade pact_mock_server to 1.2.5 (Ronald Holshausen, Fri Mar 15 15:13:04 2024 +1100)
+* fa2af940 - bump version to 1.1.3 (Ronald Holshausen, Mon Feb 12 14:49:15 2024 +1100)
+
 # 1.1.2 - Bugfix Release
 
 * e31589d7 - chore: add test for checking matching rules on message metadata (Ronald Holshausen, Sat Feb 10 10:13:01 2024 +1100)
