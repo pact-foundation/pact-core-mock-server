@@ -2096,7 +2096,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "maplit",
- "pact-plugin-driver 0.5.2",
+ "pact-plugin-driver 0.6.0",
  "pact_matching",
  "pact_models",
  "quickcheck",
