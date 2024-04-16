@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.1 - Maintenance Release
+
+* 3706f6ef - chore: Add From implementation for CommonMismatch (Ronald Holshausen, Tue Apr 16 16:13:34 2024 +1000)
+* eb4d9a59 - bump version to 1.2.1 (Ronald Holshausen, Tue Apr 16 10:21:53 2024 +1000)
+
 # 1.2.0 - Maintenance Release
 
 * d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
