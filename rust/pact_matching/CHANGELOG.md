@@ -1,5 +1,23 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.0 - Maintenance Release
+
+* d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
+* 7900fe5a - chore(pact_matching): Update dependencies (Ronald Holshausen, Tue Apr 16 09:55:36 2024 +1000)
+* 411b3314 - chore(pact_matching): Update pact-plugin-driver to 0.6.0 (Ronald Holshausen, Tue Apr 16 09:50:54 2024 +1000)
+* 0ba022b1 - chore(pact_matching): Update dependencies (Ronald Holshausen, Tue Apr 16 09:41:00 2024 +1000)
+* 74f43bdf - chore(pact_models): clean up some deprecation warnings (Ronald Holshausen, Wed Mar 20 15:34:27 2024 +1100)
+* 8985576e - chore: Lock tree_magic_mimi to 3.0 as 3.1 fails to compile with MUSL (Ronald Holshausen, Fri Mar 15 14:52:03 2024 +1100)
+* fe508268 - Merge pull request #396 from tienvx/match-headers-with-list-matching-rules (Ronald Holshausen, Wed Feb 28 14:01:34 2024 +1100)
+* f117dcd2 - feat: Match headers with ArrayContains and EachValue matchers (tien.xuan.vo, Tue Feb 27 16:07:35 2024 +0700)
+* a567af54 - test: Test match json body with EachValue matcher (tien.xuan.vo, Wed Feb 28 08:21:48 2024 +0700)
+* 1c8a6f06 - feat: Match query with ArrayContains and EachValue matchers (tien.xuan.vo, Tue Feb 27 15:22:34 2024 +0700)
+* b2e43564 - refactor: Replace Mismatch by CommonMismatch (tien.xuan.vo, Tue Feb 27 00:45:47 2024 +0700)
+* 8be1bf32 - chore: clean up trace level instrumentation on matcher_is_defined function (Ronald Holshausen, Wed Feb 7 15:37:20 2024 +1100)
+* 49cdc78a - Merge pull request #382 from tienvx/improve-content-type-match-error-message (Ronald Holshausen, Wed Feb 7 14:35:22 2024 +1100)
+* 20742d98 - feat: Rephrase the content type matching error message (tien.xuan.vo, Wed Feb 7 09:58:13 2024 +0700)
+* 7552d617 - bump version to 1.1.11 (Ronald Holshausen, Wed Feb 7 13:15:52 2024 +1100)
+
 # 1.1.10 - Bugfix Release
 
 * a8efa111 - fix: was missing an implementation of MinType and MaxType matchers for maps (Ronald Holshausen, Wed Feb 7 12:27:59 2024 +1100)
