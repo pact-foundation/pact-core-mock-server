@@ -382,6 +382,7 @@ use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::find_content_matcher;
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+use serde::__private::from_utf8_lossy;
 use serde_json::{json, Value};
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -763,9 +764,13 @@ fn match_xml(
 /// Store common mismatch information so it can be converted to different type of mismatches
 #[derive(Debug, Clone, PartialOrd, Ord, Eq)]
 pub struct CommonMismatch {
-  path: String,
+  /// path expression to where the mismatch occurred
+  pub path: String,
+  /// expected value (as a string)
   expected: String,
+  /// actual value (as a string)
   actual: String,
+  /// Description of the mismatch
   description: String
 }
 
@@ -810,6 +815,61 @@ impl Display for CommonMismatch {
 impl PartialEq for CommonMismatch {
   fn eq(&self, other: &CommonMismatch) -> bool {
     self.path == other.path && self.expected == other.expected && self.actual == other.actual
+  }
+}
+
+impl From<Mismatch> for CommonMismatch {
+  fn from(value: Mismatch) -> Self {
+    match value {
+      Mismatch::MethodMismatch { expected, actual } => CommonMismatch {
+        path: "".to_string(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: "Method mismatch".to_string()
+      },
+      Mismatch::PathMismatch { expected, actual, mismatch } => CommonMismatch {
+        path: "".to_string(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: mismatch.clone()
+      },
+      Mismatch::StatusMismatch { expected, actual, mismatch } => CommonMismatch {
+        path: "".to_string(),
+        expected: expected.to_string(),
+        actual: actual.to_string(),
+        description: mismatch.clone()
+      },
+      Mismatch::QueryMismatch { parameter, expected, actual, mismatch } => CommonMismatch {
+        path: parameter.clone(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: mismatch.clone()
+      },
+      Mismatch::HeaderMismatch { key, expected, actual, mismatch } => CommonMismatch {
+        path: key.clone(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: mismatch.clone()
+      },
+      Mismatch::BodyTypeMismatch { expected, actual, mismatch, .. } => CommonMismatch {
+        path: "".to_string(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: mismatch.clone()
+      },
+      Mismatch::BodyMismatch { path, expected, actual, mismatch } => CommonMismatch {
+        path: path.clone(),
+        expected: from_utf8_lossy(expected.unwrap_or_default().as_ref()).to_string(),
+        actual: from_utf8_lossy(actual.unwrap_or_default().as_ref()).to_string(),
+        description: mismatch.clone()
+      },
+      Mismatch::MetadataMismatch { key, expected, actual, mismatch } => CommonMismatch {
+        path: key.clone(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        description: mismatch.clone()
+      }
+    }
   }
 }
 
