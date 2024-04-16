@@ -1234,12 +1234,12 @@ mod tests {
         let client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/nonhal").await;
         pretty_assertions::assert_eq!(
-          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal\' - error decoding response body: EOF while parsing a value at line 1 column 0. URL: '{}'",
+          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal\' - error decoding response body. URL: '{}'",
             pact_broker.url()), result.unwrap_err().to_string());
 
         let result = client.clone().fetch("/nonhal2").await;
         pretty_assertions::assert_eq!(
-          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal2\' - error decoding response body: expected value at line 1 column 1. URL: '{}'",
+          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal2\' - error decoding response body. URL: '{}'",
             pact_broker.url()), result.unwrap_err().to_string());
     }
 
