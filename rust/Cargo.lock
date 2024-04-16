@@ -2015,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "ansi_term",
  "anyhow",
