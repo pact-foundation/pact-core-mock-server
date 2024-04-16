@@ -2219,7 +2219,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "mime",
- "pact-plugin-driver 0.5.2",
+ "pact-plugin-driver 0.6.0",
  "pact_consumer",
  "pact_matching",
  "pact_models",
