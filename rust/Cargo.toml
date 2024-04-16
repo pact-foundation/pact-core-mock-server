@@ -3,7 +3,8 @@ members = [
     "pact_*"
 ]
 exclude = [
-    "pact_wasm"
+    "pact_wasm",
+    "pact_cli"
 ]
 resolver = "2"
 

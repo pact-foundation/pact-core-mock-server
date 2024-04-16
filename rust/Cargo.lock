@@ -1927,24 +1927,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pact_cli"
-version = "0.0.0"
-dependencies = [
- "ansi_term",
- "anyhow",
- "clap 2.34.0",
- "expectest",
- "glob",
- "log",
- "maplit",
- "pact_matching",
- "pact_models",
- "serde",
- "serde_json",
- "simplelog",
-]
-
-[[package]]
 name = "pact_consumer"
 version = "1.1.3"
 dependencies = [
@@ -2033,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "1.1.11"
+version = "1.2.0"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -3216,17 +3198,6 @@ name = "similar"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa42c91313f1d05da9b26f267f931cf178d4aba455b4c4622dd7355eb80c6640"
-
-[[package]]
-name = "simplelog"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16257adbfaef1ee58b1363bdc0664c9b8e1e30aed86049635fb5f147d065a9c0"
-dependencies = [
- "log",
- "termcolor",
- "time",
-]
 
 [[package]]
 name = "siphasher"
