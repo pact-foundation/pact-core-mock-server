@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.6 - Maintenance Release
+
+* 30e994fd - chore(pact_mock_server): Upgrade pact-plugin-driver to 0.6.0 (Ronald Holshausen, Tue Apr 16 15:03:40 2024 +1000)
+* a945a380 - chore(pact_mock_server): Upgrade dependencies (Ronald Holshausen, Tue Apr 16 15:00:03 2024 +1000)
+* d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
+* 23a9a60d - bump version to 1.2.6 (Ronald Holshausen, Fri Mar 15 15:07:14 2024 +1100)
+
 # 1.2.5 - Maintenance Release
 
 * 9311d1be - chore(pact_mock_server): Update dependencies (Ronald Holshausen, Fri Mar 15 14:34:13 2024 +1100)
