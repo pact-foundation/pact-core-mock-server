@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.0 - Maintenance Release
+
+* dffbc8e7 - chore(pact_consumer): Bump minor version (Ronald Holshausen, Tue Apr 16 11:49:14 2024 +1000)
+* d625bded - Revert "update changelog for release 1.2.0" (Ronald Holshausen, Tue Apr 16 11:31:14 2024 +1000)
+* 118c7b18 - update changelog for release 1.2.0 (Ronald Holshausen, Tue Apr 16 11:22:46 2024 +1000)
+* bc35a287 - chore(pact_verifier): Update pact-plugin-driver to 0.6.0 (Ronald Holshausen, Tue Apr 16 10:58:31 2024 +1000)
+* 0d4a72f5 - chore(pact_verifier): Update dependencies (Ronald Holshausen, Tue Apr 16 10:53:45 2024 +1000)
+* 7688469a - chore(pact_verifier): Bump minor version (Ronald Holshausen, Tue Apr 16 10:41:18 2024 +1000)
+* d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
+* 1664bcbc - bump version to 1.1.1 (Ronald Holshausen, Mon Feb 19 11:34:09 2024 +1100)
+
 # 1.1.0 - Maintenance Release
 
 * 04959d7d - feat(verifier): Include interaction description in verification results #292 (Ronald Holshausen, Mon Feb 19 07:39:21 2024 +1100)
