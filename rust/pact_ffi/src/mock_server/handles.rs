@@ -1053,7 +1053,7 @@ fn from_integration_json_v2(
       _ => Either::Left(value.to_string())
     },
     Err(err) => {
-      warn!("Failed to parse the value, treating it as a plain string: {}", err);
+      debug!("Failed to parse the value, treating it as a plain string: {}", err);
       Either::Left(value.to_string())
     }
   }
