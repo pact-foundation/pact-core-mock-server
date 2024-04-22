@@ -840,7 +840,21 @@ pub extern fn pactffi_with_query_parameter(
 /// pactffi_with_query_parameter_v2(handle, "id", 0, value);
 /// ```
 ///
-/// For a query parameter with no value, the value parameter can be set to a NULL pointer.
+/// For query parameters with no value, two distinct formats are provided:
+///
+/// 1. Parameters with blank values, as specified by `?foo=&bar=`, require an empty string:
+///
+/// ```c
+/// pactffi_with_query_parameter_v2(handle, "foo", 0, "");
+/// pactffi_with_query_parameter_v2(handle, "bar", 0, "");
+/// ```
+///
+/// 2. Parameters with no associated value, as specified by `?foo&bar`, require a NULL pointer:
+///
+/// ```c
+/// pactffi_with_query_parameter_v2(handle, "foo", 0, NULL);
+/// pactffi_with_query_parameter_v2(handle, "bar", 0, NULL);
+/// ```
 ///
 /// # Safety
 /// The name parameter must be a valid pointer to a NULL terminated string. If the value
