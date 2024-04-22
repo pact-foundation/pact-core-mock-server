@@ -771,11 +771,11 @@ pub extern fn pactffi_with_query_parameter(
             if index >= values.len() {
               values.resize_with(index + 1, Default::default);
             }
-            values[index] = value;
+            values[index] = Some(value);
           } else {
-            let mut values: Vec<String> = Vec::new();
+            let mut values: Vec<Option<String>> = Vec::new();
             values.resize_with(index + 1, Default::default);
-            values[index] = value;
+            values[index] = Some(value);
             q.insert(name.to_string(), values);
           };
           q
@@ -784,9 +784,9 @@ pub extern fn pactffi_with_query_parameter(
           path.push_field(name).push_index(index);
           #[allow(deprecated)]
           let value = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &value.to_string(), path, "query");
-          let mut values: Vec<String> = Vec::new();
+          let mut values: Vec<Option<String>> = Vec::new();
           values.resize_with(index + 1, Default::default);
-          values[index] = value;
+          values[index] = Some(value);
           Some(hashmap! { name.to_string() => values })
         });
         !mock_server_started
@@ -839,8 +839,12 @@ pub extern fn pactffi_with_query_parameter(
 /// const char* value = "{\"value\":[\"2\"], \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
 /// pactffi_with_query_parameter_v2(handle, "id", 0, value);
 /// ```
+///
+/// For a query parameter with no value, the value parameter can be set to a NULL pointer.
+///
 /// # Safety
-/// The name and value parameters must be valid pointers to NULL terminated strings.
+/// The name parameter must be a valid pointer to a NULL terminated string. If the value
+/// parameter is not NULL, it must point to a valid NULL terminated string.
 /// ```
 #[no_mangle]
 pub extern fn pactffi_with_query_parameter_v2(
@@ -850,7 +854,7 @@ pub extern fn pactffi_with_query_parameter_v2(
   value: *const c_char
 ) -> bool {
   if let Some(name) = convert_cstr("name", name) {
-    let value = convert_cstr("value", value).unwrap_or_default();
+    let value = convert_cstr("value", value);
     trace!(?interaction, name, index, value, "pactffi_with_query_parameter_v2 called");
     interaction.with_interaction(&|_, mock_server_started, inner| {
       if let Some(reqres) = inner.as_v4_http_mut() {
@@ -860,31 +864,38 @@ pub extern fn pactffi_with_query_parameter_v2(
           path.push_index(index);
         }
 
-        let value = from_integration_json_v2(
-          &mut reqres.request.matching_rules,
-          &mut reqres.request.generators,
-          value,
-          path,
-          "query",
-          index
-        );
-        match value {
-          Either::Left(value) => {
-            reqres.request.query = update_query_map(index, name, reqres, &value);
+        if let Some(value) = value {
+          let value = from_integration_json_v2(
+            &mut reqres.request.matching_rules,
+            &mut reqres.request.generators,
+            value,
+            path,
+            "query",
+            index
+          );
+          match value {
+            Either::Left(value) => {
+              reqres.request.query = update_query_map(index, name, reqres, Some(value));
+            }
+            Either::Right(values) => if index == 0 {
+              reqres.request.query = reqres.request.query.clone().map(|mut q| {
+                let values = values.iter().map(|v| Some(v.clone())).collect_vec();
+                if q.contains_key(name) {
+                  let vec = q.get_mut(name).unwrap();
+                  vec.extend_from_slice(&values);
+                } else {
+                  q.insert(name.to_string(), values);
+                };
+                q
+              }).or_else(|| Some(hashmap! {
+                name.to_string() => values.iter().map(|v| Some(v.clone())).collect_vec()
+              }))
+            } else {
+              reqres.request.query = update_query_map(index, name, reqres, values.first().cloned());
+            }
           }
-          Either::Right(values) => if index == 0 {
-            reqres.request.query = reqres.request.query.clone().map(|mut q| {
-              if q.contains_key(name) {
-                let vec = q.get_mut(name).unwrap();
-                vec.extend_from_slice(&values);
-              } else {
-                q.insert(name.to_string(), values.clone());
-              };
-              q
-            }).or_else(|| Some(hashmap! { name.to_string() => values }))
-          } else {
-            reqres.request.query = update_query_map(index, name, reqres, &values.first().cloned().unwrap_or_default());
-          }
+        } else {
+          reqres.request.query = update_query_map(index, name, reqres, None);
         }
         !mock_server_started
       } else {
@@ -898,25 +909,29 @@ pub extern fn pactffi_with_query_parameter_v2(
   }
 }
 
-fn update_query_map(index: size_t, name: &str, reqres: &mut SynchronousHttp, value: &String) -> Option<HashMap<String, Vec<String>>> {
+fn update_query_map(
+  index: size_t,
+  name: &str,
+  reqres: &mut SynchronousHttp,
+  value: Option<String>
+) -> Option<HashMap<String, Vec<Option<String>>>> {
   reqres.request.query.clone().map(|mut q| {
-    if q.contains_key(name) {
-      let values = q.get_mut(name).unwrap();
-      if index >= values.len() {
-        values.resize_with(index + 1, Default::default);
+    if let Some(entry) = q.get_mut(name) {
+      if index >= entry.len() {
+        entry.resize_with(index + 1, Default::default);
       }
-      values[index] = value.clone();
+      entry[index] = value.clone();
     } else {
-      let mut values: Vec<String> = Vec::new();
+      let mut values: Vec<Option<String>> = Vec::new();
       values.resize_with(index + 1, Default::default);
       values[index] = value.clone();
       q.insert(name.to_string(), values);
     };
     q
   }).or_else(|| {
-    let mut values: Vec<String> = Vec::new();
+    let mut values: Vec<Option<String>> = Vec::new();
     values.resize_with(index + 1, Default::default);
-    values[index] = value.clone();
+    values[index] = value;
     Some(hashmap! { name.to_string() => values })
   })
 }
@@ -2866,7 +2881,7 @@ mod tests {
     pactffi_free_pact_handle(pact_handle);
 
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
-      "id".to_string() => vec!["100".to_string()]
+      "id".to_string() => vec![Some("100".to_string())]
     }));
     expect!(interaction.request.matching_rules.rules.get(&Category::QUERY).cloned().unwrap_or_default().is_empty()).to(be_true());
   }
@@ -2888,7 +2903,7 @@ mod tests {
     pactffi_free_pact_handle(pact_handle);
 
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
-      "id".to_string() => vec!["100".to_string()]
+      "id".to_string() => vec![Some("100".to_string())]
     }));
     expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
       "query" => { "$.id" => [ MatchingRule::Regex("\\d+".to_string()) ] }
@@ -2912,7 +2927,7 @@ mod tests {
     pactffi_free_pact_handle(pact_handle);
 
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
-      "id".to_string() => vec!["1".to_string(), "2".to_string()]
+      "id".to_string() => vec![Some("1".to_string()), Some("2".to_string())]
     }));
     expect!(interaction.request.matching_rules.rules.get(&Category::QUERY).cloned().unwrap_or_default().is_empty()).to(be_true());
   }
@@ -2936,7 +2951,7 @@ mod tests {
     pactffi_free_pact_handle(pact_handle);
 
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
-      "id".to_string() => vec!["100".to_string(), "abc".to_string()]
+      "id".to_string() => vec![Some("100".to_string()), Some("abc".to_string())]
     }));
     assert_eq!(&interaction.request.matching_rules, &matchingrules! {
       "query" => {
@@ -2964,7 +2979,7 @@ mod tests {
     pactffi_free_pact_handle(pact_handle);
 
     expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
-      "catId[]".to_string() => vec!["1".to_string()]
+      "catId[]".to_string() => vec![Some("1".to_string())]
     }));
     expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
       "query" => { "$['catId[]']" => [ MatchingRule::MinType(1) ] }

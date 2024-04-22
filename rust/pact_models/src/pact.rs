@@ -591,7 +591,10 @@ mod tests {
     expect!(interaction.request).to(be_equal_to(Request {
       method: "GET".to_string(),
       path: "/mallory".to_string(),
-      query: Some(hashmap!{ "name".to_string() => vec!["ron".to_string()], "status".to_string() => vec!["good".to_string()] }),
+      query: Some(hashmap!{
+        "name".to_string() => vec![Some("ron".to_string())],
+        "status".to_string() => vec![Some("good".to_string())]
+      }),
       headers: None,
       body: OptionalBody::Missing,
       .. Request::default()
@@ -666,7 +669,10 @@ mod tests {
     expect!(interaction.request).to(be_equal_to(Request {
       method: "GET".to_string(),
       path: "/".to_string(),
-      query: Some(hashmap!{ "q".to_string() => vec!["p".to_string(), "p2".to_string()], "r".to_string() => vec!["s".to_string()] }),
+      query: Some(hashmap!{
+        "q".to_string() => vec![Some("p".to_string()), Some("p2".to_string())],
+        "r".to_string() => vec![Some("s".to_string())]
+      }),
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheadervalue".to_string()] }),
       body: "{\"test\":true}".into(),
       .. Request::default()
@@ -742,7 +748,10 @@ mod tests {
     expect!(interaction.request).to(be_equal_to(Request {
       method: "GET".to_string(),
       path: "/".to_string(),
-      query: Some(hashmap!{ "q".to_string() => vec!["p".to_string(), "p2".to_string()], "r".to_string() => vec!["s".to_string()] }),
+      query: Some(hashmap!{
+        "q".to_string() => vec![Some("p".to_string()), Some("p2".to_string())],
+        "r".to_string() => vec![Some("s".to_string())]
+      }),
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheadervalue".to_string()] }),
       body: OptionalBody::Present("{\"test\":true}".into(), None, None),
       .. Request::default()
@@ -807,8 +816,10 @@ mod tests {
     expect!(interaction.request).to(be_equal_to(Request {
       method: "GET".to_string(),
       path: "/".to_string(),
-      query: Some(hashmap!{ "datetime".to_string() => vec!["2011-12-03T10:15:30+01:00".to_string()],
-            "description".to_string() => vec!["hello world!".to_string()] }),
+      query: Some(hashmap!{
+        "datetime".to_string() => vec![Some("2011-12-03T10:15:30+01:00".to_string())],
+        "description".to_string() => vec![Some("hello world!".to_string())]
+      }),
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheadervalue".to_string()] }),
       body: OptionalBody::Present("{\"test\":true}".into(), None, None),
       .. Request::default()
@@ -1529,9 +1540,9 @@ mod tests {
           provider_states: vec![ProviderState { name: "Good state to be in".to_string(), params: hashmap!{} }],
           request: Request {
             query: Some(hashmap!{
-                        "a".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string()],
-                        "b".to_string() => vec!["bill".to_string(), "bob".to_string()],
-                    }),
+                "a".to_string() => vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string())],
+                "b".to_string() => vec![Some("bill".to_string()), Some("bob".to_string())]
+            }),
             .. Request::default()
           },
           .. RequestResponseInteraction::default()

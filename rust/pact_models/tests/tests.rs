@@ -50,9 +50,9 @@ fn write_v4_and_read_v3_pact_test() {
           method: "GET".to_string(),
           path: "/api/v3/klines".to_string(),
           query: Some(hashmap!{
-            "interval".to_string() => vec![ "1w".to_string() ],
-            "limit".to_string() => vec![ "1".to_string() ],
-            "symbol".to_string() => vec![ "LUNCUSDT".to_string() ]
+            "interval".to_string() => vec![ Some("1w".to_string()) ],
+            "limit".to_string() => vec![ Some("1".to_string()) ],
+            "symbol".to_string() => vec![ Some("LUNCUSDT".to_string()) ]
           }),
           .. Request::default()
         },

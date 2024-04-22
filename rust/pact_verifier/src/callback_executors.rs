@@ -139,16 +139,16 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some(JSON.clone()), None);
           state_change_request.headers = Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] });
         } else {
-          let mut query = hashmap!{ "state".to_string() => vec![provider_state.name.clone()] };
+          let mut query = hashmap!{ "state".to_string() => vec![Some(provider_state.name.clone())] };
           if setup {
-            query.insert("action".to_string(), vec!["setup".to_string()]);
+            query.insert("action".to_string(), vec![Some("setup".to_string())]);
           } else {
-            query.insert("action".to_string(), vec!["teardown".to_string()]);
+            query.insert("action".to_string(), vec![Some("teardown".to_string())]);
           }
           for (k, v) in provider_state.params.clone() {
             query.insert(k, vec![match v {
-              Value::String(ref s) => s.clone(),
-              _ => v.to_string()
+              Value::String(ref s) => Some(s.clone()),
+              _ => Some(v.to_string())
             }]);
           }
           state_change_request.query = Some(query);

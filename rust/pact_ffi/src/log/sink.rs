@@ -17,6 +17,7 @@ use crate::log::inmem_buffer::InMemBuffer;
 
 /// A sink for logs to be written to, based on a provider specifier.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) enum Sink {
     /// Write logs to stdout.
     Stdout(Stdout),
