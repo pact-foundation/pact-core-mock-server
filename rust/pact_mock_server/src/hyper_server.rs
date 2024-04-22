@@ -47,7 +47,7 @@ fn extract_path(uri: &hyper::Uri) -> String {
         .into()
 }
 
-fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>> {
+fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<Option<String>>>> {
   debug!("Extracting query from uri {:?}", uri);
   uri.path_and_query()
     .and_then(|path_and_query| {

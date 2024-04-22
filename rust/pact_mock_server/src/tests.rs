@@ -78,7 +78,7 @@ async fn match_request_returns_a_match_for_multiple_requests() {
 #[tokio::test]
 async fn match_request_returns_a_mismatch_for_incorrect_request() {
     let request = HttpRequest::default();
-    let expected_request = HttpRequest { query: Some(hashmap!{ "QueryA".to_string() => vec!["Value A".to_string()] }),
+    let expected_request = HttpRequest { query: Some(hashmap!{ "QueryA".to_string() => vec![Some("Value A".to_string())] }),
         .. HttpRequest::default() };
     let interaction = SynchronousHttp {
       request: expected_request,
@@ -114,11 +114,11 @@ async fn match_request_returns_the_most_appropriate_mismatch_for_multiple_reques
     let request = HttpRequest { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None, None),
       .. HttpRequest::default() };
     let request2 = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
-        "QueryA".to_string() => vec!["Value A".to_string()]
+        "QueryA".to_string() => vec![Some("Value A".to_string())]
         }), body: OptionalBody::Present("This is a body".into(), None, None),
       .. HttpRequest::default() };
     let request3 = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
-        "QueryA".to_string() => vec!["Value A".to_string()]
+        "QueryA".to_string() => vec![Some("Value A".to_string())]
         }), body: OptionalBody::Missing, .. HttpRequest::default() };
     let interaction = SynchronousHttp { description: "test".to_string(), request: request.clone(), .. SynchronousHttp::default() };
     let interaction2 = SynchronousHttp { description: "test2".to_string(), request: request2.clone(), .. SynchronousHttp::default() };

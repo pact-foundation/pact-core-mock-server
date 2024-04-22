@@ -550,7 +550,10 @@ mod tests {
         expect!(request).to(be_equal_to(HttpRequest {
           method: "GET".into(),
           path: "/mallory".into(),
-          query: Some(hashmap!{ "name".to_string() => vec!["ron".to_string()], "status".to_string() => vec!["good".to_string()] }),
+          query: Some(hashmap!{
+            "name".to_string() => vec![Some("ron".to_string())],
+            "status".to_string() => vec![Some("good".to_string())]
+          }),
           headers: None,
           body: OptionalBody::Missing,
           .. HttpRequest::default()
@@ -600,8 +603,10 @@ mod tests {
     match v4pact.interactions[0].as_v4_http() {
       Some(SynchronousHttp { request, .. }) => {
         expect!(&request.query).to(be_equal_to(
-          &Some(hashmap!{ "datetime".to_string() => vec!["2011-12-03T10:15:30+01:00".to_string()],
-            "description".to_string() => vec!["hello world!".to_string()] })));
+          &Some(hashmap!{
+            "datetime".to_string() => vec![Some("2011-12-03T10:15:30+01:00".to_string())],
+            "description".to_string() => vec![Some("hello world!".to_string())]
+          })));
       }
       _ => panic!("Was expecting an HTTP pact")
     }

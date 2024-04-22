@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use expectest::prelude::*;
+use pretty_assertions::assert_eq;
 
 use pact_models::{matchingrules, matchingrules_list};
 use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
@@ -69,8 +70,8 @@ fn match_query_returns_nothing_if_there_are_no_query_strings() {
 
 #[test]
 fn match_query_applies_matching_rules_when_param_has_an_underscore() {
-  let expected = hashmap! { "user_id".to_string() => vec!["1".to_string()] };
-  let actual = hashmap! { "user_id".to_string() => vec!["2".to_string()] };
+  let expected = hashmap! { "user_id".to_string() => vec![Some("1".to_string())] };
+  let actual = hashmap! { "user_id".to_string() => vec![Some("2".to_string())] };
   let rules = matchingrules! {
     "query" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ] }
   };
@@ -86,7 +87,7 @@ fn match_query_applies_matching_rules_when_param_has_an_underscore() {
 fn match_query_returns_a_mismatch_if_there_is_no_expected_query_string() {
   let expected = None;
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -102,7 +103,7 @@ fn match_query_returns_a_mismatch_if_there_is_no_expected_query_string() {
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_no_actual_query_string() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let expected = Some(query_map);
   let actual = None;
   let result = match_query(expected, actual, &CoreMatchingContext::default());
@@ -119,11 +120,11 @@ fn match_query_returns_a_mismatch_if_there_is_no_actual_query_string() {
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_not_expected() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  query_map.insert("c".to_string(), vec!["d".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
+  query_map.insert("c".to_string(), vec![Some("d".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -139,11 +140,11 @@ fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_is_not_received() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  query_map.insert("c".to_string(), vec!["d".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
+  query_map.insert("c".to_string(), vec![Some("d".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -159,12 +160,12 @@ fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_i
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_and_a_non_empty_actual() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   query_map.insert("c".to_string(), vec![]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  query_map.insert("c".to_string(), vec!["d".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
+  query_map.insert("c".to_string(), vec![Some("d".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -180,12 +181,12 @@ fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_
 #[test]
 fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  query_map.insert("c".to_string(), vec!["d".to_string(), "e".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
+  query_map.insert("c".to_string(), vec![Some("d".to_string()), Some("e".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  query_map.insert("c".to_string(), vec!["d".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
+  query_map.insert("c".to_string(), vec![Some("d".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -207,10 +208,10 @@ fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
 #[test]
 fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["c".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("c".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
@@ -225,12 +226,12 @@ fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
 
 #[test]
 fn match_query_with_min_type_matching_rules() {
-  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
+  let expected = hashmap! { "id".to_string() => vec![Some("1".to_string()), Some("2".to_string())] };
   let actual = hashmap! { "id".to_string() => vec![
-    "1".to_string(),
-    "2".to_string(),
-    "3".to_string(),
-    "4".to_string()
+    Some("1".to_string()),
+    Some("2".to_string()),
+    Some("3".to_string()),
+    Some("4".to_string())
   ]};
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::MinType(2) ] }
@@ -246,12 +247,12 @@ fn match_query_with_min_type_matching_rules() {
 #[test]
 fn match_query_with_min_type_matching_rules_fails() {
   let expected = hashmap! { "id".to_string() => vec![
-    "1".to_string(),
-    "2".to_string(),
-    "3".to_string(),
-    "4".to_string()
+    Some("1".to_string()),
+    Some("2".to_string()),
+    Some("3".to_string()),
+    Some("4".to_string())
   ]};
-  let actual = hashmap! { "id".to_string() => vec!["1".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec![Some("1".to_string())] };
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::MinType(2) ] }
   };
@@ -283,10 +284,10 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
     }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["c".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("c".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
   expect!(result.get("a").unwrap().iter()).to(be_empty());
@@ -303,10 +304,10 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
     }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("a".to_string(), vec![Some("b".to_string())]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
   expect!(result.iter()).to_not(be_empty());
@@ -340,10 +341,10 @@ fn match_query_with_query_parameters_with_brackets() {
   );
 
   let expected = hashmap!{
-    "Q[]".to_string() => vec!["1".to_string(), "2".to_string()]
+    "Q[]".to_string() => vec![Some("1".to_string()), Some("2".to_string())]
   };
   let actual = hashmap!{
-    "Q[]".to_string() => vec!["100".to_string(), "2000".to_string(), "999".to_string()]
+    "Q[]".to_string() => vec![Some("100".to_string()), Some("2000".to_string()), Some("999".to_string())]
   };
   let result = match_query(Some(expected), Some(actual), &context);
   expect!(result.get("Q[]").unwrap().iter()).to(be_empty());
@@ -352,12 +353,12 @@ fn match_query_with_query_parameters_with_brackets() {
 
 #[test]
 fn match_query_with_array_contains_matching_rules() {
-  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "3".to_string()] };
+  let expected = hashmap! { "id".to_string() => vec![Some("1".to_string()), Some("3".to_string())] };
   let actual = hashmap! { "id".to_string() => vec![
-    "1".to_string(),
-    "2".to_string(),
-    "3".to_string(),
-    "4".to_string()
+    Some("1".to_string()),
+    Some("2".to_string()),
+    Some("3".to_string()),
+    Some("4".to_string())
   ]};
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::ArrayContains(vec![]) ] }
@@ -374,8 +375,8 @@ fn match_query_with_array_contains_matching_rules() {
 
 #[test]
 fn match_query_with_array_contains_matching_rules_fails() {
-  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "3".to_string()] };
-  let actual = hashmap! { "id".to_string() => vec!["2".to_string(), "3".to_string(), "4".to_string()] };
+  let expected = hashmap! { "id".to_string() => vec![Some("1".to_string()), Some("3".to_string())] };
+  let actual = hashmap! { "id".to_string() => vec![Some("2".to_string()), Some("3".to_string()), Some("4".to_string())] };
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::ArrayContains(vec![]) ] }
   };
@@ -398,8 +399,8 @@ fn match_query_with_array_contains_matching_rules_fails() {
 
 #[test]
 fn match_query_with_each_value_matching_rules() {
-  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
-  let actual = hashmap! { "id".to_string() => vec!["3".to_string(), "4".to_string(), "567".to_string()] };
+  let expected = hashmap! { "id".to_string() => vec![Some("1".to_string()), Some("2".to_string())] };
+  let actual = hashmap! { "id".to_string() => vec![Some("3".to_string()), Some("4".to_string()), Some("567".to_string())] };
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
       MatchingRule::Regex("\\d+".to_string()), None)) ] }
@@ -416,8 +417,8 @@ fn match_query_with_each_value_matching_rules() {
 
 #[test]
 fn match_query_with_each_value_matching_rules_fails() {
-  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
-  let actual = hashmap! { "id".to_string() => vec!["3".to_string(), "abc123".to_string(), "test".to_string()] };
+  let expected = hashmap! { "id".to_string() => vec![Some("1".to_string()), Some("2".to_string())] };
+  let actual = hashmap! { "id".to_string() => vec![Some("3".to_string()), Some("abc123".to_string()), Some("test".to_string())] };
   let rules = matchingrules! {
     "query" => { "id" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("100".to_string(), ValueType::String,
       MatchingRule::Regex("\\d+".to_string()), None)) ] }

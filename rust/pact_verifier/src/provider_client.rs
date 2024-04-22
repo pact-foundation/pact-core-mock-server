@@ -368,8 +368,8 @@ mod tests {
     let base_url = "http://example.test:8080".to_string();
     let request = HttpRequest {
       query: Some(hashmap!{
-        "a".to_string() => vec!["b".to_string()],
-        "c".to_string() => vec!["d".to_string(), "e".to_string()]
+        "a".to_string() => vec![Some("b".to_string())],
+        "c".to_string() => vec![Some("d".to_string()), Some("e".to_string())]
       }),
       .. HttpRequest::default()
     };

@@ -138,6 +138,7 @@ pub fn headers_to_json(headers: &HashMap<String, Vec<String>>) -> Value {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
+#[allow(dead_code)]
 enum JsonParsable {
   JsonStringValue(String),
   KeyValue(HashMap<String, Value>)

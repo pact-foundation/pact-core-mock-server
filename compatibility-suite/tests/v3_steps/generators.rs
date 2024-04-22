@@ -257,7 +257,10 @@ fn the_request_will_match(
     let parameter = key_regex.captures(request_part.as_str()).unwrap().get(1).unwrap().as_str();
     if let Some(query) = &world.generated_request.query {
       if let Some(value) = query.get(parameter) {
-        if value.iter().all(|v| regex.is_match(v.as_ref())) {
+        if value.iter().all(|v| {
+          let v = v.as_ref().map(|v| v.as_str()).unwrap_or_default();
+          regex.is_match(v)
+        }) {
           Ok(())
         } else {
           Err(anyhow!("Request query parameter {} has a value that does not match {}", parameter, regex))

@@ -34,7 +34,7 @@ pub struct HttpRequest {
   /// Request path
   pub path: String,
   /// Request query string
-  pub query: Option<HashMap<String, Vec<String>>>,
+  pub query: Option<HashMap<String, Vec<Option<String>>>>,
   /// Request headers
   pub headers: Option<HashMap<String, Vec<String>>>,
   /// Request body
@@ -773,8 +773,8 @@ mod tests {
   #[test]
   fn http_request_to_json_with_a_query() {
     let request = HttpRequest { query: Some(hashmap!{
-        "a".to_string() => vec!["1".to_string(), "2".to_string()],
-        "b".to_string() => vec!["3".to_string()]
+        "a".to_string() => vec![Some("1".to_string()), Some("2".to_string())],
+        "b".to_string() => vec![Some("3".to_string())]
     }), .. HttpRequest::default() };
     expect!(request.to_json().to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["1","2"],"b":["3"]}}"#)
@@ -1142,21 +1142,21 @@ mod tests {
 
     let r5 = HttpRequest {
       query: Some(hashmap!{
-        "q1".to_string() => vec!["1".to_string()],
-        "q2".to_string() => vec!["2".to_string()]
+        "q1".to_string() => vec![Some("1".to_string())],
+        "q2".to_string() => vec![Some("2".to_string())]
       }),
       .. HttpRequest::default()
     };
-    expect!(hash(&r5)).to(be_equal_to(359339694141654691));
+    expect!(hash(&r5)).to(be_equal_to(12415309608656506796));
 
     let r6 = HttpRequest {
       query: Some(hashmap!{
-        "q2".to_string() => vec!["2".to_string()],
-        "q1".to_string() => vec!["1".to_string()]
+        "q2".to_string() => vec![Some("2".to_string())],
+        "q1".to_string() => vec![Some("1".to_string())]
       }),
       .. HttpRequest::default()
     };
-    expect!(hash(&r6)).to(be_equal_to(359339694141654691));
+    expect!(hash(&r6)).to(be_equal_to(12415309608656506796));
 
     let r7 = HttpRequest {
       headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
@@ -1200,15 +1200,15 @@ mod tests {
     };
     let r5 = HttpRequest {
       query: Some(hashmap!{
-        "q1".to_string() => vec!["1".to_string()],
-        "q2".to_string() => vec!["2".to_string()]
+        "q1".to_string() => vec![Some("1".to_string())],
+        "q2".to_string() => vec![Some("2".to_string())]
       }),
       .. HttpRequest::default()
     };
     let r6 = HttpRequest {
       query: Some(hashmap!{
-        "q2".to_string() => vec!["1".to_string()],
-        "q1".to_string() => vec!["1".to_string()]
+        "q2".to_string() => vec![Some("1".to_string())],
+        "q1".to_string() => vec![Some("1".to_string())]
       }),
       .. HttpRequest::default()
     };

@@ -132,7 +132,7 @@ impl RequestBuilder {
             .get_defaulting()
             .entry(key.clone())
             .or_insert_with(Default::default)
-            .push(value.to_example());
+            .push(Some(value.to_example()));
 
         let mut path = DocPath::root();
         path.push_field(key);

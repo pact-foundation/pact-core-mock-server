@@ -29,7 +29,7 @@ pub struct Request {
   /// Request path
   pub path: String,
   /// Request query string
-  pub query: Option<HashMap<String, Vec<String>>>,
+  pub query: Option<HashMap<String, Vec<Option<String>>>>,
   /// Request headers
   pub headers: Option<HashMap<String, Vec<String>>>,
   /// Request body
@@ -416,8 +416,8 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query() {
     let request = Request { query: Some(hashmap!{
-        "a".to_string() => vec!["1".to_string(), "2".to_string()],
-        "b".to_string() => vec!["3".to_string()]
+        "a".to_string() => vec![Some("1".to_string()), Some("2".to_string())],
+        "b".to_string() => vec![Some("3".to_string())]
     }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V2).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":"a=1&a=2&b=3"}"#)
@@ -427,8 +427,8 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query_must_encode_the_query() {
     let request = Request { query: Some(hashmap!{
-        "datetime".to_string() => vec!["2011-12-03T10:15:30+01:00".to_string()],
-        "description".to_string() => vec!["hello world!".to_string()] }), .. Request::default() };
+        "datetime".to_string() => vec![Some("2011-12-03T10:15:30+01:00".to_string())],
+        "description".to_string() => vec![Some("hello world!".to_string())] }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V2).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":"datetime=2011-12-03T10%3a15%3a30%2b01%3a00&description=hello+world%21"}"#)
     );
@@ -437,7 +437,7 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query_must_encode_the_query_with_utf8_chars() {
     let request = Request { query: Some(hashmap!{
-        "a".to_string() => vec!["b=c&d❤".to_string()]
+        "a".to_string() => vec![Some("b=c&d❤".to_string())]
     }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V2).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":"a=b%3dc%26d%27%64"}"#)
@@ -447,8 +447,8 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query_v3() {
     let request = Request { query: Some(hashmap!{
-        "a".to_string() => vec!["1".to_string(), "2".to_string()],
-        "b".to_string() => vec!["3".to_string()]
+        "a".to_string() => vec![Some("1".to_string()), Some("2".to_string())],
+        "b".to_string() => vec![Some("3".to_string())]
     }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["1","2"],"b":["3"]}}"#)
@@ -458,8 +458,8 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query_v3_must_not_encode_the_query() {
     let request = Request { query: Some(hashmap!{
-        "datetime".to_string() => vec!["2011-12-03T10:15:30+01:00".to_string()],
-        "description".to_string() => vec!["hello world!".to_string()] }), .. Request::default() };
+        "datetime".to_string() => vec![Some("2011-12-03T10:15:30+01:00".to_string())],
+        "description".to_string() => vec![Some("hello world!".to_string())] }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":{"datetime":["2011-12-03T10:15:30+01:00"],"description":["hello world!"]}}"#)
     );
@@ -468,7 +468,7 @@ mod tests {
   #[test]
   fn request_to_json_with_a_query_v3_must_not_encode_the_query_with_utf8_chars() {
     let request = Request { query: Some(hashmap!{
-        "a".to_string() => vec!["b=c&d❤".to_string()]
+        "a".to_string() => vec![Some("b=c&d❤".to_string())]
     }), .. Request::default() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
       be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["b=c&d❤"]}}"#)

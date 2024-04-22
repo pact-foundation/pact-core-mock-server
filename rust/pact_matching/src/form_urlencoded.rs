@@ -55,11 +55,11 @@ pub(crate) fn match_form_urlencoded(
         (Ok(e), Ok(a)) => {
           let expected_params = super::group_by(e, |(k, _)| k.clone())
             .iter()
-            .map(|(k, v)| (k.clone(), v.iter().map(|(_, v)| v.clone()).collect_vec()))
+            .map(|(k, v)| (k.clone(), v.iter().map(|(_, v)| Some(v.clone())).collect_vec()))
             .collect();
           let actual_params = super::group_by(a, |(k, _)| k.clone())
             .iter()
-            .map(|(k, v)| (k.clone(), v.iter().map(|(_, v)| v.clone()).collect_vec()))
+            .map(|(k, v)| (k.clone(), v.iter().map(|(_, v)| Some(v.clone())).collect_vec()))
             .collect();
           let result: Vec<_> = match_query_maps(expected_params, actual_params, context)
             .values().flat_map(|m| m.iter().map(|mismatch| {
@@ -220,7 +220,7 @@ mod tests {
       path: "$.a".to_string(),
       expected: Some("[\"b\"]".into()),
       actual: Some("".into()),
-      mismatch: "".to_string(),
+      mismatch: "Expected form post parameter 'a' but was missing".to_string()
     });
     assert_eq!(mismatches[0].description(), "$.a -> Expected form post parameter 'a' but was missing");
   }

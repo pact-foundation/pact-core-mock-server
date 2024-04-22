@@ -789,8 +789,8 @@ impl CommonMismatch {
   pub fn to_query_mismatch(&self) -> Mismatch {
     Mismatch::QueryMismatch {
       parameter: self.path.clone(),
-      expected: self.expected.clone().into(),
-      actual: self.actual.clone().into(),
+      expected: self.expected.clone(),
+      actual: self.actual.clone(),
       mismatch: self.description.clone()
     }
   }
@@ -1426,24 +1426,26 @@ pub fn match_path(expected: &str, actual: &str, context: &(dyn MatchingContext +
 
 /// Matches the actual query parameters to the expected ones.
 pub fn match_query(
-  expected: Option<HashMap<String, Vec<String>>>,
-  actual: Option<HashMap<String, Vec<String>>>,
+  expected: Option<HashMap<String, Vec<Option<String>>>>,
+  actual: Option<HashMap<String, Vec<Option<String>>>>,
   context: &(dyn MatchingContext + Send + Sync)
 ) -> HashMap<String, Vec<Mismatch>> {
   match (actual, expected) {
     (Some(aqm), Some(eqm)) => match_query_maps(eqm, aqm, context),
     (Some(aqm), None) => aqm.iter().map(|(key, value)| {
+      let actual_value = value.iter().map(|v| v.clone().unwrap_or_default()).collect_vec();
       (key.clone(), vec![Mismatch::QueryMismatch {
         parameter: key.clone(),
         expected: "".to_string(),
-        actual: format!("{:?}", value),
+        actual: format!("{:?}", actual_value),
         mismatch: format!("Unexpected query parameter '{}' received", key)
       }])
     }).collect(),
     (None, Some(eqm)) => eqm.iter().map(|(key, value)| {
+      let expected_value = value.iter().map(|v| v.clone().unwrap_or_default()).collect_vec();
       (key.clone(), vec![Mismatch::QueryMismatch {
         parameter: key.clone(),
-        expected: format!("{:?}", value),
+        expected: format!("{:?}", expected_value),
         actual: "".to_string(),
         mismatch: format!("Expected query parameter '{}' but was missing", key)
       }])
@@ -2103,22 +2105,19 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
           if let Some(parameter) = parameters.get_mut(param) {
             let mut generated = parameter.clone();
             for (index, val) in parameter.iter().enumerate() {
-              if let Ok(v) = generator.generate_value(val, context, &DefaultVariantMatcher.boxed()) {
-                generated[index] = v;
+              let value = val.clone().unwrap_or_default();
+              if let Ok(v) = generator.generate_value(&value, context, &DefaultVariantMatcher.boxed()) {
+                generated[index] = Some(v);
               }
             }
             *parameter = generated;
-          } else {
-            if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
-              parameters.insert(param.to_string(), vec![ v.to_string() ]);
-            }
+          } else if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+            parameters.insert(param.to_string(), vec![ Some(v.to_string()) ]);
           }
-        } else {
-          if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
-            request.query = Some(hashmap!{
-              param.to_string() => vec![ v.to_string() ]
-            })
-          }
+        } else if let Ok(v) = generator.generate_value(&"".to_string(), context, &DefaultVariantMatcher.boxed()) {
+          request.query = Some(hashmap!{
+            param.to_string() => vec![ Some(v.to_string()) ]
+          })
         }
       }
     });

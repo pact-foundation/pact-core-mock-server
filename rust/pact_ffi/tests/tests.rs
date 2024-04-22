@@ -140,7 +140,7 @@ fn create_query_parameter_with_multiple_values() {
   interaction.with_interaction(&|_, _, i| {
     let interaction = i.as_v4_http().unwrap();
     expect!(interaction.request.query.as_ref()).to(be_some().value(&hashmap!{
-      "q".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string()]
+      "q".to_string() => vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string())]
     }));
   });
 }

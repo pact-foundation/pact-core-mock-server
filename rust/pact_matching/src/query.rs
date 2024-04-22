@@ -13,22 +13,24 @@ use crate::matchingrules::compare_lists_with_matchingrules;
 
 /// Match the query parameters as Maps
 pub(crate) fn match_query_maps(
-  expected: HashMap<String, Vec<String>>,
-  actual: HashMap<String, Vec<String>>,
+  expected: HashMap<String, Vec<Option<String>>>,
+  actual: HashMap<String, Vec<Option<String>>>,
   context: &dyn MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
   let mut result: HashMap<String, Vec<Mismatch>> = hashmap!{};
   for (key, value) in &expected {
+    let expected_value = value.iter().map(|v| v.clone().unwrap_or_default()).collect_vec();
     match actual.get(key) {
       Some(actual_value) => {
-        let mismatches: Result<(), Vec<super::Mismatch>> = match_query_values(key, value, actual_value, context)
+        let actual_value = actual_value.iter().map(|v| v.clone().unwrap_or_default()).collect_vec();
+        let mismatches: Result<(), Vec<super::Mismatch>> = match_query_values(key, &expected_value, &actual_value, context)
           .map_err(|mismatches| mismatches.iter().map(|mismatch| mismatch.to_query_mismatch()).collect());
         let v = result.entry(key.clone()).or_default();
         v.extend(mismatches.err().unwrap_or_default());
       },
       None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch {
         parameter: key.clone(),
-        expected: format!("{:?}", value),
+        expected: format!("{:?}", expected_value),
         actual: "".to_string(),
         mismatch: format!("Expected query parameter '{}' but was missing", key)
       })
@@ -40,7 +42,7 @@ pub(crate) fn match_query_maps(
       None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch {
         parameter: key.clone(),
         expected: "".to_string(),
-        actual: format!("{:?}", value),
+        actual: format!("{:?}", value.iter().map(|v| v.clone().unwrap_or_default()).collect_vec()),
         mismatch: format!("Unexpected query parameter '{}' received", key)
       })
     }

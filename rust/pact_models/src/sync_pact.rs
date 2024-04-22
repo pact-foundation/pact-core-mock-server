@@ -564,9 +564,9 @@ mod tests {
     expect!(&first_interaction.request.path).to(be_equal_to("/api/v3/klines"));
     expect!(first_interaction.request.body.is_present()).to(be_false());
     expect!(first_interaction.request.query.as_ref().unwrap()).to(be_equal_to(&hashmap!{
-      "interval".to_string() => vec!["1w".to_string()],
-      "limit".to_string() => vec!["1".to_string()],
-      "symbol".to_string() => vec!["LUNCUSDT".to_string()]
+      "interval".to_string() => vec![Some("1w".to_string())],
+      "limit".to_string() => vec![Some("1".to_string())],
+      "symbol".to_string() => vec![Some("LUNCUSDT".to_string())]
     }));
     expect!(first_interaction.request.headers.clone()).to(be_none());
     expect!(first_interaction.response.status).to(be_equal_to(200));
