@@ -121,6 +121,7 @@ pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<Option<Stri
 /// Converts a query string map into a query string
 pub fn build_query_string(query: HashMap<String, Vec<Option<String>>>) -> String {
   query.into_iter()
+    .filter(|(k, _)| !k.is_empty())
     .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
     .flat_map(|kv| {
       kv.1.iter()
@@ -274,6 +275,15 @@ mod tests {
 
   #[rstest]
   #[case(hashmap!{}, "")]
+  #[case(hashmap!{ "A".to_string() => vec![] }, "")]
+  #[case(hashmap!{ "A".to_string() => vec![ Some("B".to_string()) ] }, "A=B")]
+  #[case(hashmap!{ "".to_string() => vec![ Some("B".to_string()) ] }, "")]
+  #[case(hashmap!{ "A".to_string() => vec![ Some("B".to_string()), Some("c".to_string()) ] }, "A=B&A=c")]
+  #[case(hashmap!{ "A".to_string() => vec![ Some("B".to_string()) ], "b".to_string() => vec![ Some("c".to_string()) ] }, "A=B&b=c")]
+  #[case(hashmap!{ "A".to_string() => vec![ Some("".to_string()) ] }, "A=")]
+  #[case(hashmap!{ "A".to_string() => vec![ Some("".to_string()), Some("".to_string()) ] }, "A=&A=")]
+  #[case(hashmap!{ "A".to_string() => vec![ None ] }, "A")]
+  #[case(hashmap!{ "A".to_string() => vec![ None, None ] }, "A&A")]
   fn build_query_string_test(#[case] map: HashMap<String, Vec<Option<String>>>, #[case] expected: &str) {
     let result = super::build_query_string(map);
     assert_eq!(result, expected)
