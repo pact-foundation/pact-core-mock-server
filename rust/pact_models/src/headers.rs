@@ -1,5 +1,5 @@
 pub static PARAMETERISED_HEADERS: [&str; 2] = ["accept", "content-type"];
-pub static SINGLE_VALUE_HEADERS: [&str; 8] = [
+pub static SINGLE_VALUE_HEADERS: [&str; 9] = [
   "date",
   "accept-datetime",
   "if-modified-since",
@@ -7,7 +7,8 @@ pub static SINGLE_VALUE_HEADERS: [&str; 8] = [
   "expires",
   "retry-after",
   "last-modified",
-  "set-cookie"
+  "set-cookie",
+  "user-agent",
 ];
 
 /// Tries to parse the header value into multiple values, taking into account headers that should
@@ -48,5 +49,11 @@ mod tests {
   fn parse_known_single_value_header_value() {
     let parsed = parse_header("Last-Modified", "Mon, 01 Dec 2008 01:15:39 GMT");
     expect!(parsed).to(be_equal_to(vec!["Mon, 01 Dec 2008 01:15:39 GMT"]));
+  }
+
+  #[test]
+  fn parse_user_agent_as_single_value() {
+    let parsed = parse_header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.6.3 Chrome/112.0.5615.213 Safari/537.36");
+    expect!(parsed).to(be_equal_to(vec!["Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.6.3 Chrome/112.0.5615.213 Safari/537.36"]));
   }
 }
