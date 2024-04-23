@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.0 - Support query parameters with no values
+
+* f20bb77d - chore(pact_models): Bump minor version (Ronald Holshausen, Tue Apr 23 10:04:56 2024 +1000)
+* e12cb9f0 - Merge pull request #410 from kageru/fix-user-agent-headers (Ronald Holshausen, Tue Apr 23 09:43:11 2024 +1000)
+* 4e1fca98 - feat: Add extra test cases for query generation (Ronald Holshausen, Mon Apr 22 11:28:02 2024 +1000)
+* c3128a6d - feat: Support optional query parameter values (where there is only a name) (Ronald Holshausen, Mon Apr 22 10:36:05 2024 +1000)
+* 6a617b71 - parse user-agent as single value headers (kageru, Wed Apr 17 14:14:27 2024 +0200)
+* 74f43bdf - chore(pact_models): clean up some deprecation warnings (Ronald Holshausen, Wed Mar 20 15:34:27 2024 +1100)
+* 2b59bffe - chore(pact_models): clean up some deprecation warnings (Ronald Holshausen, Tue Mar 19 10:03:38 2024 +1100)
+* 712bc797 - chore: update examples in matchers to JSON test (Ronald Holshausen, Sun Feb 18 03:54:56 2024 +1100)
+* 88581695 - bump version to 1.1.19 (Ronald Holshausen, Wed Feb 7 10:49:24 2024 +1100)
+
 # 1.1.18 - Maintenance Release
 
 * c7a086d6 - feat(models): add merge method (JP-Ellis, Tue Feb 6 12:45:59 2024 +1100)
