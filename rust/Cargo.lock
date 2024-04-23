@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "1.1.19"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "ariadne",
