@@ -15,7 +15,9 @@ cargo_flags=( "$@" )
 
 # Build the x86_64 GNU linux release
 build_x86_64_gnu() {
-    cargo build --target x86_64-unknown-linux-gnu "${cargo_flags[@]}"
+    install_cross
+    cargo clean
+    cross build --target x86_64-unknown-linux-gnu "${cargo_flags[@]}"
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
@@ -29,6 +31,7 @@ build_x86_64_gnu() {
 
 build_x86_64_musl() {
     sudo apt-get install -y musl-tools
+    cargo clean
     cargo build --target x86_64-unknown-linux-musl "${cargo_flags[@]}"
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
@@ -63,6 +66,7 @@ install_cross() {
 
 build_aarch64_gnu() {
     install_cross
+    cargo clean
     cross build --target aarch64-unknown-linux-gnu "${cargo_flags[@]}"
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
@@ -77,6 +81,7 @@ build_aarch64_gnu() {
 
 build_aarch64_musl() {
     install_cross
+    cargo clean
     cross build --target aarch64-unknown-linux-musl "${cargo_flags[@]}"
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
