@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        operating-system: [ ubuntu-latest, windows-latest, macos-12 ]
         rust: [ stable ]
     env:
       pact_do_not_track: true
