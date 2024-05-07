@@ -10,7 +10,7 @@ written in Rust, as well as example projects in JavaScript and C (and a few othe
 
 ## Usage
 
-## Building
+### Building
 
 To build the libraries in this project, you need a working Rust environment.  Requires minimum Rust 1.77.0.
 Refer to the [Rust Guide](https://www.rust-lang.org/learn/get-started).
@@ -23,13 +23,28 @@ cargo build
 
 This will compile all the libraries and put the generated files in `rust/target/debug`.
 
+To run the tests:
+
+```shell
+cargo test
+```
+
+### Releasing
+
+The released libraries for each module are built by a GH action that attaches the libraries to the GH release for each
+crate. To release a crate, run the `release.groovy` script in the crate directory. This will guide you through the
+release process for the crate. Then create a GH release using the tag and changelog created by the script.
+
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) (PRs are always welcome!).
 
 ## Documentation
 
-Rust library documentation is published to the Rust documentation site. Refer to the [Rust project README](rust/README.md).
+Rust crate documentation is published to the Rust documentation site.
+
+* [pact_mock_server](https://docs.rs/pact_mock_server/)
+* [pact_mock_server_cli](https://docs.rs/pact_mock_server_cli/)
 
 Additional documentation can be found at the main [Pact website](https://pact.io).
 
