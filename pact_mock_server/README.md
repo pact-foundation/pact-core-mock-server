@@ -6,8 +6,6 @@ and [V4 Pact specification](https://github.com/pact-foundation/pact-specificatio
 
 [Online rust docs](https://docs.rs/pact_mock_server/latest/pact_mock_server/)
 
-All the exported functions using C bindings for controlling the mock server are now found in the [pact_ffi module](https://github.com/pact-foundation/pact-reference/tree/master/rust/pact_ffi).
-
 ## [create_mock_server](https://docs.rs/pact_mock_server/latest/pact_mock_server/fn.create_mock_server.html)
 
 Creates a mock server. Requires the pact JSON as a string as well as the port for the mock server to run on. A value of 

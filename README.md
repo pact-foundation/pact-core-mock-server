@@ -2,11 +2,14 @@
 
 [![Build](https://github.com/pact-foundation/pact-core-mock-server/actions/workflows/build.yml/badge.svg)](https://github.com/pact-foundation/pact-core-mock-server/actions/workflows/build.yml)
 
-# Pact Reference Implementation
-> Reference implementations for Pact Specification written in Rust
+# Pact Core Mock Server
 
-This project contains a reference implementation of the [Pact specifications](https://github.com/pact-foundation/pact-specification)
-written in Rust, as well as example projects in JavaScript and C (and a few others) that use the mock server library.
+This project contains the in-process mock server for matching HTTP requests and generating responses from a pact file.
+It implements the Pact specifications up to [V4 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-4).
+
+There are two modules to this project:
+* pact_mock_server - This is the library that provides the in-process mock server.
+* pact_mock_server_cli - A CLI for starting and controlling seperate process mock servers.
 
 ## Usage
 
