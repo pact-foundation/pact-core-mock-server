@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.2 - Maintenance Release
+
+* 694100fb - chore: Update pact_models to 1.2.0 (Ronald Holshausen, Tue Apr 23 10:51:11 2024 +1000)
+* edfac7ba - chore: remove local pact_models from the other pact crates (Ronald Holshausen, Tue Apr 23 10:03:29 2024 +1000)
+* c3128a6d - feat: Support optional query parameter values (where there is only a name) (Ronald Holshausen, Mon Apr 22 10:36:05 2024 +1000)
+* facb2c45 - bump version to 1.2.2 (Ronald Holshausen, Tue Apr 16 16:26:37 2024 +1000)
+
 # 1.2.1 - Maintenance Release
 
 * 3706f6ef - chore: Add From implementation for CommonMismatch (Ronald Holshausen, Tue Apr 16 16:13:34 2024 +1000)
