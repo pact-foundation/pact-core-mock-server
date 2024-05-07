@@ -1,0 +1,97 @@
+{
+  "provider": {
+    "name": "book_provider"
+  },
+  "consumer": {
+    "name": "book-consumer"
+  },
+  "interactions": [
+    {
+      "description": "testing pact",
+      "request": {
+        "method": "POST",
+        "path": "/books",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "isbn": "0099740915",
+          "title": "The Handmaid's Tale",
+          "description": "Brilliantly conceived and executed, this powerful evocation...",
+          "author": "Margaret Atwood",
+          "publicationDate": "1985-07-31T00:00:00+00:00"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "@context": "/api/contexts/Book",
+          "@id": "/api/books/78430560-c360-11eb-b950-43d27945a218",
+          "@type": "Book",
+          "title": "lknjmasldjasldkj",
+          "description": "Quaerat odit quia nisi accusantium natus voluptatem. Explicabo corporis eligendi",
+          "author": "Bob the Baker",
+          "%publicationDate%": "1999-02-13T00:00:00+07:00",
+          "reviews": []
+        },
+        "matchingRules": {
+          "body": {
+            "$['@id']": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^\\/api\\/books\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+                }
+              ],
+              "combine": "AND"
+            },
+            "$.title": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ],
+              "combine": "AND"
+            },
+            "$.description": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ],
+              "combine": "AND"
+            },
+            "$.author": {
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ],
+              "combine": "AND"
+            },
+            "$['%publicationDate%']": {
+              "matchers": [
+                {
+                  "match": "timestamp",
+                  "timestamp": "yyyy-MM-dd'T'HH:mm:ssXXX"
+                }
+              ],
+              "combine": "AND"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "pact-jvm": {
+      "version": "4.2.4"
+    }
+  }
+}

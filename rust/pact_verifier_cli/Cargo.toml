@@ -1,0 +1,46 @@
+[package]
+name = "pact_verifier_cli"
+version = "1.1.2"
+authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
+edition = "2021"
+description = "Standalone pact verifier for provider pact verification"
+homepage = "https://www.pact.io"
+repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_verifier_cli"
+readme = "README.md"
+keywords = ["testing", "pact", "cdc"]
+license = "MIT"
+exclude = [
+    "*.iml"
+]
+
+[features]
+default = ["datetime", "xml", "plugins", "multipart", "junit"]
+datetime = ["pact_models/datetime", "pact_verifier/datetime"] # Support for date/time matchers and expressions
+xml = ["pact_models/xml", "pact_verifier/xml"] # support for matching XML documents
+plugins = ["pact_verifier/plugins"]
+multipart = ["pact_verifier/multipart"] # suport for MIME multipart bodies
+junit = ["dep:junit-report"] # suport for MIME multipart bodies
+
+[dependencies]
+ansi_term = "0.12.1"
+anyhow = "1.0.75"
+clap = { version = "~4.4.11", features = ["cargo", "env"] }
+env_logger = "0.11.2"
+junit-report = { version = "0.8.3", optional = true }
+log = "0.4.20"
+maplit = "1.0.2"
+pact_models = { version = "~1.2.0", default-features = false }
+pact_verifier = { version = "~1.2.0", path = "../pact_verifier", default-features = false }
+regex = "1.10.2"
+reqwest = { version = "0.11.23", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+serde_json = "1.0.108"
+time = "0.3.31"
+tokio = { version = "1.35.1", features = ["full"] }
+tracing = "0.1.40"
+tracing-core = "0.1.32"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "tracing-log"] }
+
+[dev-dependencies]
+expectest = "0.12.0"
+trycmd = "0.15.0"

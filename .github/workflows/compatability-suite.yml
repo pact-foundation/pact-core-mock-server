@@ -1,0 +1,40 @@
+name: Pact-Rust Compatibility Suite
+
+on: [push, pull_request]
+
+env:
+  pact_do_not_track: true
+
+jobs:
+  v1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Run Cucumber
+      run: cargo test --test v1*
+      working-directory: compatibility-suite
+  v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Cucumber
+        run: cargo test --test v2*
+        working-directory: compatibility-suite
+  v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Cucumber
+        run: cargo test --test v3*
+        working-directory: compatibility-suite
+  v4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Cucumber
+        run: cargo test --test v4*
+        working-directory: compatibility-suite

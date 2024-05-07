@@ -1,0 +1,170 @@
+{
+  "consumer": {
+    "name": "CsvClient"
+  },
+  "interactions": [
+    {
+      "description": "request for a report",
+      "interactionMarkup": {
+        "markup": "# Data\n\n|Name|100|2000-01-01|\n",
+        "markupType": "COMMON_MARK"
+      },
+      "key": "4bd2cd956c84ed83",
+      "pending": false,
+      "pluginConfiguration": {
+        "csv": {
+          "csvHeaders": false
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/reports/report001.csv"
+      },
+      "response": {
+        "body": {
+          "content": "Name,100,2000-01-01\n",
+          "contentType": "text/csv;charset=utf-8",
+          "contentTypeHint": "DEFAULT",
+          "encoded": false
+        },
+        "generators": {
+          "body": {
+            "column:3": {
+              "format": "yyyy-MM-dd",
+              "type": "DateTime"
+            }
+          }
+        },
+        "headers": {
+          "content-type": [
+            "text/csv"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "column:1": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "column:2": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "column:3": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "format": "yyyy-MM-dd",
+                  "match": "datetime"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "request for to store a report",
+      "interactionMarkup": {
+        "markup": "# Data\n\n|Name|100|2000-01-01|\n",
+        "markupType": "COMMON_MARK"
+      },
+      "key": "23542c0abd36e908",
+      "pending": false,
+      "pluginConfiguration": {
+        "csv": {
+          "csvHeaders": false
+        }
+      },
+      "request": {
+        "body": {
+          "content": "Name,100,2000-01-01\n",
+          "contentType": "text/csv;charset=utf-8",
+          "contentTypeHint": "DEFAULT",
+          "encoded": false
+        },
+        "generators": {
+          "body": {
+            "column:3": {
+              "format": "yyyy-MM-dd",
+              "type": "DateTime"
+            }
+          }
+        },
+        "headers": {
+          "content-type": [
+            "text/csv"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "column:1": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "column:2": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "column:3": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "format": "yyyy-MM-dd",
+                  "match": "datetime"
+                }
+              ]
+            }
+          },
+          "header": {}
+        },
+        "method": "POST",
+        "path": "/reports/report001.csv"
+      },
+      "response": {
+        "status": 201
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "consumer": "0.10.7",
+      "mockserver": "1.0.1",
+      "models": "1.0.9"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    },
+    "plugins": [
+      {
+        "configuration": {},
+        "name": "missing-csv",
+        "version": "0.0.3"
+      }
+    ]
+  },
+  "provider": {
+    "name": "CsvServer"
+  }
+}

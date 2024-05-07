@@ -1,0 +1,33 @@
+{
+  "provider": {
+    "name": "Alice Service"
+  },
+  "consumer": {
+    "name": "Consumer"
+  },
+  "interactions": [
+    {
+      "_id": "pact-one",
+      "description": "a retrieve Mallory request",
+      "request": {
+        "method": "GET",
+        "path": "/mallory",
+        "query": "name=ron&status=good"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "\"That is some good Mallory.\""
+      }
+    }
+  ],
+  "_links": {
+    "pb:publish-verification-results": {
+      "href": "/pact-one/results",
+      "title": "pact one results",
+      "templated": false
+    }
+  }
+}

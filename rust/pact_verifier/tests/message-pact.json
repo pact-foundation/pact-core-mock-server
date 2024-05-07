@@ -1,0 +1,41 @@
+{
+  "consumer": {
+    "name": "consumer"
+  },
+  "provider": {
+    "name": "provider"
+  },
+  "messages": [
+    {
+      "_id": "message-one",
+      "metaData": {
+        "contentType": "application/json"
+      },
+      "contents": "Hello",
+      "description": "a hello message"
+    },
+    {
+      "_id": "message-two",
+      "metaData": {
+        "contentType": "application/json"
+      },
+      "contents": "Hello2",
+      "description": "a hello2 message"
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "pact-jvm": {
+      "version": ""
+    }
+  },
+  "_links": {
+    "pb:publish-verification-results": {
+      "href": "/message-pact/results",
+      "title": "message-pact results",
+      "templated": false
+    }
+  }
+}

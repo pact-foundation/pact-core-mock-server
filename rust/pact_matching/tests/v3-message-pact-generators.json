@@ -1,0 +1,40 @@
+{
+  "consumer": {
+    "name": "test_consumer"
+  },
+  "provider": {
+    "name": "test_provider"
+  },
+  "messages": [
+    {
+      "metaData": {
+        "contentType": "application/json",
+        "destination": "a/b/c"
+      },
+      "providerStates": [
+        {
+          "name": "message exists"
+        }
+      ],
+      "contents": {
+        "a": "1234-1234"
+      },
+      "generators": {
+        "body": {
+          "a": {
+            "type": "Uuid"
+          }
+        }
+      },
+      "description": "Test Message"
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "pact-jvm": {
+      "version": ""
+    }
+  }
+}
