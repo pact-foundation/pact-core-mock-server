@@ -13,37 +13,11 @@ target/
 # Generated Release Artifacts
 release_artifacts
 
-node_modules/
 *.log
 .idea/
 *.iml
 logs/
 
-c/consumer-verification/src/.deps
-c/consumer-verification/src/consumer-verification
-c/consumer-verification/stamp-h1
 autom4te.cache/
 *~
 .vscode/
-tokamak.toml
-
-ruby/*/.bundle/
-ruby/*/.yardoc
-ruby/*/_yardoc/
-ruby/*/coverage/
-ruby/*/doc/
-ruby/*/pkg/
-ruby/*/spec/reports/
-ruby/*/tmp/
-
-# rspec failure tracking
-ruby/*/.rspec_status
-
-build/
-
-php/vendor/
-php/composer.lock
-
-pkg/
-python/venv/
-python/pacts
