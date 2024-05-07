@@ -1,7 +1,6 @@
 ![Logo of the project](https://raw.githubusercontent.com/pact-foundation/pact-core-mock-server/main/images/logo.svg)
 
-[![Pact-Rust Build](https://github.com/pact-foundation/pact-reference/workflows/Pact-Rust%20Build/badge.svg)](https://github.com/pact-foundation/pact-reference/actions?query=workflow%3A%22Pact-Rust+Build%22)
-[![Pact-Rust FFI Build](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml/badge.svg)](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml)
+[![Build](https://github.com/pact-foundation/pact-core-mock-server/actions/workflows/build.yml/badge.svg)](https://github.com/pact-foundation/pact-core-mock-server/actions/workflows/build.yml)
 
 # Pact Reference Implementation
 > Reference implementations for Pact Specification written in Rust
@@ -11,30 +10,14 @@ written in Rust, as well as example projects in JavaScript and C (and a few othe
 
 ## Usage
 
-### Rust
-
-For Rust projects, you can use the Rust crates from this library in your project directly. Refer to the [Rust project
-readme](rust/README.md). Requires minimum Rust 1.71.0.
-
-### Other languages
-
-This project contains dynamic libraries that expose the core functionality through FFI (Foreign Function Interface).
-
-For examples:
-* [Javascript](javascript)
-* [C](c/consumer-verification)
-* [Ruby](ruby/example_consumer_spec)
-* [PHP](php)
-
 ## Building
 
-To build the libraries in this project, you need a working Rust environment.  Requires minimum Rust 1.59.0.
+To build the libraries in this project, you need a working Rust environment.  Requires minimum Rust 1.77.0.
 Refer to the [Rust Guide](https://www.rust-lang.org/learn/get-started).
 
 The build tool used is `cargo`.
 
 ```shell
-cd rust
 cargo build
 ```
 
