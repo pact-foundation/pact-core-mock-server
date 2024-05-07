@@ -1,5 +1,0 @@
-{
-  "body": {
-    "$.one": { "type": "Uuid", "format": "simple" }
-  }
-}

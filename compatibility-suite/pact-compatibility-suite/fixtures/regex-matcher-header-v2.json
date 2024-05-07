@@ -1,6 +1,0 @@
-{
-  "$.header.x-test": {
-    "match": "regex",
-    "regex": "\\d{1,4}"
-  }
-}

@@ -1,5 +1,0 @@
-{
-  "body": {
-    "$.one": { "type": "RandomString", "size": 6 }
-  }
-}
