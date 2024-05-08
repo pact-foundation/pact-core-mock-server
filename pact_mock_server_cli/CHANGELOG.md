@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.6 - Maintenance Release
+
+* cc62ff52 - chore: Update pact_mock_server crate to 1.2.7 (Ronald Holshausen, Wed May 8 10:38:25 2024 +1000)
+* 1d5b9300 - chore: Update repo in Cargo.toml (Ronald Holshausen, Tue May 7 17:11:46 2024 +1000)
+* eb8e175e - chore: Update readme with new project layout (Ronald Holshausen, Tue May 7 16:14:04 2024 +1000)
+* c27bf2b5 - chore: Move the mock server directories to the project root (Ronald Holshausen, Tue May 7 15:55:29 2024 +1000)
+* f5ad729f - chore: Moved mock server crates to pact-foundation/pact-core-mock-server (Ronald Holshausen, Tue May 7 17:36:26 2024 +1000)
+* fa2b1d09 - chore: Upgrade pact_matching to 1.2.2 (Ronald Holshausen, Tue May 7 10:50:08 2024 +1000)
+* 694100fb - chore: Update pact_models to 1.2.0 (Ronald Holshausen, Tue Apr 23 10:51:11 2024 +1000)
+* edfac7ba - chore: remove local pact_models from the other pact crates (Ronald Holshausen, Tue Apr 23 10:03:29 2024 +1000)
+* 758f4c03 - chore: Update pact_matching to 1.2.1 (Ronald Holshausen, Tue Apr 16 16:29:38 2024 +1000)
+* bfd6eae0 - chore: Upgrade pact_mock_server to 1.2.6 (Ronald Holshausen, Tue Apr 16 15:14:00 2024 +1000)
+* d6125b75 - chore(pact_matching): Bump minor version (Ronald Holshausen, Tue Apr 16 10:16:44 2024 +1000)
+* 0d707388 - chore(pact_mock_server_cli): Create Multi-platform image (Ronald Holshausen, Fri Mar 15 17:12:20 2024 +1100)
+* c9da801a - bump version to 1.0.6 (Ronald Holshausen, Fri Mar 15 15:37:22 2024 +1100)
+
 # 1.0.5 - Maintenance Release
 
 * 2f974fc4 - chore(pact_mock_server_cli): Update dependencies (Ronald Holshausen, Fri Mar 15 15:15:40 2024 +1100)
