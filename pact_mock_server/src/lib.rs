@@ -3,9 +3,6 @@
 //! [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3)
 //! and [V4 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-4).
 //!
-//! The exported functions using C bindings for controlling the mock server now live in the `pact_mock_server_ffi`
-//! crate.
-//!
 //! ## Crate features
 //! All features are enabled by default
 //!
@@ -50,6 +47,7 @@ pub mod server_manager;
 mod hyper_server;
 #[cfg(feature = "tls")] pub mod tls;
 mod utils;
+pub mod legacy;
 
 /// Mock server errors
 #[derive(thiserror::Error, Debug)]
