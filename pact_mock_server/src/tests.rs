@@ -1,20 +1,28 @@
 #[cfg(feature = "plugins")] use std::net::SocketAddr;
+
 use expectest::expect;
 use expectest::prelude::*;
-use maplit::*;
-use reqwest::header::ACCEPT;
-
+use maplit::hashmap;
 use pact_matching::Mismatch;
 use pact_models::bodies::OptionalBody;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
+use pact_models::pact::Pact;
 use pact_models::prelude::v4::{SynchronousHttp, V4Pact};
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::interaction::V4Interaction;
+use reqwest::header::ACCEPT;
 
+use crate::legacy::{
+  mock_server_matched,
+  mock_server_mismatches,
+  shutdown_mock_server,
+  start_mock_server_for_transport
+};
 use crate::matching::{match_request, MatchResult};
+use crate::mock_server::MockServerConfig;
 
 use super::*;
-use pact_models::v4::interaction::V4Interaction;
 
 #[tokio::test]
 async fn match_request_returns_a_match_for_identical_requests() {

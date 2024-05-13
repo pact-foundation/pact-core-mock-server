@@ -6,11 +6,14 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::fmt::Display;
+use std::future::Future;
 use std::ops::DerefMut;
+use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use pact_models::json_utils::json_to_string;
 
+use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, write_pact};
 use pact_models::PactSpecification;
 use pact_models::sync_pact::RequestResponsePact;
@@ -20,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, info, trace, warn};
 
-use crate::hyper_server;
+use crate::legacy::hyper_server;
 use crate::matching::MatchResult;
 use crate::utils::json_to_bool;
 
@@ -71,11 +74,11 @@ impl Default for MockServerScheme {
   }
 }
 
-impl ToString for MockServerScheme {
-  fn to_string(&self) -> String {
+impl Display for MockServerScheme {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      MockServerScheme::HTTP => "http".into(),
-      MockServerScheme::HTTPS => "https".into()
+      MockServerScheme::HTTP => write!(f, "http"),
+      MockServerScheme::HTTPS => write!(f, "https")
     }
   }
 }
@@ -100,11 +103,8 @@ pub struct MockServer {
   pub port: Option<u16>,
   /// Address the mock server is bound to
   pub address: Option<String>,
-  /// List of resources that need to be cleaned up when the mock server completes
-  #[deprecated(since = "0.9.1", note = "Resources should be stored on the mock server manager entry")]
-  pub resources: Vec<CString>,
   /// Pact that this mock server is based on
-  pub pact: Box<dyn Pact + Send + Sync>,
+  pub pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   /// Receiver of match results
   matches: Arc<Mutex<Vec<MatchResult>>>,
   /// Shutdown signal
@@ -119,6 +119,7 @@ pub struct MockServer {
 
 impl MockServer {
   /// Create a new mock server, consisting of its state (self) and its executable server future.
+  #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
   pub async fn new(
     id: String,
     pact: Box<dyn Pact + Send + Sync>,
@@ -134,7 +135,6 @@ impl MockServer {
       port: None,
       address: None,
       scheme: MockServerScheme::HTTP,
-      resources: vec![],
       pact: pact.boxed(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
@@ -167,8 +167,18 @@ impl MockServer {
     Ok((mock_server.clone(), future))
   }
 
+  /// Create a new mock server, returning the mock server instance and the future to drive it
+  pub fn create<F: Future<Output = ()>>(
+    pact: Box<dyn Pact + Send + Sync>,
+    addr: std::net::SocketAddr,
+    config: MockServerConfig
+  ) -> anyhow::Result<(MockServer, F)> {
+    todo!()
+  }
+
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
   #[cfg(feature = "tls")]
+  #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
   pub async fn new_tls(
     id: String,
     pact: Box<dyn Pact + Send + Sync>,
@@ -185,7 +195,6 @@ impl MockServer {
       port: None,
       address: None,
       scheme: MockServerScheme::HTTPS,
-      resources: vec![],
       pact: pact.boxed(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
@@ -249,6 +258,11 @@ impl MockServer {
     /// Returns all collected matches
     pub fn matches(&self) -> Vec<MatchResult> {
         self.matches.lock().unwrap().clone()
+    }
+
+    /// If all requests to the mock server matched correctly
+    pub fn all_matched(&self) -> bool {
+      self.mismatches().is_empty()
     }
 
     /// Returns all the mismatches that have occurred with this mock server
@@ -344,7 +358,6 @@ impl Clone for MockServer {
       port: self.port,
       address: self.address.clone(),
       scheme: self.scheme.clone(),
-      resources: vec![],
       pact: self.pact.boxed(),
       matches: self.matches.clone(),
       shutdown_tx: RefCell::new(None),
@@ -363,7 +376,6 @@ impl Default for MockServer {
       scheme: Default::default(),
       port: None,
       address: None,
-      resources: vec![],
       pact: Box::new(RequestResponsePact::default()),
       matches: Arc::new(Mutex::new(vec![])),
       shutdown_tx: RefCell::new(None),
@@ -381,7 +393,7 @@ mod tests {
   use pact_models::PactSpecification;
   use serde_json::{json, Value};
 
-  use crate::MockServerConfig;
+  use crate::mock_server::MockServerConfig;
 
   #[test]
   fn test_mock_server_config_from_json() {

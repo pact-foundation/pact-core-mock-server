@@ -321,7 +321,7 @@ impl ServerManager {
     }
   }
 
-  /// Find a mock server by port number and and map it using supplied function if found.
+  /// Find a mock server by port number and map it using supplied function if found.
   pub fn find_mock_server_by_port<R>(
     &mut self,
     port: u16,
