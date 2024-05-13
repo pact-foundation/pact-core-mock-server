@@ -5,7 +5,6 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::fmt::Display;
 use std::future::Future;
 use std::ops::DerefMut;
