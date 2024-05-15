@@ -37,21 +37,11 @@ impl MockServerBuilder {
   }
 
   /// Start the mock server, consuming this builder and returning a mock server instance
-  pub fn start(&mut self) -> anyhow::Result<MockServer> {
+  pub async fn start(&self) -> anyhow::Result<MockServer> {
     let addr = SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0);
     let config = self.config.clone();
 
-    let result = match Handle::try_current() {
-      Ok(handle) => handle.spawn(MockServer::create(self.pact.clone(), addr, config)),
-      Err(err) => {
-        warn!("Could not get a handle to a tokio runtime, will start a new one: {}", err);
-        tokio::runtime::Builder::new_multi_thread()
-          .enable_all()
-          .build()?
-          .spawn(MockServer::create(self.pact.clone(), addr, config))
-      }
-    };
-    todo!()
+    MockServer::create(self.pact.clone(), addr, config).await
   }
 }
 
@@ -66,8 +56,7 @@ mod tests {
 
   use super::MockServerBuilder;
 
-  #[test]
-  #[ignore]
+  #[test_log::test]
   fn basic_mock_server_test() {
     let pact = V4Pact {
       interactions: vec![
@@ -83,18 +72,29 @@ mod tests {
       ],
       .. V4Pact::default()
     };
-    let mut mock_server = MockServerBuilder::new()
-      .with_v4_pact(pact)
-      .start()
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+      .enable_all()
+      .build()
       .unwrap();
+
+    let mut mock_server = runtime.block_on(async {
+      let mut mock_server = MockServerBuilder::new()
+        .with_v4_pact(pact)
+        .start()
+        .await
+        .unwrap();
+      dbg!(&mock_server);
+      mock_server
+    });
 
     let client = reqwest::blocking::Client::new();
     let response = client.get(format!("http://127.0.0.1:{}", mock_server.port()).as_str())
       .header(ACCEPT, "application/json").send();
 
+    mock_server.shutdown().unwrap();
     let all_matched = mock_server.all_matched();
     let mismatches = mock_server.mismatches();
-    mock_server.shutdown().unwrap();
 
     expect!(all_matched).to(be_true());
     expect!(mismatches).to(be_equal_to(vec![]));

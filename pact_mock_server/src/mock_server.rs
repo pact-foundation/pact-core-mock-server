@@ -12,6 +12,7 @@ use std::ops::DerefMut;
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use anyhow::anyhow;
 
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, ReadWritePact, write_pact};
@@ -96,7 +97,7 @@ pub struct MockServerMetrics {
 
 #[derive(Debug, Clone)]
 pub enum MockServerEvent {
-
+  ConnectionFailed(String)
 }
 
 /// Struct to represent the "foreground" part of mock server
@@ -182,7 +183,9 @@ impl MockServer {
     config: MockServerConfig
   ) -> anyhow::Result<MockServer> {
     let server_id = uuid::Uuid::new_v4().to_string();
+    trace!(%server_id, "Starting mock server");
     let (addr, shutdown_send, event_recv) = create_and_bind(server_id.as_str(), pact.clone(), addr, config.clone()).await?;
+    trace!(%server_id, %addr, "Mock server started");
 
     Ok(MockServer {
       id: server_id,
@@ -248,7 +251,7 @@ impl MockServer {
   // }
 
   /// Send the shutdown signal to the server
-  pub fn shutdown(&mut self) -> Result<(), String> {
+  pub fn shutdown(&mut self) -> anyhow::Result<()> {
     let shutdown_future = &mut *self.shutdown_tx.borrow_mut();
     match shutdown_future.take() {
       Some(sender) => {
@@ -257,10 +260,10 @@ impl MockServer {
             debug!("Mock server {} shutdown - {:?}", self.id, self.metrics);
             Ok(())
           },
-          Err(_) => Err("Problem sending shutdown signal to mock server".into())
+          Err(_err) => Err(anyhow!("Problem sending shutdown signal to mock server"))
         }
       },
-      _ => Err("Mock server already shut down".into())
+      _ => Err(anyhow!("Mock server already shut down"))
     }
   }
 
