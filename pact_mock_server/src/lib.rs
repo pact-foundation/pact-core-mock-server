@@ -30,10 +30,10 @@ use crate::server_manager::ServerManager;
 pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
-#[cfg(feature = "tls")] pub mod tls;
 mod utils;
 pub mod legacy;
 pub mod builder;
+pub mod hyper_server;
 
 /// Mock server errors
 #[derive(thiserror::Error, Debug)]

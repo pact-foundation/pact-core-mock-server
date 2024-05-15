@@ -7,22 +7,25 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::future::Future;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::DerefMut;
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pact_models::json_utils::json_to_string;
-use pact_models::pact::{Pact, write_pact};
+use pact_models::pact::{Pact, ReadWritePact, write_pact};
 use pact_models::PactSpecification;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::HttpRequest;
+use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, info, trace, warn};
+use uuid::uuid;
+use crate::hyper_server::create_and_bind;
 
-use crate::legacy::hyper_server;
 use crate::matching::MatchResult;
 use crate::utils::json_to_bool;
 
@@ -91,6 +94,11 @@ pub struct MockServerMetrics {
   pub requests_by_path: HashMap<String, usize>
 }
 
+#[derive(Debug, Clone)]
+pub enum MockServerEvent {
+
+}
+
 /// Struct to represent the "foreground" part of mock server
 #[derive(Debug)]
 pub struct MockServer {
@@ -98,16 +106,16 @@ pub struct MockServer {
   pub id: String,
   /// Scheme the mock server is using
   pub scheme: MockServerScheme,
-  /// Port the mock server is running on
-  pub port: Option<u16>,
   /// Address the mock server is bound to
-  pub address: Option<String>,
+  pub address: SocketAddr,
   /// Pact that this mock server is based on
-  pub pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
+  pub pact: V4Pact,
   /// Receiver of match results
-  matches: Arc<Mutex<Vec<MatchResult>>>,
+  matches: Vec<MatchResult>,
   /// Shutdown signal
-  shutdown_tx: RefCell<Option<futures::channel::oneshot::Sender<()>>>,
+  shutdown_tx: RefCell<Option<tokio::sync::oneshot::Sender<()>>>,
+  /// Event channel
+  event_rx: RefCell<Option<tokio::sync::mpsc::Receiver<MockServerEvent>>>,
   /// Mock server config
   pub config: MockServerConfig,
   /// Metrics collected by the mock server
@@ -118,111 +126,126 @@ pub struct MockServer {
 
 impl MockServer {
   /// Create a new mock server, consisting of its state (self) and its executable server future.
-  #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
-  pub async fn new(
-    id: String,
-    pact: Box<dyn Pact + Send + Sync>,
-    addr: std::net::SocketAddr,
+  // #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
+  // pub async fn new(
+  //   id: String,
+  //   pact: Box<dyn Pact + Send + Sync>,
+  //   addr: std::net::SocketAddr,
+  //   config: MockServerConfig
+  // ) -> Result<(Arc<Mutex<MockServer>>, impl Future<Output = ()>), String> {
+    // let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    // let matches = Arc::new(Mutex::new(vec![]));
+    //
+    // #[allow(deprecated)]
+    // let mock_server = Arc::new(Mutex::new(MockServer {
+    //   id: id.clone(),
+    //   address: None,
+    //   scheme: MockServerScheme::HTTP,
+    //   pact: pact.boxed(),
+    //   matches: matches.clone(),
+    //   shutdown_tx: RefCell::new(Some(shutdown_tx)),
+    //   event_rx: RefCell::new(None),
+    //   config: config.clone(),
+    //   metrics: MockServerMetrics::default(),
+    //   spec_version: pact_specification(config.pact_specification, pact.specification_version())
+    // }));
+
+    // let (future, socket_addr) = crate::legacy::hyper_server::create_and_bind(
+    //   pact,
+    //   addr,
+    //   async {
+    //     shutdown_rx.await.ok();
+    //   },
+    //   matches,
+    //   mock_server.clone(),
+    //   &id
+    // )
+    //   .await
+    //   .map_err(|err| format!("Could not start server: {}", err))?;
+    //
+    // {
+    //   let mut ms = mock_server.lock().unwrap();
+    //   ms.deref_mut().address = Some(socket_addr.clone());
+    //
+    //   debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
+    // }
+    //
+    // Ok((mock_server.clone(), future))
+    // todo!()
+  // }
+
+  /// Create a new mock server, spawn its execution loop onto the tokio runtime and return the
+  /// mock server instance.
+  pub async fn create(
+    pact: V4Pact,
+    addr: SocketAddr,
     config: MockServerConfig
-  ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
-    let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
-    let matches = Arc::new(Mutex::new(vec![]));
+  ) -> anyhow::Result<MockServer> {
+    let server_id = uuid::Uuid::new_v4().to_string();
+    let (addr, shutdown_send, event_recv) = create_and_bind(server_id.as_str(), pact.clone(), addr, config.clone()).await?;
 
-    #[allow(deprecated)]
-    let mock_server = Arc::new(Mutex::new(MockServer {
-      id: id.clone(),
-      port: None,
-      address: None,
-      scheme: MockServerScheme::HTTP,
-      pact: pact.boxed(),
-      matches: matches.clone(),
-      shutdown_tx: RefCell::new(Some(shutdown_tx)),
-      config: config.clone(),
-      metrics: MockServerMetrics::default(),
-      spec_version: pact_specification(config.pact_specification, pact.specification_version())
-    }));
-
-    let (future, socket_addr) = hyper_server::create_and_bind(
+    Ok(MockServer {
+      id: server_id,
+      scheme: Default::default(),
+      address: addr,
       pact,
-      addr,
-      async {
-        shutdown_rx.await.ok();
-      },
-      matches,
-      mock_server.clone(),
-      &id
-    )
-      .await
-      .map_err(|err| format!("Could not start server: {}", err))?;
-
-    {
-      let mut ms = mock_server.lock().unwrap();
-      ms.deref_mut().port = Some(socket_addr.port());
-      ms.deref_mut().address = Some(socket_addr.ip().to_string());
-
-      debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
-    }
-
-    Ok((mock_server.clone(), future))
-  }
-
-  /// Create a new mock server, returning the mock server instance and the future to drive it
-  pub fn create<F: Future<Output = ()>>(
-    pact: Box<dyn Pact + Send + Sync>,
-    addr: std::net::SocketAddr,
-    config: MockServerConfig
-  ) -> anyhow::Result<(MockServer, F)> {
-    todo!()
+      matches: vec![],
+      shutdown_tx: RefCell::new(Some(shutdown_send)),
+      event_rx: RefCell::new(Some(event_recv)),
+      config: config.clone(),
+      metrics: Default::default(),
+      spec_version: Default::default()
+    })
   }
 
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
-  #[cfg(feature = "tls")]
-  #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
-  pub async fn new_tls(
-    id: String,
-    pact: Box<dyn Pact + Send + Sync>,
-    addr: std::net::SocketAddr,
-    tls: &ServerConfig,
-    config: MockServerConfig
-  ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
-    let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
-    let matches = Arc::new(Mutex::new(vec![]));
+  // #[cfg(feature = "tls")]
+  // #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
+  // pub async fn new_tls(
+  //   id: String,
+  //   pact: Box<dyn Pact + Send + Sync>,
+  //   addr: std::net::SocketAddr,
+  //   tls: &ServerConfig,
+  //   config: MockServerConfig
+  // ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
+    // let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    // let matches = Arc::new(Mutex::new(vec![]));
+    //
+    // #[allow(deprecated)]
+    // let mock_server = Arc::new(Mutex::new(MockServer {
+    //   id: id.clone(),
+    //   address: None,
+    //   scheme: MockServerScheme::HTTPS,
+    //   pact: pact.boxed(),
+    //   matches: matches.clone(),
+    //   shutdown_tx: RefCell::new(Some(shutdown_tx)),
+    //   event_rx: RefCell::new(None),
+    //   config: config.clone(),
+    //   metrics: MockServerMetrics::default(),
+    //   spec_version: pact_specification(config.pact_specification, pact.specification_version())
+    // }));
 
-    #[allow(deprecated)]
-    let mock_server = Arc::new(Mutex::new(MockServer {
-      id: id.clone(),
-      port: None,
-      address: None,
-      scheme: MockServerScheme::HTTPS,
-      pact: pact.boxed(),
-      matches: matches.clone(),
-      shutdown_tx: RefCell::new(Some(shutdown_tx)),
-      config: config.clone(),
-      metrics: MockServerMetrics::default(),
-      spec_version: pact_specification(config.pact_specification, pact.specification_version())
-    }));
-
-    let (future, socket_addr) = hyper_server::create_and_bind_tls(
-      pact,
-      addr,
-      async {
-        shutdown_rx.await.ok();
-      },
-      matches,
-      tls.clone(),
-      mock_server.clone()
-    ).await.map_err(|err| format!("Could not start server: {}", err))?;
-
-    {
-      let mut ms = mock_server.lock().unwrap();
-      ms.deref_mut().port = Some(socket_addr.port());
-      ms.deref_mut().address = Some(socket_addr.ip().to_string());
-
-      debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
-    }
-
-    Ok((mock_server.clone(), future))
-  }
+    // let (future, socket_addr) = crate::legacy::hyper_server::create_and_bind_tls(
+    //   pact,
+    //   addr,
+    //   async {
+    //     shutdown_rx.await.ok();
+    //   },
+    //   matches,
+    //   tls.clone(),
+    //   mock_server.clone()
+    // ).await.map_err(|err| format!("Could not start server: {}", err))?;
+    //
+    // {
+    //   let mut ms = mock_server.lock().unwrap();
+    //   ms.deref_mut().address = Some(socket_addr.clone());
+    //
+    //   debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
+    // }
+    //
+    // Ok((mock_server.clone(), future))
+  //   todo!()
+  // }
 
   /// Send the shutdown signal to the server
   pub fn shutdown(&mut self) -> Result<(), String> {
@@ -242,11 +265,11 @@ impl MockServer {
   }
 
     /// Converts this mock server to a `Value` struct
-    pub fn to_json(&self) -> serde_json::Value {
+    pub fn to_json(&self) -> Value {
       json!({
         "id" : self.id.clone(),
-        "port" : self.port.unwrap_or_default() as u64,
-        "address" : self.address.clone().unwrap_or_default(),
+        "port" : self.address.port(),
+        "address" : self.address.to_string(),
         "scheme" : self.scheme.to_string(),
         "provider" : self.pact.provider().name.clone(),
         "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
@@ -256,7 +279,7 @@ impl MockServer {
 
     /// Returns all collected matches
     pub fn matches(&self) -> Vec<MatchResult> {
-        self.matches.lock().unwrap().clone()
+        self.matches.clone()
     }
 
     /// If all requests to the mock server matched correctly
@@ -292,20 +315,13 @@ impl MockServer {
   /// Mock server writes its pact out to the provided directory
   pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
     trace!("write_pact: output_path = {:?}, overwrite = {}", output_path, overwrite);
-    let pact = if self.pact.is_v4() {
-      let mut v4_pact = self.pact.as_v4_pact().unwrap_or_default();
-      v4_pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-      for interaction in &mut v4_pact.interactions {
-        interaction.set_transport(Some("http".to_string()));
-      }
-      v4_pact.boxed()
-    } else {
-      let mut pact = self.pact.boxed();
-      pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-      pact
-    };
+    let mut v4_pact = self.pact.clone();
+    v4_pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
+    for interaction in &mut v4_pact.interactions {
+      interaction.set_transport(Some("http".to_string()));
+    }
 
-    let pact_file_name = pact.default_file_name();
+    let pact_file_name = v4_pact.default_file_name();
     let filename = match *output_path {
       Some(ref path) => {
         let mut path = PathBuf::from(path);
@@ -320,7 +336,7 @@ impl MockServer {
       PactSpecification::Unknown => PactSpecification::V3,
       _ => self.spec_version
     };
-    match write_pact(pact, filename.as_path(), specification, overwrite) {
+    match write_pact(v4_pact.boxed(), filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
         warn!("Failed to write pact to file - {}", err);
@@ -331,13 +347,18 @@ impl MockServer {
 
     /// Returns the URL of the mock server
     pub fn url(&self) -> String {
-      let addr = self.address.clone().unwrap_or_else(|| "127.0.0.1".to_string());
-      match self.port {
-        Some(port) => format!("{}://{}:{}", self.scheme.to_string(),
-          if addr == "0.0.0.0" { "127.0.0.1" } else { addr.as_str() }, port),
-        None => "error(port is not set)".to_string()
+      if self.address.ip().is_unspecified() {
+        format!("{}://{}:{}", self.scheme, Ipv4Addr::LOCALHOST, self.address.port())
+      } else {
+        format!("{}://{}", self.scheme, self.address)
       }
     }
+
+  /// Returns the port the mock server is running on. Returns None when the mock server
+  /// has not started yet.
+  pub fn port(&self) -> u16 {
+    self.address.port()
+  }
 }
 
 fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> PactSpecification {
@@ -348,39 +369,21 @@ fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> Pac
 }
 
 impl Clone for MockServer {
-  /// Make a clone all of the MockServer fields.
+  /// Make a clone of the MockServer fields.
   /// Note that the clone of the original server cannot be shut down directly.
   #[allow(deprecated)]
   fn clone(&self) -> MockServer {
     MockServer {
       id: self.id.clone(),
-      port: self.port,
       address: self.address.clone(),
       scheme: self.scheme.clone(),
-      pact: self.pact.boxed(),
+      pact: self.pact.clone(),
       matches: self.matches.clone(),
       shutdown_tx: RefCell::new(None),
+      event_rx: RefCell::new(None),
       config: self.config.clone(),
       metrics: self.metrics.clone(),
       spec_version: self.spec_version
-    }
-  }
-}
-
-impl Default for MockServer {
-  #[allow(deprecated)]
-  fn default() -> Self {
-    MockServer {
-      id: "".to_string(),
-      scheme: Default::default(),
-      port: None,
-      address: None,
-      pact: Box::new(RequestResponsePact::default()),
-      matches: Arc::new(Mutex::new(vec![])),
-      shutdown_tx: RefCell::new(None),
-      config: Default::default(),
-      metrics: Default::default(),
-      spec_version: Default::default()
     }
   }
 }

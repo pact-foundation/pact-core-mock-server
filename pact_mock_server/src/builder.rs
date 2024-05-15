@@ -17,7 +17,7 @@ use crate::mock_server::{MockServer, MockServerConfig};
 /// Builder for constructing mock servers
 pub struct MockServerBuilder {
   config: MockServerConfig,
-  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>
+  pact: V4Pact
 }
 
 impl MockServerBuilder {
@@ -25,13 +25,13 @@ impl MockServerBuilder {
   pub fn new() -> Self {
     MockServerBuilder {
       config: Default::default(),
-      pact: V4Pact::default().boxed()
+      pact: V4Pact::default()
     }
   }
 
   /// Add the Pact that the mock server will respond with
   pub fn with_v4_pact(&mut self, pact: V4Pact) -> &mut Self {
-    self.pact = pact.boxed();
+    self.pact = pact;
     self.config.pact_specification = PactSpecification::V4;
     self
   }
@@ -39,19 +39,18 @@ impl MockServerBuilder {
   /// Start the mock server, consuming this builder and returning a mock server instance
   pub fn start(&mut self) -> anyhow::Result<MockServer> {
     let addr = SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0);
-    let pact = self.pact.boxed();
     let config = self.config.clone();
 
-    // let (mock_server, future) = match Handle::try_current() {
-    //   Ok(handle) => handle.block_on(MockServer::new(Uuid::new_v4().to_string(), pact, addr, config)),
-    //   Err(err) => {
-    //     warn!("Could not get a handle to a tokio runtime, will start a new one: {}", err);
-    //     tokio::runtime::Builder::new_multi_thread()
-    //       .enable_all()
-    //       .build()?
-    //       .block_on(MockServer::new(Uuid::new_v4().to_string(), pact, addr, config))
-    //   }
-    // }?;
+    let result = match Handle::try_current() {
+      Ok(handle) => handle.spawn(MockServer::create(self.pact.clone(), addr, config)),
+      Err(err) => {
+        warn!("Could not get a handle to a tokio runtime, will start a new one: {}", err);
+        tokio::runtime::Builder::new_multi_thread()
+          .enable_all()
+          .build()?
+          .spawn(MockServer::create(self.pact.clone(), addr, config))
+      }
+    };
     todo!()
   }
 }
@@ -90,7 +89,7 @@ mod tests {
       .unwrap();
 
     let client = reqwest::blocking::Client::new();
-    let response = client.get(format!("http://127.0.0.1:{}", mock_server.port.unwrap()).as_str())
+    let response = client.get(format!("http://127.0.0.1:{}", mock_server.port()).as_str())
       .header(ACCEPT, "application/json").send();
 
     let all_matched = mock_server.all_matched();

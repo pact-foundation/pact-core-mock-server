@@ -83,24 +83,25 @@ impl ServerManager {
       addr: SocketAddr,
       config: MockServerConfig
     ) -> Result<SocketAddr, String> {
-      let (mock_server, future) =
-        self.runtime.block_on(MockServer::new(id.clone(), pact, addr, config))?;
-
-      let port = { mock_server.lock().unwrap().port.clone() };
-      self.mock_servers.insert(
-        id,
-        ServerEntry {
-          mock_server: Either::Left(mock_server),
-          port: port.unwrap_or_else(|| addr.port()),
-          resources: vec![],
-          join_handle: Some(self.runtime.spawn(future))
-        },
-      );
-
-      match port {
-        Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
-        None => Ok(addr)
-      }
+      // let (mock_server, future) =
+      //   self.runtime.block_on(MockServer::new(id.clone(), pact, addr, config))?;
+      //
+      // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
+      // self.mock_servers.insert(
+      //   id,
+      //   ServerEntry {
+      //     mock_server: Either::Left(mock_server),
+      //     port: port.unwrap_or_else(|| addr.port()),
+      //     resources: vec![],
+      //     join_handle: Some(self.runtime.spawn(future))
+      //   },
+      // );
+      //
+      // match port {
+      //   Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
+      //   None => Ok(addr)
+      // }
+      todo!()
     }
 
     /// Start a new TLS server on the runtime
@@ -113,24 +114,25 @@ impl ServerManager {
       tls_config: &ServerConfig,
       config: MockServerConfig
     ) -> Result<SocketAddr, String> {
-      let (mock_server, future) =
-        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls_config, config))?;
-
-      let port = { mock_server.lock().unwrap().port.clone() };
-      self.mock_servers.insert(
-        id,
-        ServerEntry {
-          mock_server: Either::Left(mock_server),
-          port: port.unwrap_or_else(|| addr.port()),
-          resources: vec![],
-          join_handle: Some(self.runtime.spawn(future))
-        }
-      );
-
-      match port {
-        Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
-        None => Ok(addr)
-      }
+      // let (mock_server, future) =
+      //   self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls_config, config))?;
+      //
+      // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
+      // self.mock_servers.insert(
+      //   id,
+      //   ServerEntry {
+      //     mock_server: Either::Left(mock_server),
+      //     port: port.unwrap_or_else(|| addr.port()),
+      //     resources: vec![],
+      //     join_handle: Some(self.runtime.spawn(future))
+      //   }
+      // );
+      //
+      // match port {
+      //   Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
+      //   None => Ok(addr)
+      // }
+      todo!()
     }
 
     /// Start a new server on the runtime
@@ -153,21 +155,22 @@ impl ServerManager {
     port: u16,
     config: MockServerConfig
   ) -> Result<u16, String> {
-    let addr= ([0, 0, 0, 0], port as u16).into();
-    let (mock_server, future) = MockServer::new(id.clone(), pact, addr, config).await?;
-
-    let port = { mock_server.lock().unwrap().port.clone() };
-    self.mock_servers.insert(
-      id,
-      ServerEntry {
-        mock_server: Either::Left(mock_server),
-        port: port.unwrap_or_else(|| addr.port()),
-        resources: vec![],
-        join_handle: Some(self.runtime.spawn(future))
-      },
-    );
-
-    port.ok_or_else(|| "Started mock server has no port".to_string())
+    // let addr= ([0, 0, 0, 0], port as u16).into();
+    // let (mock_server, future) = MockServer::new(id.clone(), pact, addr, config).await?;
+    //
+    // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
+    // self.mock_servers.insert(
+    //   id,
+    //   ServerEntry {
+    //     mock_server: Either::Left(mock_server),
+    //     port: port.unwrap_or_else(|| addr.port()),
+    //     resources: vec![],
+    //     join_handle: Some(self.runtime.spawn(future))
+    //   },
+    // );
+    //
+    // port.ok_or_else(|| "Started mock server has no port".to_string())
+    todo!()
   }
 
     /// Start a new TLS server on the runtime

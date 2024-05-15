@@ -24,7 +24,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Cursor, Read};
 use std::path::{Path, PathBuf};
 
-use rustls::{Certificate, PrivateKey};
+// use rustls::{Certificate, PrivateKey};
 use rustls_pemfile::{certs, pkcs8_private_keys, rsa_private_keys};
 use tokio_rustls::rustls::ServerConfig;
 
@@ -113,47 +113,48 @@ impl TlsConfigBuilder {
 
   /// Build the TLS configuration
   pub fn build(mut self) -> Result<ServerConfig, TlsConfigError> {
-    let mut cert_rdr = BufReader::new(self.cert);
-    let cert = certs(&mut cert_rdr)
-      .map_err(TlsConfigError::CertParseError)?
-      .iter()
-      .map(|data| Certificate(data.clone()))
-      .collect();
-
-    let key = {
-      // convert it to Vec<u8> to allow reading it again if key is RSA
-      let mut key_vec = Vec::new();
-      self.key
-        .read_to_end(&mut key_vec)
-        .map_err(TlsConfigError::Io)?;
-
-      if key_vec.is_empty() {
-        return Err(TlsConfigError::EmptyKey);
-      }
-
-      let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice())
-        .map_err(|_| TlsConfigError::Pkcs8ParseError)?;
-
-      if !pkcs8.is_empty() {
-        PrivateKey(pkcs8.remove(0))
-      } else {
-        let mut rsa = rsa_private_keys(&mut key_vec.as_slice())
-          .map_err(|_| TlsConfigError::RsaParseError)?;
-
-        if !rsa.is_empty() {
-          PrivateKey(rsa.remove(0))
-        } else {
-          return Err(TlsConfigError::EmptyKey);
-        }
-      }
-    };
-
-    let config = ServerConfig::builder()
-      .with_safe_defaults()
-      .with_no_client_auth()
-      .with_single_cert(cert, key)
-      .map_err(|err| TlsConfigError::InvalidKey(err))?;
-    Ok(config)
+    // let mut cert_rdr = BufReader::new(self.cert);
+    // let cert = certs(&mut cert_rdr)
+    //   .map_err(TlsConfigError::CertParseError)?
+    //   .iter()
+    //   .map(|data| Certificate(data.clone()))
+    //   .collect();
+    //
+    // let key = {
+    //   // convert it to Vec<u8> to allow reading it again if key is RSA
+    //   let mut key_vec = Vec::new();
+    //   self.key
+    //     .read_to_end(&mut key_vec)
+    //     .map_err(TlsConfigError::Io)?;
+    //
+    //   if key_vec.is_empty() {
+    //     return Err(TlsConfigError::EmptyKey);
+    //   }
+    //
+    //   let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice())
+    //     .map_err(|_| TlsConfigError::Pkcs8ParseError)?;
+    //
+    //   if !pkcs8.is_empty() {
+    //     PrivateKey(pkcs8.remove(0))
+    //   } else {
+    //     let mut rsa = rsa_private_keys(&mut key_vec.as_slice())
+    //       .map_err(|_| TlsConfigError::RsaParseError)?;
+    //
+    //     if !rsa.is_empty() {
+    //       PrivateKey(rsa.remove(0))
+    //     } else {
+    //       return Err(TlsConfigError::EmptyKey);
+    //     }
+    //   }
+    // };
+    //
+    // let config = ServerConfig::builder()
+    //   .with_safe_defaults()
+    //   .with_no_client_auth()
+    //   .with_single_cert(cert, key)
+    //   .map_err(|err| TlsConfigError::InvalidKey(err))?;
+    // Ok(config)
+    unimplemented!()
   }
 }
 

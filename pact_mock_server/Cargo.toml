@@ -25,21 +25,23 @@ tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls
 anyhow = "1.0.82"
 bytes = "1.6.0"
 futures = "0.3.30"
-hyper = { version = "0.14.28", features = ["full"] }
-hyper-rustls = { version = "0.24.2", optional = true }
+hyper = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+hyper-rustls = { version = "0.27.1", optional = true }
+hyper-util = { version = "0.1", features = ["full"] }
 itertools = "0.12.1"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
 pact_matching = { version =  "~1.2.2", default-features = false }
 pact_models = { version = "~1.2.0", default-features = false }
 pact-plugin-driver = { version = "~0.6.1", optional = true, default-features = false }
-rustls = { version = "~0.21.10", optional = true }
-rustls-pemfile = { version = "1.0.4", optional = true }
+rustls = { version = "0.23.5", optional = true }
+rustls-pemfile = { version = "2.1.2", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 thiserror = "1.0.58"
 tokio = { version = "1.37.0", features = ["full"] }
-tokio-rustls = { version = "~0.24.1", optional = true }
+tokio-rustls = { version = "0.26.0", optional = true }
 tracing = "0.1.40"
 tracing-core = "0.1.32"
 url = "2.5.0"

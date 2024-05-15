@@ -17,6 +17,7 @@ use crate::mock_server::{MockServer, MockServerConfig};
 use crate::server_manager::{PluginMockServer, ServerManager};
 
 pub(crate) mod hyper_server;
+#[cfg(feature = "tls")] pub(crate) mod tls;
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
 /// number of 0 will result in an auto-allocated port by the operating system. Returns the port
