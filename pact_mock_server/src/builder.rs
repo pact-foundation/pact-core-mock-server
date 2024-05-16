@@ -1,6 +1,5 @@
 //! Provides a builder for constructing mock servers
 
-use std::net::{Ipv6Addr, SocketAddr};
 use std::panic::RefUnwindSafe;
 
 use pact_models::pact::Pact;
@@ -25,7 +24,7 @@ impl MockServerBuilder {
   }
 
   /// Add the Pact that the mock server will respond with
-  pub fn with_v4_pact(&mut self, pact: V4Pact) -> &mut Self {
+  pub fn with_v4_pact(mut self, pact: V4Pact) -> Self {
     self.pact = pact;
     self.config.pact_specification = PactSpecification::V4;
     self
@@ -41,13 +40,13 @@ impl MockServerBuilder {
   /// * IP6 loopback adapter: `[::1]:0`
   /// * Bind to all adapters with IP4: `0.0.0.0:0`
   /// * Bind to all adapters with IP6: `[::]:0`
-  pub fn bind_to(&mut self, address: &str) -> &mut Self {
+  pub fn bind_to(mut self, address: &str) -> Self {
     self.config.address = address.to_string();
     self
   }
 
   /// Start the mock server, consuming this builder and returning a mock server instance
-  pub async fn start(&self) -> anyhow::Result<MockServer> {
+  pub async fn start(self) -> anyhow::Result<MockServer> {
     MockServer::create(self.pact.clone(), self.config.clone()).await
   }
 }

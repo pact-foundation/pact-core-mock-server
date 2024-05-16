@@ -4,6 +4,7 @@
 //!
 
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::future::Future;
@@ -12,6 +13,7 @@ use std::ops::DerefMut;
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicBool;
 use anyhow::anyhow;
 
 use pact_models::json_utils::json_to_string;
@@ -23,6 +25,7 @@ use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tokio::sync::mpsc::Receiver;
 use tracing::{debug, info, trace, warn};
 use uuid::uuid;
 use crate::hyper_server::create_and_bind;
@@ -97,6 +100,16 @@ pub struct MockServerMetrics {
   pub requests_by_path: HashMap<String, usize>
 }
 
+impl MockServerMetrics {
+  pub(crate) fn add_path(&mut self, path: String) {
+    self.requests += 1;
+    *self.requests_by_path
+      .entry(path)
+      .or_insert(0)
+      += 1;
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum MockServerEvent {
   /// Connection failed with error
@@ -119,15 +132,13 @@ pub struct MockServer {
   /// Pact that this mock server is based on
   pub pact: V4Pact,
   /// Receiver of match results
-  matches: Vec<MatchResult>,
+  matches: Arc<Mutex<Vec<MatchResult>>>,
   /// Shutdown signal
   shutdown_tx: RefCell<Option<tokio::sync::oneshot::Sender<()>>>,
-  /// Event channel
-  event_rx: RefCell<Option<tokio::sync::mpsc::Receiver<MockServerEvent>>>,
   /// Mock server config
   pub config: MockServerConfig,
   /// Metrics collected by the mock server
-  pub metrics: MockServerMetrics,
+  pub metrics: Arc<Mutex<MockServerMetrics>>,
   /// Pact spec version to use
   pub spec_version: PactSpecification
 }
@@ -197,21 +208,24 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting mock server");
-    let (address, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let (address, shutdown_send, mut event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
     trace!(%server_id, %address, "Mock server started");
 
-    Ok(MockServer {
+    let mut mock_server = MockServer {
       id: server_id,
       scheme: Default::default(),
       address,
       pact,
-      matches: vec![],
+      matches: Default::default(),
       shutdown_tx: RefCell::new(Some(shutdown_send)),
-      event_rx: RefCell::new(Some(event_recv)),
       config: config.clone(),
       metrics: Default::default(),
       spec_version: Default::default()
-    })
+    };
+
+    mock_server.start_event_loop(event_recv).await;
+
+    Ok(mock_server)
   }
 
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
@@ -264,13 +278,17 @@ impl MockServer {
   // }
 
   /// Send the shutdown signal to the server
-  pub fn shutdown(&mut self) -> anyhow::Result<()> {
-    let shutdown_future = &mut *self.shutdown_tx.borrow_mut();
-    match shutdown_future.take() {
+  pub fn shutdown(&self) -> anyhow::Result<()> {
+    let shutdown_future = self.shutdown_tx.take();
+    match shutdown_future {
       Some(sender) => {
         match sender.send(()) {
           Ok(()) => {
-            debug!("Mock server {} shutdown - {:?}", self.id, self.metrics);
+            let metrics = {
+              let guard = self.metrics.lock().unwrap();
+              guard.clone()
+            };
+            debug!("Mock server {} shutdown - {:?}", self.id, metrics);
             Ok(())
           },
           Err(_err) => Err(anyhow!("Problem sending shutdown signal to mock server"))
@@ -280,28 +298,67 @@ impl MockServer {
     }
   }
 
-    /// Converts this mock server to a `Value` struct
-    pub fn to_json(&self) -> Value {
-      json!({
-        "id" : self.id.clone(),
-        "port" : self.address.port(),
-        "address" : self.address.to_string(),
-        "scheme" : self.scheme.to_string(),
-        "provider" : self.pact.provider().name.clone(),
-        "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
-        "metrics" : self.metrics
-      })
-    }
+  /// Start the event loop for the mock server
+  async fn start_event_loop(&mut self, mut event_recv: Receiver<MockServerEvent>) {
+    let server_id = self.id.clone();
+    let mut metrics = self.metrics.clone();
+    let mut matches = self.matches.clone();
 
-    /// Returns all collected matches
-    pub fn matches(&self) -> Vec<MatchResult> {
-        self.matches.clone()
-    }
+    tokio::spawn(async move {
+      trace!(%server_id, "Starting mock server event loop");
 
-    /// If all requests to the mock server matched correctly
-    pub fn all_matched(&self) -> bool {
-      self.mismatches().is_empty()
-    }
+      let mut total_events = 0;
+      let mut metrics = metrics.clone();
+      let mut matches = matches.clone();
+      while let Some(event) = event_recv.recv().await {
+        trace!(%server_id, ?event, "Received event");
+        total_events += 1;
+
+        // let mut mock_server = mock_server.clone();
+        match event {
+          MockServerEvent::ConnectionFailed(_err) => {}
+          MockServerEvent::RequestReceived(path) => {
+            let mut guard = metrics.lock().unwrap();
+            guard.add_path(path);
+          }
+          MockServerEvent::RequestMatch(result) => {
+            let mut guard = matches.lock().unwrap();
+            guard.push(result.clone());
+          }
+        }
+      }
+
+      trace!(%server_id, total_events, "Mock server event loop done");
+    });
+  }
+
+  /// Converts this mock server to a `Value` struct
+  pub fn to_json(&self) -> Value {
+    let metrics = {
+      let guard = self.metrics.lock().unwrap();
+      guard.clone()
+    };
+    json!({
+      "id" : self.id.clone(),
+      "port" : self.address.port(),
+      "address" : self.address.to_string(),
+      "scheme" : self.scheme.to_string(),
+      "provider" : self.pact.provider().name.clone(),
+      "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
+      "metrics" : metrics
+    })
+  }
+
+  /// Returns all collected matches
+  pub fn matches(&self) -> Vec<MatchResult> {
+    let guard = self.matches.lock().unwrap();
+    guard.clone()
+  }
+
+  /// If all requests to the mock server matched correctly
+  pub fn all_matched(&self) -> bool {
+    self.mismatches().is_empty()
+  }
 
     /// Returns all the mismatches that have occurred with this mock server
     pub fn mismatches(&self) -> Vec<MatchResult> {
@@ -361,14 +418,14 @@ impl MockServer {
     }
   }
 
-    /// Returns the URL of the mock server
-    pub fn url(&self) -> String {
-      if self.address.ip().is_unspecified() {
-        format!("{}://{}:{}", self.scheme, Ipv4Addr::LOCALHOST, self.address.port())
-      } else {
-        format!("{}://{}", self.scheme, self.address)
-      }
+  /// Returns the URL of the mock server
+  pub fn url(&self) -> String {
+    if self.address.ip().is_unspecified() {
+      format!("{}://{}:{}", self.scheme, Ipv6Addr::LOCALHOST, self.address.port())
+    } else {
+      format!("{}://{}", self.scheme, self.address)
     }
+  }
 
   /// Returns the port the mock server is running on. Returns None when the mock server
   /// has not started yet.
@@ -381,26 +438,6 @@ fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> Pac
   match spec1 {
     PactSpecification::Unknown => spec2,
     _ => spec1
-  }
-}
-
-impl Clone for MockServer {
-  /// Make a clone of the MockServer fields.
-  /// Note that the clone of the original server cannot be shut down directly.
-  #[allow(deprecated)]
-  fn clone(&self) -> MockServer {
-    MockServer {
-      id: self.id.clone(),
-      address: self.address.clone(),
-      scheme: self.scheme.clone(),
-      pact: self.pact.clone(),
-      matches: self.matches.clone(),
-      shutdown_tx: RefCell::new(None),
-      event_rx: RefCell::new(None),
-      config: self.config.clone(),
-      metrics: self.metrics.clone(),
-      spec_version: self.spec_version
-    }
   }
 }
 

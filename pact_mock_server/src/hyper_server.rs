@@ -123,6 +123,7 @@ pub(crate) async fn create_and_bind(
           debug!("Received shutdown signal, waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
           debug!("Existing connections complete, exiting main loop");
+          drop(event_send);
           break;
         }
       }
@@ -411,4 +412,58 @@ fn set_hyper_headers(builder: &mut Builder, headers: &Option<HashMap<String, Vec
 fn error_body(request: &HttpRequest, error: &String) -> String {
   let body = json!({ "error" : format!("{} : {:?}", error, request) });
   body.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::expect;
+  use expectest::prelude::*;
+  use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
+  use hyper::HeaderMap;
+  use pact_models::prelude::RequestResponsePact;
+
+  use super::*;
+
+// #[tokio::test]
+  // async fn can_fetch_results_on_current_thread() {
+  //   let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
+  //   let matches = Arc::new(Mutex::new(vec![]));
+  //
+  //   let (future, _) = create_and_bind(
+  //     RequestResponsePact::default().boxed(),
+  //     ([0, 0, 0, 0], 0 as u16).into(),
+  //     async {
+  //         shutdown_rx.await.ok();
+  //     },
+  //     matches.clone(),
+  //     Arc::new(Mutex::new(MockServer::default())),
+  //     &String::default()
+  //   ).await.unwrap();
+  //
+  //   let join_handle = tokio::task::spawn(future);
+  //
+  //   shutdown_tx.send(()).unwrap();
+  //
+  //   // Server has shut down, now flush the server future from runtime
+  //   join_handle.await.unwrap();
+  //
+  //   // 0 matches have been produced
+  //   let all_matches = matches.lock().unwrap().clone();
+  //   assert_eq!(all_matches, vec![]);
+  // }
+
+  #[test]
+  fn handle_hyper_headers_with_multiple_values() {
+    let mut headers = HeaderMap::new();
+    headers.append(ACCEPT, "application/xml, application/json".parse().unwrap());
+    headers.append(USER_AGENT, "test".parse().unwrap());
+    headers.append(USER_AGENT, "test2".parse().unwrap());
+    headers.append(CONTENT_TYPE, "text/plain".parse().unwrap());
+    let result = extract_headers(&headers);
+    expect!(result).to(be_ok().value(Some(hashmap! {
+      "accept".to_string() => vec!["application/xml".to_string(), "application/json".to_string()],
+      "user-agent".to_string() => vec!["test".to_string(), "test2".to_string()],
+      "content-type".to_string() => vec!["text/plain".to_string()]
+    })));
+  }
 }
