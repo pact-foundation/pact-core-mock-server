@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::ops::DerefMut;
 use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
@@ -38,7 +38,9 @@ pub struct MockServerConfig {
   /// Pact specification to use
   pub pact_specification: PactSpecification,
   /// Configuration required for the transport used
-  pub transport_config: HashMap<String, Value>
+  pub transport_config: HashMap<String, Value>,
+  /// Address to bind to
+  pub address: String
 }
 
 impl MockServerConfig {
@@ -184,18 +186,24 @@ impl MockServer {
   /// mock server instance.
   pub async fn create(
     pact: V4Pact,
-    addr: SocketAddr,
     config: MockServerConfig
   ) -> anyhow::Result<MockServer> {
     let server_id = uuid::Uuid::new_v4().to_string();
-    trace!(%server_id, "Starting mock server");
-    let (addr, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), addr, config.clone()).await?;
-    trace!(%server_id, %addr, "Mock server started");
+
+    let address = if config.address.is_empty() {
+      SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)
+    } else {
+      config.address.parse()?
+    };
+
+    trace!(%server_id, %address, "Starting mock server");
+    let (address, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    trace!(%server_id, %address, "Mock server started");
 
     Ok(MockServer {
       id: server_id,
       scheme: Default::default(),
-      address: addr,
+      address,
       pact,
       matches: vec![],
       shutdown_tx: RefCell::new(Some(shutdown_send)),
@@ -424,7 +432,8 @@ mod tests {
       transport_config: hashmap! {
         "tlsKey".to_string() => json!("key"),
         "tlsCertificate".to_string() => json!("cert")
-      }
+      },
+      address: "".to_string()
     }));
   }
 }
