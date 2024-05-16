@@ -97,7 +97,12 @@ pub struct MockServerMetrics {
 
 #[derive(Debug, Clone)]
 pub enum MockServerEvent {
-  ConnectionFailed(String)
+  /// Connection failed with error
+  ConnectionFailed(String),
+  /// Request received with path
+  RequestReceived(String),
+  /// Result of matching a request
+  RequestMatch(MatchResult),
 }
 
 /// Struct to represent the "foreground" part of mock server
@@ -184,7 +189,7 @@ impl MockServer {
   ) -> anyhow::Result<MockServer> {
     let server_id = uuid::Uuid::new_v4().to_string();
     trace!(%server_id, "Starting mock server");
-    let (addr, shutdown_send, event_recv) = create_and_bind(server_id.as_str(), pact.clone(), addr, config.clone()).await?;
+    let (addr, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), addr, config.clone()).await?;
     trace!(%server_id, %addr, "Mock server started");
 
     Ok(MockServer {

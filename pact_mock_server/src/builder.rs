@@ -79,25 +79,23 @@ mod tests {
       .unwrap();
 
     let mut mock_server = runtime.block_on(async {
-      let mut mock_server = MockServerBuilder::new()
+      MockServerBuilder::new()
         .with_v4_pact(pact)
         .start()
         .await
-        .unwrap();
-      dbg!(&mock_server);
-      mock_server
+        .unwrap()
     });
 
     let client = reqwest::blocking::Client::new();
-    let response = client.get(format!("http://127.0.0.1:{}", mock_server.port()).as_str())
+    let response = client.get(format!("http://[::1]:{}", mock_server.port()).as_str())
       .header(ACCEPT, "application/json").send();
 
     mock_server.shutdown().unwrap();
     let all_matched = mock_server.all_matched();
     let mismatches = mock_server.mismatches();
 
+    expect!(response.unwrap().status()).to(be_equal_to(200));
     expect!(all_matched).to(be_true());
     expect!(mismatches).to(be_equal_to(vec![]));
-    expect!(response.unwrap().status()).to(be_equal_to(200));
   }
 }

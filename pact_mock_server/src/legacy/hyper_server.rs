@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 // use hyper::service::make_service_fn;
 // use hyper::service::service_fn;
 use maplit::*;
+use pact_matching::logging::LOG_ID;
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_parts::HttpPart;
@@ -27,18 +28,9 @@ use serde_json::json;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
-use pact_matching::logging::LOG_ID;
-
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
-
-#[derive(Debug, Clone)]
-enum InteractionError {
-    RequestHeaderEncodingError,
-    RequestBodyError,
-    ResponseHeaderEncodingError,
-    ResponseBodyError
-}
+use crate::hyper_server::InteractionError;
 
 fn extract_path(uri: &hyper::Uri) -> String {
     uri.path_and_query()
@@ -481,7 +473,7 @@ mod tests {
 
   use super::*;
 
-  // #[tokio::test]
+// #[tokio::test]
   // async fn can_fetch_results_on_current_thread() {
   //   let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
   //   let matches = Arc::new(Mutex::new(vec![]));
