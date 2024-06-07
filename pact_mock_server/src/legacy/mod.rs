@@ -395,7 +395,7 @@ pub fn shutdown_mock_server(mock_server_port: i32) -> bool {
     .shutdown_mock_server_by_port(mock_server_port as u16)
 }
 
-/// Find a mock server by port number and and map it using supplied function if found. Returns the
+/// Find a mock server by port number and map it using supplied function if found. Returns the
 /// result of the function call wrapped in a Some. Returns a None if the mock server was not found.
 pub fn find_mock_server_by_port<R>(
   port: u16,

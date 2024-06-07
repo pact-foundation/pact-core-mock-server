@@ -1,15 +1,13 @@
 //! Mock server implementation using Hyper
 
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use bytes::Bytes;
-use http_body_util::{BodyExt, Full, Empty};
-use hyper::{body, Request, Response};
+use http_body_util::{BodyExt, Full};
+use hyper::{Request, Response};
 use hyper::body::Incoming;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder;
@@ -34,9 +32,8 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinSet;
 use tracing::{debug, error, info, trace, warn};
-use url::quirks::hash;
-use crate::matching::{match_request, MatchResult};
 
+use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
 use crate::mock_server::MockServerEvent::ConnectionFailed;
 
@@ -74,7 +71,7 @@ pub(crate) async fn create_and_bind(
 
   let mut join_set = JoinSet::new();
   let (shutdown_send, mut shutdown_recv) = oneshot::channel::<()>();
-  let (event_send, mut event_recv) = mpsc::channel::<MockServerEvent>(256);
+  let (event_send, event_recv) = mpsc::channel::<MockServerEvent>(256);
 
   tokio::spawn(async move {
     loop {

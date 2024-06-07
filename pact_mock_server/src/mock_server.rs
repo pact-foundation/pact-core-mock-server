@@ -139,6 +139,22 @@ pub struct MockServer {
   pub spec_version: PactSpecification
 }
 
+impl Clone for MockServer {
+  fn clone(&self) -> Self {
+    MockServer {
+      id: self.id.clone(),
+      scheme: self.scheme.clone(),
+      address: self.address.clone(),
+      pact: self.pact.clone(),
+      matches: self.matches.clone(),
+      shutdown_tx: RefCell::new(None),
+      config: self.config.clone(),
+      metrics: self.metrics.clone(),
+      spec_version: self.spec_version.clone()
+    }
+  }
+}
+
 impl MockServer {
   /// Create a new mock server, spawn its execution loop onto the tokio runtime and return the
   /// mock server instance.
@@ -255,8 +271,8 @@ impl MockServer {
       trace!(%server_id, "Starting mock server event loop");
 
       let mut total_events = 0;
-      let mut metrics = metrics.clone();
-      let mut matches = matches.clone();
+      let metrics = metrics.clone();
+      let matches = matches.clone();
       while let Some(event) = event_recv.recv().await {
         trace!(%server_id, ?event, "Received event");
         total_events += 1;
@@ -377,13 +393,6 @@ impl MockServer {
   /// has not started yet.
   pub fn port(&self) -> u16 {
     self.address.port()
-  }
-}
-
-fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> PactSpecification {
-  match spec1 {
-    PactSpecification::Unknown => spec2,
-    _ => spec1
   }
 }
 

@@ -73,6 +73,12 @@ impl ServerManager {
     }
   }
 
+  /// Consumes the mock server builder, and then spawns the resulting mock server on the server
+  /// manager's runtime.
+  pub fn spawn_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
+    self.runtime.block_on(builder.start())
+  }
+
     /// Start a new server on the runtime
     #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
     pub fn start_mock_server_with_addr(
@@ -319,7 +325,7 @@ impl ServerManager {
   /// Find mock server by id, and map it using supplied function if found.
   pub fn find_mock_server_by_id<R>(
     &self,
-    id: &String,
+    id: &str,
     f: &dyn Fn(&ServerManager, Either<&MockServer, &PluginMockServer>) -> R
   ) -> Option<R> {
     match self.mock_servers.get(id) {

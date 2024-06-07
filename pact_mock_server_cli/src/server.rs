@@ -5,28 +5,36 @@ use std::{
   thread,
   time::Duration
 };
-use std::convert::Infallible;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{Ipv6Addr, SocketAddr};
+use std::sync::Arc;
+use anyhow::anyhow;
 
-use futures::channel::oneshot::channel;
-use hyper::server::Server;
-use hyper::service::make_service_fn;
+use http::Request;
+use hyper::body::Incoming;
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper_util::rt::TokioIo;
 use itertools::Either;
-use maplit::*;
+use maplit::btreemap;
 use pact_models::pact::load_pact_from_json;
 use pact_models::PactSpecification;
 use serde_json::{self, json, Value};
+use tokio::select;
+use tokio::sync::oneshot::channel;
+use tokio::task::JoinSet;
 use tracing::{debug, error, info, trace};
 use uuid::Uuid;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 
+use pact_mock_server::builder::MockServerBuilder;
 use pact_mock_server::mock_server::{MockServer, MockServerConfig};
-#[cfg(feature = "tls")] use pact_mock_server::tls::TlsConfigBuilder;
 
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use crate::verify;
+
+// #[cfg(feature = "tls")] use pact_mock_server::tls::TlsConfigBuilder; TODO
 
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
@@ -69,41 +77,52 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let config = MockServerConfig {
             cors_preflight: query_param_set(context, "cors"),
             pact_specification: PactSpecification::default(),
-            transport_config: Default::default()
+            transport_config: Default::default(),
+            .. MockServerConfig::default()
           };
           debug!("Mock server config = {:?}", config);
 
           #[allow(unused_assignments)]
-          let mut result = Err("No mock server started yet".to_string());
+          let mut result = Err(anyhow!("No mock server started yet"));
           #[cfg(feature = "tls")]
           {
-            result = if query_param_set(context, "tls") {
-              debug!("Starting TLS mock server with id {}", &mock_server_id);
-              let key = include_str!("self-signed.key");
-              let cert = include_str!("self-signed.cert");
-              TlsConfigBuilder::new()
-                .key(key.as_bytes())
-                .cert(cert.as_bytes())
-                .build()
-                .map_err(|err| {
-                  format!("Failed to setup TLS using self-signed certificate - {}", err)
-                })
-                .and_then(|tls_config| {
-                  let mut guard = SERVER_MANAGER.lock().unwrap();
-                  guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
-                })
-            } else {
+            // result = if query_param_set(context, "tls") {
+            //   debug!("Starting TLS mock server with id {}", &mock_server_id);
+            //   let key = include_str!("self-signed.key");
+            //   let cert = include_str!("self-signed.cert");
+            //   TlsConfigBuilder::new()
+            //     .key(key.as_bytes())
+            //     .cert(cert.as_bytes())
+            //     .build()
+            //     .map_err(|err| {
+            //       format!("Failed to setup TLS using self-signed certificate - {}", err)
+            //     })
+            //     .and_then(|tls_config| {
+            //       let mut guard = SERVER_MANAGER.lock().unwrap();
+            //       guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
+            //     })
+            // } else {
               debug!("Starting mock server with id {}", &mock_server_id);
-              let mut guard = SERVER_MANAGER.lock().unwrap();
-              guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config)
-            };
+              result = MockServerBuilder::new()
+                .with_pact(pact)
+                .with_config(config)
+                .bind_to_port(get_next_port(options.base_port))
+                .with_id(mock_server_id.as_str())
+                .attach_to_manager()
+                .map(|ms| ms.port());
+            // };
           }
 
           #[cfg(not(feature = "tls"))]
           {
             debug!("Starting mock server with id {}", &mock_server_id);
-            let mut guard = SERVER_MANAGER.lock().unwrap();
-            result = guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config);
+            result = MockServerBuilder::new()
+              .with_pact(pact)
+              .with_config(config)
+              .bind_to_port(get_next_port(options.base_port))
+              .with_id(mock_server_id.as_str())
+              .attach_to_manager()
+              .map(|ms| ms.port());
           }
 
           match result {
@@ -235,7 +254,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
         match verify::validate_id(&paths[0].clone(), &SERVER_MANAGER) {
           Ok(ms) => {
             context.metadata.insert("id".to_string(), ms.id.clone());
-            context.metadata.insert("port".to_string(), ms.port.unwrap_or_default().to_string());
+            context.metadata.insert("port".to_string(), ms.port().to_string());
             if paths.len() > 1 {
               context.metadata.insert("subpath".to_string(), paths[1].clone());
               paths[1] == "verify"
@@ -309,8 +328,29 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
   }
 }
 
-fn dispatcher() -> WebmachineDispatcher<'static>  {
-  WebmachineDispatcher {
+pub async fn start_server(port: u16) -> Result<(), i32> {
+  let addr = SocketAddr::new(Ipv6Addr::LOCALHOST.into(), port);
+  let listener = tokio::net::TcpListener::bind(addr).await
+    .map_err(|err|{
+      error!("Failed to port {}: {}", port, err);
+      1
+    })?;
+  let (_shutdown_tx, mut shutdown_rx) = channel::<()>();
+  let mut join_set = JoinSet::new();
+
+  let local_addr = listener.local_addr()
+    .map_err(|err| {
+      error!("Failed to get bound address: {}", err);
+      2
+    })?;
+  info!("Master server started on port {}", local_addr.port());
+  {
+    let inner = SERVER_OPTIONS.lock().unwrap();
+    let options = inner.borrow();
+    info!("Server key: '{}'", options.server_key);
+  }
+
+  let dispatcher = Arc::new(WebmachineDispatcher {
     routes: btreemap! {
       "/" => WebmachineResource {
         allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST"],
@@ -376,33 +416,38 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
       "/mockserver" => mock_server_resource(),
       "/shutdown" => shutdown_resource()
     }
-  }
-}
-
-pub async fn start_server(port: u16) -> Result<(), i32> {
-  let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
-  let (_shutdown_tx, shutdown_rx) = channel::<()>();
-
-  let make_svc = make_service_fn(|_| async {
-    Ok::<_, Infallible>(dispatcher())
   });
-  match Server::try_bind(&addr) {
-    Ok(server) => {
-      let server = server.serve(make_svc);
-      {
-        let inner = SERVER_OPTIONS.lock().unwrap();
-        let options = inner.borrow();
-        info!("Master server started on port {}", server.local_addr().port());
-        info!("Server key: '{}'", options.server_key);
+
+  tokio::spawn(async move {
+    loop {
+      let dispatcher = dispatcher.clone();
+      select! {
+        connection = listener.accept() => {
+          match connection {
+            Ok((stream, remote_address)) => {
+              debug!("Received connection from remote {}", remote_address);
+              let io = TokioIo::new(stream);
+              join_set.spawn(async move {
+                if let Err(err) = http1::Builder::new()
+                  .serve_connection(io, service_fn(|req: Request<Incoming>| dispatcher.dispatch(req))).await {
+                  error!("Failed to serve incoming connection: {err}");
+                }
+              });
+            },
+            Err(e) => {
+              error!("Failed to accept connection: {e}");
+            }
+          }
+        }
+
+        _ = &mut shutdown_rx => {
+          debug!("Received shutdown signal, waiting for existing connections to complete");
+          while let Some(_) = join_set.join_next().await {};
+          debug!("Existing connections complete, exiting main loop");
+          break;
+        }
       }
-      server.with_graceful_shutdown(async { shutdown_rx.await.unwrap_or_default() }).await.map_err(|err| {
-        error!("Received an error starting master server: {}", err);
-        2
-      })
-    },
-    Err(err) => {
-      error!("could not start master server: {}", err);
-      Err(1)
     }
-  }
+  });
+  Ok(())
 }

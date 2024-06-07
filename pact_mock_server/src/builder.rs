@@ -1,13 +1,12 @@
 //! Provides a builder for constructing mock servers
 
-use std::panic::RefUnwindSafe;
-
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
 
-use crate::configure_core_catalogue;
+use crate::{configure_core_catalogue, MANAGER};
 use crate::mock_server::{MockServer, MockServerConfig};
+use crate::server_manager::ServerManager;
 
 /// Builder for constructing mock servers
 pub struct MockServerBuilder {
@@ -87,6 +86,17 @@ impl MockServerBuilder {
     configure_core_catalogue();
     pact_matching::matchers::configure_core_catalogue();
     MockServer::create(self.pact.clone(), self.config.clone()).await
+  }
+
+  /// Starts the mockserver, consuming this builder and registers it with the global server manager.
+  /// The mock server tasks will be spawned on the server manager's runtime.
+  /// Returns the mock server instance.
+  pub fn attach_to_manager(self) -> anyhow::Result<MockServer> {
+    configure_core_catalogue();
+    pact_matching::matchers::configure_core_catalogue();
+    let mut guard = MANAGER.lock().unwrap();
+    let manager = guard.get_or_insert_with(|| ServerManager::new());
+    manager.spawn_mock_server(self)
   }
 }
 

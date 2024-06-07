@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use anyhow::anyhow;
 
 use clap::ArgMatches;
 use http::StatusCode;
@@ -76,23 +77,21 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, usa
   }
 }
 
-fn validate_port(port: u16, server_manager: &Mutex<ServerManager>) -> Result<MockServer, String> {
-    server_manager.lock().unwrap()
-        .find_mock_server_by_port_mut(port, &|ms| {
-            ms.clone()
-        })
-        .ok_or(format!("No mock server running with port '{}'", port))
+fn validate_port(port: u16, server_manager: &Mutex<ServerManager>) -> anyhow::Result<MockServer> {
+  server_manager.lock().unwrap()
+    .find_mock_server_by_port(port, &|_, _, ms| ms.left().cloned())
+    .flatten()
+    .ok_or_else(|| anyhow!("No mock server running with port '{}'", port))
 }
 
-fn validate_uuid(id: &str, server_manager: &Mutex<ServerManager>) -> Result<MockServer, String> {
-    server_manager.lock().unwrap()
-        .find_mock_server_by_id(&id.to_string(), &|_, ms| {
-            ms.unwrap_left().clone()
-        })
-        .ok_or(format!("No mock server running with id '{}'", id))
+fn validate_uuid(id: &str, server_manager: &Mutex<ServerManager>) -> anyhow::Result<MockServer> {
+  server_manager.lock().unwrap()
+    .find_mock_server_by_id(id, &|_, ms| ms.left().cloned())
+    .flatten()
+    .ok_or_else(|| anyhow!("No mock server running with id '{}'", id))
 }
 
-pub fn validate_id(id: &str, server_manager: &Mutex<ServerManager>) -> Result<MockServer, String> {
+pub fn validate_id(id: &str, server_manager: &Mutex<ServerManager>) -> anyhow::Result<MockServer> {
     if id.chars().all(|ch| ch.is_digit(10)) {
         validate_port(id.parse::<u16>().unwrap(), server_manager)
     } else {
