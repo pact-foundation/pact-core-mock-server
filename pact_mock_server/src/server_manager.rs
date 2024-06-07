@@ -20,6 +20,7 @@ use pact_models::pact::Pact;
 #[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace};
 #[cfg(feature = "plugins")] use url::Url;
+use crate::builder::MockServerBuilder;
 
 use crate::mock_server::{MockServer, MockServerConfig};
 
@@ -47,12 +48,11 @@ pub struct CatalogueEntry {}
 
 struct ServerEntry {
   /// Either a local mock server or a plugin provided one
-  mock_server: Either<Arc<Mutex<MockServer>>, PluginMockServer>,
+  mock_server: Either<MockServer, PluginMockServer>,
   /// Port the mock server is running on
   port: u16,
   /// List of resources that need to be cleaned up when the mock server completes
-  pub resources: Vec<CString>,
-  join_handle: Option<tokio::task::JoinHandle<()>>
+  pub resources: Vec<CString>
 }
 
 /// Struct to represent many mock servers running in a background thread
@@ -67,7 +67,6 @@ impl ServerManager {
   pub fn new() -> ServerManager {
     ServerManager {
       runtime: tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
         .enable_all()
         .build()
         .unwrap(),
@@ -76,36 +75,37 @@ impl ServerManager {
   }
 
     /// Start a new server on the runtime
+    #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
     pub fn start_mock_server_with_addr(
       &mut self,
       id: String,
       pact: Box<dyn Pact + Send + Sync>,
       addr: SocketAddr,
       config: MockServerConfig
-    ) -> Result<SocketAddr, String> {
-      // let (mock_server, future) =
-      //   self.runtime.block_on(MockServer::new(id.clone(), pact, addr, config))?;
-      //
-      // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
-      // self.mock_servers.insert(
-      //   id,
-      //   ServerEntry {
-      //     mock_server: Either::Left(mock_server),
-      //     port: port.unwrap_or_else(|| addr.port()),
-      //     resources: vec![],
-      //     join_handle: Some(self.runtime.spawn(future))
-      //   },
-      // );
-      //
-      // match port {
-      //   Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
-      //   None => Ok(addr)
-      // }
-      todo!()
+    ) -> anyhow::Result<SocketAddr> {
+      let mock_server = self.runtime.block_on(MockServerBuilder::new()
+          .with_pact(pact)
+          .with_config(config)
+          .bind_to(addr.to_string())
+          .with_id(id.as_str())
+          .start())?;
+
+      let port = mock_server.address.port();
+      self.mock_servers.insert(
+        id,
+        ServerEntry {
+          mock_server: Either::Left(mock_server),
+          port,
+          resources: vec![]
+        },
+      );
+
+      Ok(SocketAddr::new(addr.ip(), port))
     }
 
     /// Start a new TLS server on the runtime
     #[cfg(feature = "tls")]
+    #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
     pub fn start_tls_mock_server_with_addr(
       &mut self,
       id: String,
@@ -136,18 +136,20 @@ impl ServerManager {
     }
 
     /// Start a new server on the runtime
+    #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
     pub fn start_mock_server(
       &mut self,
       id: String,
       pact: Box<dyn Pact + Send + Sync>,
       port: u16,
       config: MockServerConfig
-    ) -> Result<u16, String> {
+    ) -> anyhow::Result<u16> {
         self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), config)
             .map(|addr| addr.port())
     }
 
   /// Start a new server on the runtime, returning the future
+  #[deprecated(note = "Use the mock server builder (MockServerBuilder)")]
   pub async fn start_mock_server_nonblocking(
     &mut self,
     id: String,
@@ -175,6 +177,7 @@ impl ServerManager {
 
     /// Start a new TLS server on the runtime
     #[cfg(feature = "tls")]
+    #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
     pub fn start_tls_mock_server(
       &mut self,
       id: String,
@@ -190,6 +193,7 @@ impl ServerManager {
   /// Start a new mock server for the provided transport on the runtime. Returns the socket address
   /// that the server is running on.
   #[allow(unused_variables)]
+  #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
   pub fn start_mock_server_for_transport(
     &mut self,
     id: String,
@@ -227,8 +231,7 @@ impl ServerManager {
               pact: v4_pact
             }),
             port: result.port as u16,
-            resources: vec![],
-            join_handle: None
+            resources: vec![]
           }
         );
 
@@ -249,18 +252,22 @@ impl ServerManager {
 
   /// Shut down a server by its id. This function will only shut down a local mock server, not one
   /// provided by a plugin.
-  pub fn shutdown_mock_server_by_id(&mut self, id: String) -> bool {
+  pub fn shutdown_mock_server_by_id<S: Into<String>>(&mut self, id: S) -> bool {
+    let id = id.into();
     match self.mock_servers.remove(&id) {
       Some(entry) => match entry.mock_server {
         Either::Left(mock_server) => {
-          let mut ms = mock_server.lock().unwrap();
-          debug!("Shutting down mock server with ID {} - {:?}", id, ms.metrics);
-          match ms.shutdown() {
-            Ok(()) => {
-              self.runtime.block_on(entry.join_handle.unwrap()).unwrap();
-              true
+          let metrics = {
+            let guard = mock_server.metrics.lock().unwrap();
+            guard.clone()
+          };
+          debug!("Shutting down mock server with ID {} - {:?}", id, metrics);
+          match mock_server.shutdown() {
+            Ok(()) => true,
+            Err(err) => {
+              error!("Failed to shutdown the mock server with ID {}: {}", id, err);
+              false
             }
-            Err(_) => false,
           }
         }
         Either::Right(_plugin_mock_server) => {
@@ -276,12 +283,12 @@ impl ServerManager {
           }
           #[cfg(not(feature = "plugins"))]
           {
-            error!("Plugins require the plugin feature to be enabled");
+            error!("Mockserver has been provided by a plugin. Plugins require the plugin feature to be enabled");
             false
           }
         }
       },
-      None => false,
+      None => false
     }
   }
 
@@ -315,12 +322,11 @@ impl ServerManager {
     match self.mock_servers.get(id) {
       Some(entry) => match &entry.mock_server {
         Either::Left(mock_server) => {
-          let inner = mock_server.lock().unwrap();
-          Some(f(self, Either::Left(&inner)))
+          Some(f(self, Either::Left(mock_server)))
         }
         Either::Right(plugin_mock_server) => Some(f(self, Either::Right(plugin_mock_server)))
       }
-      None => None,
+      None => None
     }
   }
 
@@ -339,8 +345,7 @@ impl ServerManager {
     match entry {
       Some((id, entry)) => match entry {
         Either::Left(mock_server) => {
-          let inner = mock_server.lock().unwrap();
-          Some(f(self, &id, Either::Left(&inner)))
+          Some(f(self, &id, Either::Left(mock_server)))
         }
         Either::Right(plugin_mock_server) => Some(f(self, &id, Either::Right(plugin_mock_server)))
       }
@@ -362,11 +367,11 @@ impl ServerManager {
     {
       Some((_id, entry)) => match &mut entry.mock_server {
         Either::Left(mock_server) => {
-          Some(f(&mut mock_server.lock().unwrap()))
+          Some(f(mock_server))
         }
         Either::Right(_) => None
       }
-      None => None,
+      None => None
     }
   }
 
@@ -378,10 +383,7 @@ impl ServerManager {
     for (id, entry) in self.mock_servers.iter() {
       trace!(?id, "mock server entry");
       if let Either::Left(mock_server) = &entry.mock_server {
-        trace!(?id, "Waiting on lock for mock server");
-        let guard = mock_server.lock().unwrap();
-        trace!(?id, "Got access to mock server, invoking callback");
-        results.push(f(&guard));
+        results.push(f(mock_server));
       }
     }
     trace!("returning results");

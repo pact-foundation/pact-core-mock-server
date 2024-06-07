@@ -6,6 +6,7 @@ use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
 
+use crate::configure_core_catalogue;
 use crate::mock_server::{MockServer, MockServerConfig};
 
 /// Builder for constructing mock servers
@@ -30,6 +31,13 @@ impl MockServerBuilder {
     self
   }
 
+  /// Add the Pact that the mock server will respond with
+  pub fn with_pact(mut self, pact: Box<dyn Pact + Send + Sync>) -> Self {
+    self.pact = pact.as_v4_pact().unwrap();
+    self.config.pact_specification = pact.specification_version();
+    self
+  }
+
   /// The address this mock server mist bind to in the form <host>:<port>. Defaults to the IP6
   /// loopback adapter (ip6-localhost, `[::1]`). Specify 0 for the port to get a random OS assigned
   /// port. This is what you would mostly want with a mock server in a test, otherwise your test
@@ -40,13 +48,35 @@ impl MockServerBuilder {
   /// * IP6 loopback adapter: `[::1]:0`
   /// * Bind to all adapters with IP4: `0.0.0.0:0`
   /// * Bind to all adapters with IP6: `[::]:0`
-  pub fn bind_to(mut self, address: &str) -> Self {
-    self.config.address = address.to_string();
+  pub fn bind_to<S: Into<String>>(mut self, address: S) -> Self {
+    self.config.address = address.into();
+    self
+  }
+
+  /// Provide the config used to setup the mock server. Note that this will override any values
+  /// that have been set with functions like `bind_to`, etc.
+  pub fn with_config(mut self, config: MockServerConfig) -> Self {
+    self.config = config;
+    self
+  }
+
+  /// Sets the unique ID for the mock server. This is an optional method, and a UUID will
+  /// be assigned if this value is not specified.
+  pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
+    self.config.mockserver_id = Some(id.into());
+    self
+  }
+
+  /// If CORS Pre-Flight requests should be responded to
+  pub fn with_cors_preflight(mut self, cors_preflight: bool) -> Self {
+    self.config.cors_preflight = cors_preflight;
     self
   }
 
   /// Start the mock server, consuming this builder and returning a mock server instance
   pub async fn start(self) -> anyhow::Result<MockServer> {
+    configure_core_catalogue();
+    pact_matching::matchers::configure_core_catalogue();
     MockServer::create(self.pact.clone(), self.config.clone()).await
   }
 }

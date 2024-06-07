@@ -43,7 +43,9 @@ pub struct MockServerConfig {
   /// Configuration required for the transport used
   pub transport_config: HashMap<String, Value>,
   /// Address to bind to
-  pub address: String
+  pub address: String,
+  /// Unique mock server ID to assign
+  pub mockserver_id: Option<String>
 }
 
 impl MockServerConfig {
@@ -144,55 +146,6 @@ pub struct MockServer {
 }
 
 impl MockServer {
-  /// Create a new mock server, consisting of its state (self) and its executable server future.
-  // #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
-  // pub async fn new(
-  //   id: String,
-  //   pact: Box<dyn Pact + Send + Sync>,
-  //   addr: std::net::SocketAddr,
-  //   config: MockServerConfig
-  // ) -> Result<(Arc<Mutex<MockServer>>, impl Future<Output = ()>), String> {
-    // let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-    // let matches = Arc::new(Mutex::new(vec![]));
-    //
-    // #[allow(deprecated)]
-    // let mock_server = Arc::new(Mutex::new(MockServer {
-    //   id: id.clone(),
-    //   address: None,
-    //   scheme: MockServerScheme::HTTP,
-    //   pact: pact.boxed(),
-    //   matches: matches.clone(),
-    //   shutdown_tx: RefCell::new(Some(shutdown_tx)),
-    //   event_rx: RefCell::new(None),
-    //   config: config.clone(),
-    //   metrics: MockServerMetrics::default(),
-    //   spec_version: pact_specification(config.pact_specification, pact.specification_version())
-    // }));
-
-    // let (future, socket_addr) = crate::legacy::hyper_server::create_and_bind(
-    //   pact,
-    //   addr,
-    //   async {
-    //     shutdown_rx.await.ok();
-    //   },
-    //   matches,
-    //   mock_server.clone(),
-    //   &id
-    // )
-    //   .await
-    //   .map_err(|err| format!("Could not start server: {}", err))?;
-    //
-    // {
-    //   let mut ms = mock_server.lock().unwrap();
-    //   ms.deref_mut().address = Some(socket_addr.clone());
-    //
-    //   debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
-    // }
-    //
-    // Ok((mock_server.clone(), future))
-    // todo!()
-  // }
-
   /// Create a new mock server, spawn its execution loop onto the tokio runtime and return the
   /// mock server instance.
   pub async fn create(
@@ -208,7 +161,7 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting mock server");
-    let (address, shutdown_send, mut event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let (address, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
     trace!(%server_id, %address, "Mock server started");
 
     let mut mock_server = MockServer {
@@ -314,7 +267,6 @@ impl MockServer {
         trace!(%server_id, ?event, "Received event");
         total_events += 1;
 
-        // let mut mock_server = mock_server.clone();
         match event {
           MockServerEvent::ConnectionFailed(_err) => {}
           MockServerEvent::RequestReceived(path) => {
@@ -470,7 +422,8 @@ mod tests {
         "tlsKey".to_string() => json!("key"),
         "tlsCertificate".to_string() => json!("cert")
       },
-      address: "".to_string()
+      address: "".to_string(),
+      mockserver_id: None
     }));
   }
 }

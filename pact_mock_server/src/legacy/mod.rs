@@ -32,7 +32,7 @@ pub(crate) mod hyper_server;
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 pub fn start_mock_server(
   id: String,
   pact: Box<dyn Pact + Send + Sync>,
@@ -55,7 +55,7 @@ pub fn start_mock_server(
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 pub fn start_mock_server_with_config(
   id: String,
   pact: Box<dyn Pact + Send + Sync>,
@@ -69,6 +69,7 @@ pub fn start_mock_server_with_config(
     .get_or_insert_with(ServerManager::new)
     .start_mock_server_with_addr(id, pact, addr, config)
     .map(|addr| addr.port() as i32)
+    .map_err(|err| err.to_string())
 }
 
 /// Starts a TLS mock server with the given ID, pact and port number. The ID needs to be unique. A port
@@ -85,7 +86,7 @@ pub fn start_mock_server_with_config(
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 #[cfg(feature = "tls")]
 pub fn start_tls_mock_server(
   id: String,
@@ -111,7 +112,7 @@ pub fn start_tls_mock_server(
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 #[cfg(feature = "tls")]
 pub fn start_tls_mock_server_with_config(
   id: String,
@@ -144,7 +145,7 @@ pub fn start_tls_mock_server_with_config(
 /// # Errors
 ///
 /// An error will be returned if the mock server is not able to be started or the transport is not known.
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 #[cfg(feature = "plugins")]
 pub fn start_mock_server_for_transport(
   id: String,
@@ -172,7 +173,7 @@ pub fn start_mock_server_for_transport(
 ///
 /// * `pact_json` - Pact in JSON format
 /// * `addr` - Socket address to listen on
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 pub fn create_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr
@@ -204,7 +205,7 @@ pub fn create_mock_server(
 /// * `addr` - Socket address to listen on
 /// * `tls` - TLS config
 #[cfg(feature = "tls")]
-#[deprecated(since = "2.0.0-beta.0", note = "Use the mockserver builder")]
+#[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
 pub fn create_tls_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr,
