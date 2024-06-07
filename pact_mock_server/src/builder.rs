@@ -113,7 +113,7 @@ mod tests {
 
   #[test_log::test]
   fn basic_mock_server_test() {
-    if(!env::var("NO_IP6").is_ok()) {
+    if(!std::env::var("NO_IP6").is_ok()) {
       let pact = V4Pact {
         interactions: vec![
           SynchronousHttp {
