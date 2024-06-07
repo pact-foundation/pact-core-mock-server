@@ -7,7 +7,6 @@ use std::ffi::CString;
 #[cfg(feature = "plugins")] use std::future::Future;
 use std::net::SocketAddr;
 #[cfg(feature = "plugins")] use std::net::ToSocketAddrs;
-use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use itertools::Either;
@@ -148,8 +147,8 @@ impl ServerManager {
             .map(|addr| addr.port())
     }
 
-  /// Start a new server on the runtime, returning the future
-  #[deprecated(note = "Use the mock server builder (MockServerBuilder)")]
+  /// Start a new server on the runtime, returning the bound port the mock server is running on
+  #[deprecated(since = "2.0.0-beta.0", note = "Use the mock server builder (MockServerBuilder)")]
   pub async fn start_mock_server_nonblocking(
     &mut self,
     id: String,
@@ -157,22 +156,26 @@ impl ServerManager {
     port: u16,
     config: MockServerConfig
   ) -> Result<u16, String> {
-    // let addr= ([0, 0, 0, 0], port as u16).into();
-    // let (mock_server, future) = MockServer::new(id.clone(), pact, addr, config).await?;
-    //
-    // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
-    // self.mock_servers.insert(
-    //   id,
-    //   ServerEntry {
-    //     mock_server: Either::Left(mock_server),
-    //     port: port.unwrap_or_else(|| addr.port()),
-    //     resources: vec![],
-    //     join_handle: Some(self.runtime.spawn(future))
-    //   },
-    // );
-    //
-    // port.ok_or_else(|| "Started mock server has no port".to_string())
-    todo!()
+    let mock_server = MockServerBuilder::new()
+        .with_pact(pact)
+        .with_config(config)
+        .bind_to_port(port)
+        .with_id(id.as_str())
+        .start()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let port = mock_server.address.port();
+    self.mock_servers.insert(
+      id,
+      ServerEntry {
+        mock_server: Either::Left(mock_server),
+        port,
+        resources: vec![]
+      }
+    );
+
+    Ok(port)
   }
 
     /// Start a new TLS server on the runtime

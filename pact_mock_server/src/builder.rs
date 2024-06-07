@@ -53,6 +53,15 @@ impl MockServerBuilder {
     self
   }
 
+  /// Sets the mock server to bind to the given port on the IP6
+  /// loopback adapter (ip6-localhost, `[::1]`). Specify 0 for the port to get a random OS assigned
+  /// port. This is what you would mostly want with a mock server in a test, otherwise your test
+  /// could fail with port conflicts.
+  pub fn bind_to_port(mut self, port: u16) -> Self {
+    self.config.address = format!("[::1]:{}", port);
+    self
+  }
+
   /// Provide the config used to setup the mock server. Note that this will override any values
   /// that have been set with functions like `bind_to`, etc.
   pub fn with_config(mut self, config: MockServerConfig) -> Self {
@@ -114,7 +123,7 @@ mod tests {
       .build()
       .unwrap();
 
-    let mut mock_server = runtime.block_on(async {
+    let mock_server = runtime.block_on(async {
       MockServerBuilder::new()
         .with_v4_pact(pact)
         .start()
@@ -157,7 +166,7 @@ mod tests {
       .build()
       .unwrap();
 
-    let mut mock_server = runtime.block_on(async {
+    let mock_server = runtime.block_on(async {
       MockServerBuilder::new()
         .bind_to("127.0.0.1:0")
         .with_v4_pact(pact)

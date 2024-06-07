@@ -4,22 +4,16 @@
 //!
 
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::ops::DerefMut;
-use std::panic::RefUnwindSafe;
+use std::net::{Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
 use anyhow::anyhow;
 
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, ReadWritePact, write_pact};
 use pact_models::PactSpecification;
-use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
@@ -27,7 +21,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, info, trace, warn};
-use uuid::uuid;
 use crate::hyper_server::create_and_bind;
 
 use crate::matching::MatchResult;
@@ -112,6 +105,7 @@ impl MockServerMetrics {
   }
 }
 
+/// Events sent from the mock server task to be consumed by the mock server event loop.
 #[derive(Debug, Clone)]
 pub enum MockServerEvent {
   /// Connection failed with error

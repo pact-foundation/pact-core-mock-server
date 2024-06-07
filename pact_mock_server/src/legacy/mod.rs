@@ -16,7 +16,6 @@ use crate::{configure_core_catalogue, MANAGER, MockServerError, WritePactFileErr
 use crate::mock_server::{MockServer, MockServerConfig};
 use crate::server_manager::{PluginMockServer, ServerManager};
 
-pub(crate) mod hyper_server;
 #[cfg(feature = "tls")] pub(crate) mod tls;
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
