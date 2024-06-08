@@ -1612,7 +1612,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "pact-plugin-driver"
 version = "0.6.2"
-source = "git+https://github.com/you54f/pact-plugins.git?branch=fix/logging_min#baeff6ca0f474bd5fe348daf8fb7b873bd6397a2"
+source = "git+https://github.com/pact-foundation/pact-plugins.git?branch=issue/134_missing_buffer_logs#63b28a993044ee6320fb9a8f971bff4bebdf36c9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1653,7 +1653,7 @@ dependencies = [
 [[package]]
 name = "pact_matching"
 version = "1.2.4"
-source = "git+https://github.com/you54f/pact-reference.git?branch=fix_logging#613628f45baf9d1823e5ded573166d41b96426d6"
+source = "git+https://github.com/pact-foundation/pact-reference.git?branch=issue/134_missing_buffer_logs#d622f8c810926d934f79d8101462cdeabfe65616"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -1763,7 +1763,7 @@ dependencies = [
 [[package]]
 name = "pact_models"
 version = "1.2.1"
-source = "git+https://github.com/you54f/pact-reference.git?branch=fix_logging#613628f45baf9d1823e5ded573166d41b96426d6"
+source = "git+https://github.com/pact-foundation/pact-reference.git?branch=issue/134_missing_buffer_logs#d622f8c810926d934f79d8101462cdeabfe65616"
 dependencies = [
  "anyhow",
  "ariadne",
