@@ -129,6 +129,8 @@ impl MockServerBuilder {
 
 #[cfg(test)]
 mod tests {
+  use std::thread;
+  use std::time::Duration;
   use expectest::prelude::*;
   use maplit::hashmap;
   use pact_models::prelude::v4::{SynchronousHttp, V4Pact};
@@ -265,9 +267,12 @@ mod tests {
     let response = client.get(format!("https://127.0.0.1:{}", mock_server.port()).as_str())
       .header(ACCEPT, "application/json").send();
 
-    mock_server.shutdown().unwrap();
+    // Give the mock server some time
+    thread::sleep(Duration::from_millis(100));
+
     let all_matched = mock_server.all_matched();
     let mismatches = mock_server.mismatches();
+    mock_server.shutdown().unwrap();
 
     expect!(response.unwrap().status()).to(be_equal_to(200));
     expect!(all_matched).to(be_true());

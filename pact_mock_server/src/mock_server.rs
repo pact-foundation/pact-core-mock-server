@@ -23,7 +23,8 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, info, trace, warn};
 
-use crate::hyper_server::{create_and_bind, create_and_bind_https};
+use crate::hyper_server::create_and_bind;
+#[cfg(feature = "tls")] use crate::hyper_server::create_and_bind_https;
 use crate::matching::MatchResult;
 use crate::utils::json_to_bool;
 
