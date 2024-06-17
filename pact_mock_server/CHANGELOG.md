@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.8 - Maintenance Release
+
+* bf152dd4 - chore: Upgrade pact_matching to 1.2.3 (Ronald Holshausen, Thu May 30 16:32:08 2024 +1000)
+* 4ee94ee2 - bump version to 1.2.8 (Ronald Holshausen, Tue May 7 17:24:35 2024 +1000)
+
 # 1.2.7 - Maintenance Release
 
 * 1d5b9300 - chore: Update repo in Cargo.toml (Ronald Holshausen, Tue May 7 17:11:46 2024 +1000)
