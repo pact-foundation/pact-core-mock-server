@@ -86,7 +86,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let mut result = Err(anyhow!("No mock server started yet"));
           #[cfg(feature = "tls")]
           {
-            // result = if query_param_set(context, "tls") {
+            // TODO: result = if query_param_set(context, "tls") {
             //   debug!("Starting TLS mock server with id {}", &mock_server_id);
             //   let key = include_str!("self-signed.key");
             //   let cert = include_str!("self-signed.cert");
@@ -121,7 +121,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
               .with_config(config)
               .bind_to_port(get_next_port(options.base_port))
               .with_id(mock_server_id.as_str())
-              .attach_to_manager()
+              .attach_to_global_manager()
               .map(|ms| ms.port());
           }
 
