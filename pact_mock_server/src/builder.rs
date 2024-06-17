@@ -1,6 +1,6 @@
 //! Provides a builder for constructing mock servers
 
-use anyhow::anyhow;
+#[allow(unused_imports)] use anyhow::anyhow;
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;

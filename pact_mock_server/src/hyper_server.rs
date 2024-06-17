@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
-use std::sync::Arc;
+#[cfg(feature = "tls")] use std::sync::Arc;
 
-use anyhow::anyhow;
+#[allow(unused_imports)] use anyhow::anyhow;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response};

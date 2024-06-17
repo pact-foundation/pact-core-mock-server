@@ -1,16 +1,12 @@
 //! Deprecated 1.x mock server functions
 
-use std::path::PathBuf;
-
-use anyhow::anyhow;
-use itertools::{Either, Itertools};
-use pact_models::pact::{load_pact_from_json, Pact, ReadWritePact, write_pact};
-use pact_models::PactSpecification;
+use itertools::Either;
+use pact_models::pact::{load_pact_from_json, Pact};
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::get_mock_server_results;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
-use tracing::{error, info, warn};
+#[allow(unused_imports)] use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::{configure_core_catalogue, MANAGER, MockServerError, WritePactFileErr};
@@ -162,7 +158,7 @@ pub fn start_mock_server_for_transport(
 
   let key = format!("transport/{}", transport);
   let transport_entry = catalogue_manager::lookup_entry(key.as_str())
-    .ok_or_else(|| anyhow!("Transport '{}' is not a known transport", transport))?;
+    .ok_or_else(|| anyhow::anyhow!("Transport '{}' is not a known transport", transport))?;
 
   #[allow(deprecated)]
   MANAGER.lock().unwrap()
@@ -305,9 +301,9 @@ pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
                       "path": mismatch.path,
                       "diff": mismatch.diff.clone().unwrap_or_default()
                     })
-                  }).collect_vec()
+                  }).collect::<Vec<_>>()
                 })
-              }).collect_vec())
+              }).collect::<Vec<_>>())
               },
               Err(err) => {
                 error!("Request to plugin to get matching results failed - {}", err);
@@ -356,18 +352,18 @@ pub fn write_pact_file(
           {
             let mut pact = _plugin_mock_server.pact.clone();
             pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-            let pact_file_name = pact.default_file_name();
+            let pact_file_name = pact_models::pact::ReadWritePact::default_file_name(&pact);
             let filename = match directory {
               Some(ref path) => {
-                let mut path = PathBuf::from(path);
+                let mut path = std::path::PathBuf::from(path);
                 path.push(pact_file_name);
                 path
               },
-              None => PathBuf::from(pact_file_name)
+              None => std::path::PathBuf::from(pact_file_name)
             };
 
             info!("Writing pact out to '{}'", filename.display());
-            match write_pact(pact.boxed(), filename.as_path(), PactSpecification::V4, overwrite) {
+            match pact_models::pact::write_pact(pact.boxed(), filename.as_path(), pact_models::PactSpecification::V4, overwrite) {
               Ok(_) => Ok(()),
               Err(err) => {
                 warn!("Failed to write pact to file - {}", err);

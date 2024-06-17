@@ -73,7 +73,7 @@ impl MockServerConfig {
 // Need to implement this, as we can't compare TLS configuration.
 impl PartialEq for MockServerConfig {
   fn eq(&self, other: &Self) -> bool {
-    let mut ok = self.cors_preflight == other.cors_preflight
+    let ok = self.cors_preflight == other.cors_preflight
       && self.pact_specification == other.pact_specification
       && self.transport_config == other.transport_config
       && self.address == other.address
@@ -81,10 +81,13 @@ impl PartialEq for MockServerConfig {
 
     #[cfg(feature = "plugins")]
     {
-      ok = ok && self.transport_entry == other.transport_entry;
+      ok && self.transport_entry == other.transport_entry
     }
 
-    ok
+    #[cfg(not(feature = "plugins"))]
+    {
+      ok
+    }
   }
 }
 

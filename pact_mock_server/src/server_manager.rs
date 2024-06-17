@@ -257,6 +257,7 @@ impl ServerManager {
     }
     #[cfg(not(feature = "plugins"))]
     {
+      #[allow(unused_imports)]
       self.start_mock_server_with_addr(id, pact, addr, config)
         .map_err(|err| anyhow!(err))
     }
