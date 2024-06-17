@@ -213,14 +213,15 @@ fn match_request_with_header_with_multiple_values() -> anyhow::Result<()> {
   let id = "match_request_with_header_with_multiple_values".to_string();
   let mock_server_builder = MockServerBuilder::new()
     .with_v4_pact(pact)
-    .with_id(id.clone());
+    .with_id(id.clone())
+    .bind_to("127.0.0.1:0");
   let result = manager.spawn_mock_server(mock_server_builder);
   let mock_server = result.unwrap();
   let port = mock_server.port();
 
   info!("Mock server port = {}", port);
   let client = reqwest::blocking::Client::new();
-  let response = client.get(format!("http://[::1]:{}", port).as_str())
+  let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
     .header(ACCEPT, "application/hal+json, application/json").send();
 
   let mismatches = manager.find_mock_server_by_id(&id, &|_, ms| {
