@@ -1,6 +1,7 @@
-//! Deprecated 1.0 mock server functions
+//! Deprecated 1.x mock server functions
 
 use std::path::PathBuf;
+
 use anyhow::anyhow;
 use itertools::{Either, Itertools};
 use pact_models::pact::{load_pact_from_json, Pact, ReadWritePact, write_pact};
@@ -15,8 +16,6 @@ use uuid::Uuid;
 use crate::{configure_core_catalogue, MANAGER, MockServerError, WritePactFileErr};
 use crate::mock_server::{MockServer, MockServerConfig};
 use crate::server_manager::{PluginMockServer, ServerManager};
-
-#[cfg(feature = "tls")] pub(crate) mod tls;
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
 /// number of 0 will result in an auto-allocated port by the operating system. Returns the port
@@ -37,6 +36,7 @@ pub fn start_mock_server(
   pact: Box<dyn Pact + Send + Sync>,
   addr: std::net::SocketAddr
 ) -> Result<i32, String> {
+  #[allow(deprecated)]
   start_mock_server_with_config(id, pact, addr, MockServerConfig::default())
 }
 
@@ -64,6 +64,7 @@ pub fn start_mock_server_with_config(
   configure_core_catalogue();
   pact_matching::matchers::configure_core_catalogue();
 
+  #[allow(deprecated)]
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .start_mock_server_with_addr(id, pact, addr, config)
@@ -93,6 +94,7 @@ pub fn start_tls_mock_server(
   addr: std::net::SocketAddr,
   tls: &ServerConfig
 ) -> Result<i32, String> {
+  #[allow(deprecated)]
   start_tls_mock_server_with_config(id, pact, addr, tls, MockServerConfig::default())
 }
 
@@ -123,10 +125,12 @@ pub fn start_tls_mock_server_with_config(
   configure_core_catalogue();
   pact_matching::matchers::configure_core_catalogue();
 
+  #[allow(deprecated)]
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .start_tls_mock_server_with_addr(id, pact, addr, tls, config)
     .map(|addr| addr.port() as i32)
+    .map_err(|err| err.to_string())
 }
 
 /// Starts a mock server for the provided transport. The ID needs to be unique. A port
@@ -160,6 +164,7 @@ pub fn start_mock_server_for_transport(
   let transport_entry = catalogue_manager::lookup_entry(key.as_str())
     .ok_or_else(|| anyhow!("Transport '{}' is not a known transport", transport))?;
 
+  #[allow(deprecated)]
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .start_mock_server_for_transport(id, pact, addr, &transport_entry, config)
@@ -183,6 +188,7 @@ pub fn create_mock_server(
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = load_pact_from_json("<create_mock_server>", &pact_json)?;
+      #[allow(deprecated)]
       start_mock_server(Uuid::new_v4().to_string(), pact, addr)
         .map_err(|err| {
           error!("Could not start mock server: {}", err);
@@ -213,6 +219,7 @@ pub fn create_tls_mock_server(
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = load_pact_from_json("<create_mock_server>", &pact_json)?;
+      #[allow(deprecated)]
       start_tls_mock_server(Uuid::new_v4().to_string(), pact, addr, tls)
         .map_err(|err| {
           error!("Could not start mock server: {}", err);
@@ -412,4 +419,57 @@ pub fn shutdown_mock_server_by_id(id: &str) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .shutdown_mock_server_by_id(id.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+  use std::net::SocketAddr;
+
+  use expectest::expect;
+  use expectest::matchers::{be_equal_to, be_some, be_true};
+  use hyper::header::ACCEPT;
+  use maplit::hashmap;
+  use pact_models::pact::Pact;
+  use pact_models::prelude::v4::{SynchronousHttp, V4Pact};
+  use pact_models::v4::http_parts::HttpRequest;
+  use pact_models::v4::interaction::V4Interaction;
+
+  use crate::mock_server::MockServerConfig;
+
+  use super::*;
+
+  #[test]
+  #[cfg(feature = "plugins")]
+  fn basic_mock_server_test() {
+    let pact = V4Pact {
+      interactions: vec![
+        SynchronousHttp {
+          request: HttpRequest {
+            headers: Some(hashmap! {
+            "accept".to_string() => vec!["application/json".to_string()]
+          }),
+            .. HttpRequest::default()
+          },
+          .. SynchronousHttp::default()
+        }.boxed_v4()
+      ],
+      .. V4Pact::default()
+    };
+    let id = "basic_mock_server_test".to_string();
+    let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
+    #[allow(deprecated)]
+    let port = start_mock_server_for_transport(id.clone(), pact.boxed(), addr, "http", MockServerConfig::default()).unwrap();
+
+    let client = reqwest::blocking::Client::new();
+    let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
+      .header(ACCEPT, "application/json").send();
+
+    let all_matched = mock_server_matched(port);
+    let mismatches = mock_server_mismatches(port);
+    shutdown_mock_server(port);
+
+    expect!(all_matched).to(be_true());
+    expect!(mismatches).to(be_some().value("[]"));
+    expect!(response.unwrap().status()).to(be_equal_to(200));
+  }
 }

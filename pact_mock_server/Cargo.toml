@@ -19,7 +19,7 @@ datetime = ["pact_models/datetime", "pact-plugin-driver?/datetime", "pact_matchi
 xml = ["pact_models/xml", "pact-plugin-driver?/xml", "pact_matching/xml"] # support for matching XML documents
 plugins = ["dep:pact-plugin-driver", "pact_matching/plugins"]
 multipart = ["pact_matching/multipart"] # suport for MIME multipart bodies
-tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
+tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls", "dep:rcgen"]
 
 [dependencies]
 anyhow = "1.0.82"
@@ -35,6 +35,7 @@ maplit = "1.0.2"
 pact_matching = { version =  "~1.2.2", default-features = false }
 pact_models = { version = "~1.2.0", default-features = false }
 pact-plugin-driver = { version = "~0.6.1", optional = true, default-features = false }
+rcgen = {  version = "0.13.1", optional = true }
 rustls = { version = "0.23.5", optional = true }
 rustls-pemfile = { version = "2.1.2", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }

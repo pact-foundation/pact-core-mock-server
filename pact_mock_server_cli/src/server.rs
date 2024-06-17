@@ -108,7 +108,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
                 .with_config(config)
                 .bind_to_port(get_next_port(options.base_port))
                 .with_id(mock_server_id.as_str())
-                .attach_to_manager()
+                .attach_to_global_manager()
                 .map(|ms| ms.port());
             // };
           }

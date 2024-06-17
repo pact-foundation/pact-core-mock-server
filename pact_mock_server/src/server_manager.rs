@@ -74,7 +74,7 @@ impl ServerManager {
   }
 
   /// Consumes the mock server builder, and then spawns the resulting mock server on the server
-  /// manager's runtime.
+  /// manager's runtime. Note that this function will block the current calling thread.
   pub fn spawn_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
     self.runtime.block_on(builder.start())
   }
@@ -118,26 +118,26 @@ impl ServerManager {
       addr: SocketAddr,
       tls_config: &ServerConfig,
       config: MockServerConfig
-    ) -> Result<SocketAddr, String> {
-      // let (mock_server, future) =
-      //   self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls_config, config))?;
-      //
-      // let port = { mock_server.lock().unwrap().address.map(|addr| addr.port()) };
-      // self.mock_servers.insert(
-      //   id,
-      //   ServerEntry {
-      //     mock_server: Either::Left(mock_server),
-      //     port: port.unwrap_or_else(|| addr.port()),
-      //     resources: vec![],
-      //     join_handle: Some(self.runtime.spawn(future))
-      //   }
-      // );
-      //
-      // match port {
-      //   Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
-      //   None => Ok(addr)
-      // }
-      todo!()
+    ) -> anyhow::Result<SocketAddr> {
+      let mock_server = self.runtime.block_on(MockServerBuilder::new()
+        .with_pact(pact)
+        .with_config(config)
+        .with_tls_config(tls_config)
+        .bind_to(addr.to_string())
+        .with_id(id.as_str())
+        .start_https())?;
+
+      let port = mock_server.address.port();
+      self.mock_servers.insert(
+        id,
+        ServerEntry {
+          mock_server: Either::Left(mock_server),
+          port,
+          resources: vec![]
+        },
+      );
+
+      Ok(SocketAddr::new(addr.ip(), port))
     }
 
     /// Start a new server on the runtime
@@ -149,7 +149,8 @@ impl ServerManager {
       port: u16,
       config: MockServerConfig
     ) -> anyhow::Result<u16> {
-        self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), config)
+      #[allow(deprecated)]
+      self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), config)
             .map(|addr| addr.port())
     }
 
@@ -194,8 +195,9 @@ impl ServerManager {
       port: u16,
       tls: &ServerConfig,
       config: MockServerConfig
-    ) -> Result<u16, String> {
-        self.start_tls_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), tls, config)
+    ) -> anyhow::Result<u16> {
+      #[allow(deprecated)]
+      self.start_tls_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), tls, config)
           .map(|addr| addr.port())
     }
 
@@ -248,6 +250,7 @@ impl ServerManager {
         (url.host_str().unwrap_or_default(), result.port as u16).to_socket_addrs()?.next()
           .ok_or_else(|| anyhow!("Could not parse the result from the plugin as a socket address"))
       } else {
+        #[allow(deprecated)]
         self.start_mock_server_with_addr(id, pact, addr, config)
           .map_err(|err| anyhow!(err))
       }
@@ -433,6 +436,7 @@ mod tests {
     fn manager_should_start_and_shutdown_mock_server() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut manager = ServerManager::new();
+        #[allow(deprecated)]
         let start_result = manager.start_mock_server("foobar".into(),
                                                      RequestResponsePact::default().boxed(),
                                                      0, MockServerConfig::default());

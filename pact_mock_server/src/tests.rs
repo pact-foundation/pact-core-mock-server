@@ -1,5 +1,3 @@
-#[cfg(feature = "plugins")] use std::net::SocketAddr;
-
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::hashmap;
@@ -7,20 +5,13 @@ use pact_matching::Mismatch;
 use pact_models::bodies::OptionalBody;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
-use pact_models::pact::Pact;
 use pact_models::prelude::v4::{SynchronousHttp, V4Pact};
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::interaction::V4Interaction;
 use reqwest::header::ACCEPT;
 
-use crate::legacy::{
-  mock_server_matched,
-  mock_server_mismatches,
-  shutdown_mock_server,
-  start_mock_server_for_transport
-};
+use crate::builder::MockServerBuilder;
 use crate::matching::{match_request, MatchResult};
-use crate::mock_server::MockServerConfig;
 
 use super::*;
 
@@ -203,7 +194,7 @@ async fn match_request_supports_v2_matchers_with_xml() {
 }
 
 #[test_log::test]
-fn match_request_with_header_with_multiple_values() {
+fn match_request_with_header_with_multiple_values() -> anyhow::Result<()> {
   let pact = V4Pact {
     interactions: vec![
       SynchronousHttp {
@@ -220,10 +211,16 @@ fn match_request_with_header_with_multiple_values() {
   };
   let mut manager = ServerManager::new();
   let id = "match_request_with_header_with_multiple_values".to_string();
-  let port = manager.start_mock_server(id.clone(), pact.boxed(), 0, MockServerConfig::default()).unwrap();
+  let mock_server_builder = MockServerBuilder::new()
+    .with_v4_pact(pact)
+    .with_id(id.clone());
+  let result = manager.spawn_mock_server(mock_server_builder);
+  let mock_server = result.unwrap();
+  let port = mock_server.port();
 
+  info!("Mock server port = {}", port);
   let client = reqwest::blocking::Client::new();
-  let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
+  let response = client.get(format!("http://[::1]:{}", port).as_str())
     .header(ACCEPT, "application/hal+json, application/json").send();
 
   let mismatches = manager.find_mock_server_by_id(&id, &|_, ms| {
@@ -231,8 +228,10 @@ fn match_request_with_header_with_multiple_values() {
   });
   manager.shutdown_mock_server_by_port(port);
 
-  expect!(mismatches).to(be_some().value(vec![]));
+  expect!(mismatches).to(be_none());
   expect!(response.unwrap().status()).to(be_equal_to(200));
+
+  Ok(())
 }
 
 #[tokio::test]
@@ -268,9 +267,9 @@ async fn match_request_with_more_specific_request() {
     MatchResult::RequestMatch(expected.request, expected.response, request2.clone())));
 }
 
-#[test]
+#[test_log::test]
 #[cfg(feature = "plugins")]
-fn basic_mock_server_test() {
+fn basic_mock_server_test() -> anyhow::Result<()> {
   let pact = V4Pact {
     interactions: vec![
       SynchronousHttp {
@@ -286,18 +285,32 @@ fn basic_mock_server_test() {
     .. V4Pact::default()
   };
   let id = "basic_mock_server_test".to_string();
-  let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-  let port = start_mock_server_for_transport(id.clone(), pact.boxed(), addr, "http", MockServerConfig::default()).unwrap();
+  let addr = "127.0.0.1:0";
 
+  let runtime = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .unwrap();
+
+  let mock_server = runtime.block_on(MockServerBuilder::new()
+      .with_v4_pact(pact)
+      .with_id(id)
+      .bind_to(addr)
+      .with_transport("http")?
+      .start())?;
+
+  let port = mock_server.port();
   let client = reqwest::blocking::Client::new();
   let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
     .header(ACCEPT, "application/json").send();
 
-  let all_matched = mock_server_matched(port);
-  let mismatches = mock_server_mismatches(port);
-  shutdown_mock_server(port);
+  let all_matched = mock_server.all_matched();
+  let mismatches = mock_server.mismatches();
+  mock_server.shutdown()?;
 
   expect!(all_matched).to(be_true());
-  expect!(mismatches).to(be_some().value("[]"));
+  expect!(mismatches.is_empty()).to(be_true());
   expect!(response.unwrap().status()).to(be_equal_to(200));
+
+  Ok(())
 }

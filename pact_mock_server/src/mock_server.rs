@@ -9,25 +9,26 @@ use std::fmt::Display;
 use std::net::{Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use anyhow::anyhow;
 
+use anyhow::anyhow;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, ReadWritePact, write_pact};
 use pact_models::PactSpecification;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::pact::V4Pact;
+#[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::CatalogueEntry;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, info, trace, warn};
-use crate::hyper_server::create_and_bind;
 
+use crate::hyper_server::{create_and_bind, create_and_bind_https};
 use crate::matching::MatchResult;
 use crate::utils::json_to_bool;
 
 /// Mock server configuration
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct MockServerConfig {
   /// If CORS Pre-Flight requests should be responded to
   pub cors_preflight: bool,
@@ -38,7 +39,13 @@ pub struct MockServerConfig {
   /// Address to bind to
   pub address: String,
   /// Unique mock server ID to assign
-  pub mockserver_id: Option<String>
+  pub mockserver_id: Option<String>,
+  /// TLS configuration
+  #[cfg(feature = "tls")]
+  pub tls_config: Option<ServerConfig>,
+  /// Transport entry for the mock server
+  #[cfg(feature = "plugins")]
+  pub transport_entry: Option<CatalogueEntry>
 }
 
 impl MockServerConfig {
@@ -59,6 +66,24 @@ impl MockServerConfig {
     }
 
     config
+  }
+}
+
+// Need to implement this, as we can't compare TLS configuration.
+impl PartialEq for MockServerConfig {
+  fn eq(&self, other: &Self) -> bool {
+    let mut ok = self.cors_preflight == other.cors_preflight
+      && self.pact_specification == other.pact_specification
+      && self.transport_config == other.transport_config
+      && self.address == other.address
+      && self.mockserver_id == other.mockserver_id;
+
+    #[cfg(feature = "plugins")]
+    {
+      ok = ok && self.transport_entry == other.transport_entry;
+    }
+
+    ok
   }
 }
 
@@ -191,54 +216,42 @@ impl MockServer {
     Ok(mock_server)
   }
 
-  /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
-  // #[cfg(feature = "tls")]
-  // #[deprecated(since = "2.0.0-beta.0", note = "use create instead")]
-  // pub async fn new_tls(
-  //   id: String,
-  //   pact: Box<dyn Pact + Send + Sync>,
-  //   addr: std::net::SocketAddr,
-  //   tls: &ServerConfig,
-  //   config: MockServerConfig
-  // ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
-    // let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-    // let matches = Arc::new(Mutex::new(vec![]));
-    //
-    // #[allow(deprecated)]
-    // let mock_server = Arc::new(Mutex::new(MockServer {
-    //   id: id.clone(),
-    //   address: None,
-    //   scheme: MockServerScheme::HTTPS,
-    //   pact: pact.boxed(),
-    //   matches: matches.clone(),
-    //   shutdown_tx: RefCell::new(Some(shutdown_tx)),
-    //   event_rx: RefCell::new(None),
-    //   config: config.clone(),
-    //   metrics: MockServerMetrics::default(),
-    //   spec_version: pact_specification(config.pact_specification, pact.specification_version())
-    // }));
+  /// Create a new mock server serving over HTTPS, spawn its execution loop onto the tokio runtime and return the
+  /// mock server instance. If no TLS configuration has been supplied, the mock server will use
+  /// a new self-signed certificate.
+  #[cfg(feature = "tls")]
+  pub async fn create_https(
+    pact: V4Pact,
+    config: MockServerConfig
+  ) -> anyhow::Result<MockServer> {
+    let server_id = uuid::Uuid::new_v4().to_string();
 
-    // let (future, socket_addr) = crate::legacy::hyper_server::create_and_bind_tls(
-    //   pact,
-    //   addr,
-    //   async {
-    //     shutdown_rx.await.ok();
-    //   },
-    //   matches,
-    //   tls.clone(),
-    //   mock_server.clone()
-    // ).await.map_err(|err| format!("Could not start server: {}", err))?;
-    //
-    // {
-    //   let mut ms = mock_server.lock().unwrap();
-    //   ms.deref_mut().address = Some(socket_addr.clone());
-    //
-    //   debug!("Started mock server on {}:{}", socket_addr.ip(), socket_addr.port());
-    // }
-    //
-    // Ok((mock_server.clone(), future))
-  //   todo!()
-  // }
+    let address = if config.address.is_empty() {
+      SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)
+    } else {
+      config.address.parse()?
+    };
+
+    trace!(%server_id, %address, "Starting TLS mock server");
+    let (address, shutdown_send, event_recv) = create_and_bind_https(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    trace!(%server_id, %address, "TLS mock server started");
+
+    let mut mock_server = MockServer {
+      id: server_id,
+      scheme: MockServerScheme::HTTPS,
+      address,
+      pact,
+      matches: Default::default(),
+      shutdown_tx: RefCell::new(Some(shutdown_send)),
+      config: config.clone(),
+      metrics: Default::default(),
+      spec_version: Default::default()
+    };
+
+    mock_server.start_event_loop(event_recv).await;
+
+    Ok(mock_server)
+  }
 
   /// Send the shutdown signal to the server
   pub fn shutdown(&self) -> anyhow::Result<()> {
@@ -264,8 +277,8 @@ impl MockServer {
   /// Start the event loop for the mock server
   async fn start_event_loop(&mut self, mut event_recv: Receiver<MockServerEvent>) {
     let server_id = self.id.clone();
-    let mut metrics = self.metrics.clone();
-    let mut matches = self.matches.clone();
+    let metrics = self.metrics.clone();
+    let matches = self.matches.clone();
 
     tokio::spawn(async move {
       trace!(%server_id, "Starting mock server event loop");
@@ -413,12 +426,7 @@ mod tests {
     expect!(MockServerConfig::from_json(&Value::Bool(true))).to(be_equal_to(MockServerConfig::default()));
     expect!(MockServerConfig::from_json(&json!(12334))).to(be_equal_to(MockServerConfig::default()));
 
-    expect!(MockServerConfig::from_json(&json!({
-      "corsPreflight": true,
-      "pactSpecification": "V4",
-      "tlsKey": "key",
-      "tlsCertificate": "cert"
-    }))).to(be_equal_to(MockServerConfig {
+    let config = MockServerConfig {
       cors_preflight: true,
       pact_specification: PactSpecification::V4,
       transport_config: hashmap! {
@@ -426,7 +434,14 @@ mod tests {
         "tlsCertificate".to_string() => json!("cert")
       },
       address: "".to_string(),
-      mockserver_id: None
-    }));
+      mockserver_id: None,
+      .. MockServerConfig::default()
+    };
+    expect!(MockServerConfig::from_json(&json!({
+      "corsPreflight": true,
+      "pactSpecification": "V4",
+      "tlsKey": "key",
+      "tlsCertificate": "cert"
+    }))).to(be_equal_to(config));
   }
 }

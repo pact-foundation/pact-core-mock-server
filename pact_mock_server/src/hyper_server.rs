@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response};
@@ -25,12 +27,16 @@ use pact_models::query_strings::parse_query_string;
 use pact_models::v4::calc_content_type;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::pact::V4Pact;
+#[cfg(feature = "tls")] use rcgen::{CertifiedKey, generate_simple_self_signed};
+#[cfg(feature = "tls")] use rustls::pki_types::PrivateKeyDer;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinSet;
+#[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::matching::{match_request, MatchResult};
@@ -100,12 +106,111 @@ pub(crate) async fn create_and_bind(
                     })
                   }))
                   .await {
-                    error!("failed to server connection: {err}");
+                    error!("failed to serve connection: {err}");
                     if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
                       error!("Failed to send ConnectionFailed event: {}", err);
                     }
                 }
               }));
+            },
+            Err(e) => {
+              error!("failed to accept connection: {e}");
+              if let Err(err) = event_send.send(ConnectionFailed(e.to_string())).await {
+                error!("Failed to send ConnectionFailed event: {}", err);
+              }
+            }
+          }
+        }
+
+        _ = &mut shutdown_recv => {
+          debug!("Received shutdown signal, waiting for existing connections to complete");
+          while let Some(_) = join_set.join_next().await {};
+          debug!("Existing connections complete, exiting main loop");
+          drop(event_send);
+          break;
+        }
+      }
+    }
+  });
+
+  Ok((local_addr, shutdown_send, event_recv))
+}
+
+/// Create and bind the HTTPS server, spawning the server loop onto the runtime and returning the bound
+/// address, the send end of the shutdown channel and the receive end of the event channel. If no
+/// HTTPS configuration has been supplied, a self-signed certificate will be created to be used.
+#[cfg(feature = "tls")]
+pub(crate) async fn create_and_bind_https(
+  server_id: String,
+  pact: V4Pact,
+  addr: SocketAddr,
+  config: MockServerConfig
+) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>)> {
+  let listener = TcpListener::bind(addr).await?;
+  let local_addr = listener.local_addr()?;
+
+  let mut join_set = JoinSet::new();
+  let (shutdown_send, mut shutdown_recv) = oneshot::channel::<()>();
+  let (event_send, event_recv) = mpsc::channel::<MockServerEvent>(256);
+
+  let tls_config = match &config.tls_config {
+    Some(config) => config.clone(),
+    None => {
+      let CertifiedKey { cert, key_pair } = generate_simple_self_signed(["localhost".to_string()])?;
+      let private_key = PrivateKeyDer::try_from(key_pair.serialize_der())
+        .map_err(|err| anyhow!(err))?;
+      ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![ cert.der().clone() ], private_key)?
+    }
+  };
+  let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
+
+  tokio::spawn(async move {
+    loop {
+      let event_send = event_send.clone();
+      let server_id = server_id.clone();
+      let pact = pact.clone();
+      let config = config.clone();
+
+      select! {
+        connection = listener.accept() => {
+          match connection {
+            Ok((stream, remote_address)) => {
+              debug!("Received connection from remote {}", remote_address);
+
+              let tls_acceptor = tls_acceptor.clone();
+              match tls_acceptor.accept(stream).await {
+                Ok(tls_stream) => {
+                  let io = TokioIo::new(tls_stream);
+                  join_set.spawn(LOG_ID.scope(server_id.clone(), async move {
+                    if let Err(err) = http1::Builder::new()
+                      .keep_alive(false)
+                      .serve_connection(io, service_fn(|req: Request<Incoming>| {
+                        let pact = pact.clone();
+                        let event_send = event_send.clone();
+                        let config = config.clone();
+                        LOG_ID.scope(server_id.clone(), async move {
+                          handle_mock_request_error(
+                            handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
+                          )
+                        })
+                      }))
+                      .await {
+                        error!("failed to serve connection: {err}");
+                        if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
+                          error!("Failed to send ConnectionFailed event: {}", err);
+                        }
+                    }
+                  }));
+                },
+                Err(err) => {
+                  error!("failed to perform tls handshake: {err:#}");
+                  if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
+                    error!("Failed to send ConnectionFailed event: {}", err);
+                  }
+                }
+              };
             },
             Err(e) => {
               error!("failed to accept connection: {e}");
