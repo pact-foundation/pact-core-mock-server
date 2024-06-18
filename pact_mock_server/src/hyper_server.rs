@@ -522,37 +522,25 @@ mod tests {
   use expectest::prelude::*;
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
-  use pact_models::prelude::RequestResponsePact;
+  use pact_models::pact::Pact;
+  use pact_models::sync_pact::RequestResponsePact;
 
   use super::*;
 
-// #[tokio::test]
-  // async fn can_fetch_results_on_current_thread() {
-  //   let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
-  //   let matches = Arc::new(Mutex::new(vec![]));
-  //
-  //   let (future, _) = create_and_bind(
-  //     RequestResponsePact::default().boxed(),
-  //     ([0, 0, 0, 0], 0 as u16).into(),
-  //     async {
-  //         shutdown_rx.await.ok();
-  //     },
-  //     matches.clone(),
-  //     Arc::new(Mutex::new(MockServer::default())),
-  //     &String::default()
-  //   ).await.unwrap();
-  //
-  //   let join_handle = tokio::task::spawn(future);
-  //
-  //   shutdown_tx.send(()).unwrap();
-  //
-  //   // Server has shut down, now flush the server future from runtime
-  //   join_handle.await.unwrap();
-  //
-  //   // 0 matches have been produced
-  //   let all_matches = matches.lock().unwrap().clone();
-  //   assert_eq!(all_matches, vec![]);
-  // }
+  #[tokio::test]
+  async fn can_fetch_results_on_current_thread() {
+    let (_addr, shutdown, events) = create_and_bind(
+      "can_fetch_results_on_current_thread".to_string(),
+      RequestResponsePact::default().as_v4_pact().unwrap(),
+      ([0, 0, 0, 0], 0u16).into(),
+      MockServerConfig::default()
+    ).await.unwrap();
+
+    shutdown.send(()).unwrap();
+
+    // 0 matches have been produced
+    assert_eq!(events.len(), 0);
+  }
 
   #[test]
   fn handle_hyper_headers_with_multiple_values() {

@@ -34,8 +34,6 @@ use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use crate::verify;
 
-// #[cfg(feature = "tls")] use pact_mock_server::tls::TlsConfigBuilder; TODO
-
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
     json_response.to_string()
