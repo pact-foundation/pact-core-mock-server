@@ -76,7 +76,19 @@ impl ServerManager {
   /// Consumes the mock server builder, and then spawns the resulting mock server on the server
   /// manager's runtime. Note that this function will block the current calling thread.
   pub fn spawn_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
-    self.runtime.block_on(builder.start())
+    #[cfg(feature = "tls")]
+    {
+      if builder.tls_configured() {
+        self.runtime.block_on(builder.start_https())
+      } else {
+        self.runtime.block_on(builder.start())
+      }
+    }
+
+    #[cfg(not(feature = "tls"))]
+    {
+      self.runtime.block_on(builder.start())
+    }
   }
 
     /// Start a new server on the runtime
@@ -257,7 +269,7 @@ impl ServerManager {
     }
     #[cfg(not(feature = "plugins"))]
     {
-      #[allow(unused_imports)]
+      #[allow(deprecated)]
       self.start_mock_server_with_addr(id, pact, addr, config)
         .map_err(|err| anyhow!(err))
     }

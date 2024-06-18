@@ -1,15 +1,16 @@
 //! Provides a builder for constructing mock servers
 
-#[allow(unused_imports)] use anyhow::anyhow;
-use anyhow::Context;
+#[allow(unused_imports)] use anyhow::{anyhow, Context};
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
-#[cfg(feature = "tls")] use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rcgen::{CertifiedKey, generate_simple_self_signed};
 #[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
-use tracing::warn;
+#[cfg(feature = "tls")] use rustls::pki_types::PrivateKeyDer;
+#[cfg(feature = "tls")] use rustls::ServerConfig;
+#[allow(unused_imports)] use tracing::warn;
 
 use crate::{configure_core_catalogue, MANAGER};
 use crate::mock_server::{MockServer, MockServerConfig};
@@ -85,6 +86,15 @@ impl MockServerBuilder {
     self
   }
 
+  /// If TLS has been configured for this builder
+  pub fn tls_configured(&self) -> bool {
+    # [cfg(feature = "tls")]
+    { self.config.tls_config.is_some() }
+
+    #[cfg(not(feature = "tls"))]
+    { false }
+  }
+
   /// Provide the private key and certificates in PEM format used to setup the TLS connection.
   #[cfg(feature = "tls")]
   pub fn with_tls_certs(mut self, certificates: &str, private_key: &str) -> anyhow::Result<Self> {
@@ -108,6 +118,19 @@ impl MockServerBuilder {
     let tls_config = ServerConfig::builder()
       .with_no_client_auth()
       .with_single_cert(certs, private_key.into())?;
+    self.config.tls_config = Some(tls_config);
+    Ok(self)
+  }
+
+  /// Use a generated self-signed certificate for TLS
+  #[cfg(feature = "tls")]
+  pub fn with_self_signed_tls(mut self) -> anyhow::Result<Self> {
+    let CertifiedKey { cert, key_pair } = generate_simple_self_signed(["localhost".to_string()])?;
+    let private_key = PrivateKeyDer::try_from(key_pair.serialize_der())
+      .map_err(|err| anyhow!(err))?;
+    let tls_config = ServerConfig::builder()
+      .with_no_client_auth()
+      .with_single_cert(vec![ cert.der().clone() ], private_key)?;
     self.config.tls_config = Some(tls_config);
     Ok(self)
   }
@@ -162,6 +185,7 @@ impl MockServerBuilder {
 mod tests {
   use std::thread;
   use std::time::Duration;
+
   use expectest::prelude::*;
   use maplit::hashmap;
   use pact_models::prelude::v4::{SynchronousHttp, V4Pact};

@@ -7,8 +7,8 @@ use std::{
 };
 use std::net::{Ipv6Addr, SocketAddr};
 use std::sync::Arc;
-use anyhow::anyhow;
 
+use anyhow::anyhow;
 use http::Request;
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -17,7 +17,10 @@ use hyper_util::rt::TokioIo;
 use itertools::Either;
 use maplit::btreemap;
 use pact_models::pact::load_pact_from_json;
+#[cfg(feature = "tls")] use pact_models::pact::Pact;
 use pact_models::PactSpecification;
+#[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+#[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 use serde_json::{self, json, Value};
 use tokio::select;
 use tokio::sync::oneshot::channel;
@@ -84,22 +87,18 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let mut result = Err(anyhow!("No mock server started yet"));
           #[cfg(feature = "tls")]
           {
-            // TODO: result = if query_param_set(context, "tls") {
-            //   debug!("Starting TLS mock server with id {}", &mock_server_id);
-            //   let key = include_str!("self-signed.key");
-            //   let cert = include_str!("self-signed.cert");
-            //   TlsConfigBuilder::new()
-            //     .key(key.as_bytes())
-            //     .cert(cert.as_bytes())
-            //     .build()
-            //     .map_err(|err| {
-            //       format!("Failed to setup TLS using self-signed certificate - {}", err)
-            //     })
-            //     .and_then(|tls_config| {
-            //       let mut guard = SERVER_MANAGER.lock().unwrap();
-            //       guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
-            //     })
-            // } else {
+            if query_param_set(context, "tls") {
+              if CryptoProvider::get_default().is_none() {
+                if let Err(_) = CryptoProvider::install_default(default_provider()) {
+                  error!("Failed to install the default FIPS cryptographic provider");
+                  result = Err(anyhow!("Failed to install the default FIPS cryptographic provider"))
+                } else {
+                  result = start_https_server(pact, config, get_next_port(options.base_port), &mock_server_id)
+                }
+              } else {
+                result = start_https_server(pact, config, get_next_port(options.base_port), &mock_server_id)
+              }
+            } else {
               debug!("Starting mock server with id {}", &mock_server_id);
               result = MockServerBuilder::new()
                 .with_pact(pact)
@@ -108,7 +107,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
                 .with_id(mock_server_id.as_str())
                 .attach_to_global_manager()
                 .map(|ms| ms.port());
-            // };
+            };
           }
 
           #[cfg(not(feature = "tls"))]
@@ -155,6 +154,24 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
       Err(422)
     }
   }
+}
+
+#[cfg(feature = "tls")]
+fn start_https_server(
+  pact: Box<dyn Pact + Send + Sync>,
+  config: MockServerConfig,
+  port: u16,
+  id: &String
+) -> anyhow::Result<u16> {
+  debug!("Starting TLS mock server with id {}", id);
+  MockServerBuilder::new()
+    .with_pact(pact)
+    .with_config(config)
+    .bind_to_port(port)
+    .with_id(id.as_str())
+    .with_self_signed_tls()?
+    .attach_to_global_manager()
+    .map(|ms| ms.port())
 }
 
 fn query_param_set(context: &mut WebmachineContext, name: &str) -> bool {
