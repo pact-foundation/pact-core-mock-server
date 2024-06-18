@@ -168,6 +168,8 @@ mod tests {
   use pact_models::v4::http_parts::HttpRequest;
   use pact_models::v4::interaction::V4Interaction;
   use reqwest::header::ACCEPT;
+  #[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+  #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 
   use super::MockServerBuilder;
 
@@ -261,7 +263,9 @@ mod tests {
   }
 
   #[test_log::test]
+  #[cfg(feature = "tls")]
   fn basic_mock_server_https_test() {
+    let _ = CryptoProvider::install_default(default_provider());
     let pact = V4Pact {
       interactions: vec![
         SynchronousHttp {
@@ -397,7 +401,9 @@ ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
 -----END CERTIFICATE-----"#;
 
   #[test_log::test(tokio::test)]
+  #[cfg(feature = "tls")]
   async fn basic_mock_server_https_test_with_provided_cert() -> anyhow::Result<()> {
+    let _ = CryptoProvider::install_default(default_provider());
     let pact = V4Pact {
       interactions: vec![ SynchronousHttp::default().boxed_v4() ],
       .. V4Pact::default()
