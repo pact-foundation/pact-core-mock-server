@@ -7,6 +7,9 @@ use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
+#[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+#[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
+use tracing::warn;
 
 use crate::{configure_core_catalogue, MANAGER};
 use crate::mock_server::{MockServer, MockServerConfig};
@@ -95,6 +98,13 @@ impl MockServerBuilder {
     for c in rustls_pemfile::certs(&mut c) {
       certs.push(c.context("Failed to read certificate from input")?);
     }
+
+    if CryptoProvider::get_default().is_none() {
+      warn!("No TLS cryptographic provided has been configured, defaulting to the standard FIPS provider");
+      CryptoProvider::install_default(default_provider())
+        .map_err(|_| anyhow!("Failed to install the standard FIPS provider"))?;
+    }
+
     let tls_config = ServerConfig::builder()
       .with_no_client_auth()
       .with_single_cert(certs, private_key.into())?;

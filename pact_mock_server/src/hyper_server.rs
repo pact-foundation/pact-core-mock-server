@@ -28,6 +28,8 @@ use pact_models::v4::calc_content_type;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rcgen::{CertifiedKey, generate_simple_self_signed};
+#[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+#[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 #[cfg(feature = "tls")] use rustls::pki_types::PrivateKeyDer;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
@@ -146,6 +148,12 @@ pub(crate) async fn create_and_bind_https(
   addr: SocketAddr,
   config: MockServerConfig
 ) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>)> {
+  if CryptoProvider::get_default().is_none() {
+    warn!("No TLS cryptographic provider has been configured, defaulting to the standard FIPS provider");
+    CryptoProvider::install_default(default_provider())
+      .map_err(|_| anyhow!("Failed to install the standard FIPS provider"))?;
+  }
+
   let listener = TcpListener::bind(addr).await?;
   let local_addr = listener.local_addr()?;
 
