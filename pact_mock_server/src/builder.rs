@@ -1,6 +1,7 @@
 //! Provides a builder for constructing mock servers
 
 #[allow(unused_imports)] use anyhow::anyhow;
+use anyhow::Context;
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
@@ -79,6 +80,26 @@ impl MockServerBuilder {
   pub fn with_tls_config(mut self, tls_config: &ServerConfig) -> Self {
     self.config.tls_config = Some(tls_config.clone());
     self
+  }
+
+  /// Provide the private key and certificates in PEM format used to setup the TLS connection.
+  #[cfg(feature = "tls")]
+  pub fn with_tls_certs(mut self, certificates: &str, private_key: &str) -> anyhow::Result<Self> {
+    let mut k = private_key.as_bytes();
+    let private_key =  rustls_pemfile::pkcs8_private_keys(&mut k)
+      .next()
+      .ok_or_else(|| anyhow!("No private key found in input"))?
+      .context("Failed to read private key from input")?;
+    let mut c = certificates.as_bytes();
+    let mut certs = vec![];
+    for c in rustls_pemfile::certs(&mut c) {
+      certs.push(c.context("Failed to read certificate from input")?);
+    }
+    let tls_config = ServerConfig::builder()
+      .with_no_client_auth()
+      .with_single_cert(certs, private_key.into())?;
+    self.config.tls_config = Some(tls_config);
+    Ok(self)
   }
 
   /// Sets the unique ID for the mock server. This is an optional method, and a UUID will
@@ -277,5 +298,127 @@ mod tests {
     expect!(response.unwrap().status()).to(be_equal_to(200));
     expect!(all_matched).to(be_true());
     expect!(mismatches).to(be_equal_to(vec![]));
+  }
+
+  const PRIVATE_KEY: &str = r#"-----BEGIN PRIVATE KEY-----
+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
+imW0tFuzqWoLfqMFwrD2eXCVTGA5WQ==
+-----END PRIVATE KEY-----"#;
+
+  const CERT: &str = r#"-----BEGIN CERTIFICATE-----
+MIIFkTCCA3mgAwIBAgIUIb6tnW0f3EmF0CMSiXV/K7Fhn38wDQYJKoZIhvcNAQEL
+BQAwWDELMAkGA1UEBhMCQVUxDDAKBgNVBAgMA1ZJQzENMAsGA1UEBwwETWVsYjEL
+MAkGA1UECgwCU0IxCzAJBgNVBAsMAlBGMRIwEAYDVQQDDAlsb2NhbGhvc3QwHhcN
+MjQwNjE3MjMxMjQyWhcNMzQwNjE1MjMxMjQyWjBYMQswCQYDVQQGEwJBVTEMMAoG
+A1UECAwDVklDMQ0wCwYDVQQHDARNZWxiMQswCQYDVQQKDAJTQjELMAkGA1UECwwC
+UEYxEjAQBgNVBAMMCWxvY2FsaG9zdDCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCC
+AgoCggIBAJNw50IOBAzP0yoJ1/c+LWtllcu0QdhUlWIundxdfpkmEwlT3i8i8//N
+XUjQ0myiQeAbKyLl8Br0SE52jITOTcPwR80/qF1LUBytwGnSqtZZBkmwWPDlthxS
+2zIPmg/kwXXvTZJCxoswdx96lYyslxn9rnqnRGrFsv4LVG/ljTRyuaMBDa1YvF7l
+b/TBTYcTwla5DnD63j8LG2nk6GSo7JIYBy32TF0LseNnMWYjPzQxIn5APYrokX9q
+jSb46Z+nSlcJDh6qJ/z8vfDeUtu06BImuMOs0LVXRmEobV+ZtaYBX3NcC/9X3Dfn
+dvbj70c7eniFXvGRVb+51YMNr9Z+Zv+g2UVx0WYJVqMhw3SmBINuSx46B+508uMY
+DWYvCQhe4VKN28mtejspRV80Nq4MQUqeO/Fbi7Nlxe8gQRrCBZlwk7SKDh76NO3R
+wU2Vk+4KNUyKFUgP8PkAQbzxt2PySX5zpSF6dEujwZB4DU78KkgwsNBvzTCvTNfH
+Rx/5/1zMDV4/BWB/7hoMWvhb8biNt9hAjaIlNSjAofR8Z+RzQu93jpzllFVNALQm
+j7Nt5MrH9zkfkL3G7sGx6n2NHC6f9H3HUJFZng/7wIkOXNBm+f/pkFgtLWT5iNsy
+0jcrxo8D0dnaS9kRdNRQ5sNN9gRGSkvca1kVitJBXUpvYI3FxA2BAgMBAAGjUzBR
+MB0GA1UdDgQWBBRaclnct+JATeoibBXx2lCnS1obBTAfBgNVHSMEGDAWgBRaclnc
+t+JATeoibBXx2lCnS1obBTAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA
+A4ICAQCOHn9y8w7wshdp07p2YiJ1gXKalYCR7NQldyvis/itTp3Xc+TGfriFBfg0
+JdEhpI86eb+19sDB98kWG7pZ3DOVV58Twx357pNWOcdl9Qz40qOvclMu4KPBGoon
+falI40suBg9p0UObRr4+WP8YmSU210jJ/vUdpJRESQ6ZlTz209atURbtnHyQ64ss
+JxVnboaQaHCYtRx6krpw5hlyc7DUk7gL695vkXzXYZ41L6ZxmprqDxnkGYfwxz8E
+sdOFIyBL+b0FjEJPZ6zbzdpgfIi//zk2roHl4txt/hXhTWqrtg/3OQaPSOa5zikQ
+hRZZCXyC6yT+cb3/4XhsTDnYSEcDSyiQhCGFvMtC//dqX/0A/h5vsSNIktdXmtqX
+oOTTFjEvnT4RY1cwE0hYcqZTRBNbvZa8IhvrM76pKJlZoHXTuD2E6J26SNRbFd7U
+FqCiIi+UBzTecbn7B+fQVT2zwCTo19HZ7lps4vyq8f5yNh6yO5jaHlr8dbP/aGNT
+Q+JdJonVTKPHZk/kcxzYc7sRXokEzEeknjbLsI+8QyWuPB2kjmpaE6bK8NcPiGGf
+jp9nJakYPl9nMMdHRHKNXo+jxR49Ww4sikVl0oCGC8I3BzlAy6vdRMBekPayxU+Y
+ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
+-----END CERTIFICATE-----"#;
+
+  #[test_log::test(tokio::test)]
+  async fn basic_mock_server_https_test_with_provided_cert() -> anyhow::Result<()> {
+    let pact = V4Pact {
+      interactions: vec![ SynchronousHttp::default().boxed_v4() ],
+      .. V4Pact::default()
+    };
+
+    let mock_server = MockServerBuilder::new()
+      .bind_to("127.0.0.1:0")
+      .with_v4_pact(pact)
+      .with_tls_certs(CERT, PRIVATE_KEY)
+      .unwrap()
+      .start_https()
+      .await
+      .unwrap();
+
+    let client = reqwest::Client::builder()
+      .danger_accept_invalid_certs(true)
+      .build()
+      .unwrap();
+    let response = client.get(format!("https://127.0.0.1:{}", mock_server.port()).as_str())
+      .header(ACCEPT, "application/json")
+      .send()
+      .await;
+
+    let all_matched = mock_server.all_matched();
+    let mismatches = mock_server.mismatches();
+    mock_server.shutdown().unwrap();
+
+    expect!(response.unwrap().status()).to(be_equal_to(200));
+    expect!(all_matched).to(be_true());
+    expect!(mismatches).to(be_equal_to(vec![]));
+
+    Ok(())
   }
 }
