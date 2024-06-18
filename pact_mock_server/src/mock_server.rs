@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::net::{Ipv6Addr, SocketAddr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -180,6 +180,22 @@ impl Clone for MockServer {
       config: self.config.clone(),
       metrics: self.metrics.clone(),
       spec_version: self.spec_version.clone()
+    }
+  }
+}
+
+impl Default for MockServer {
+  fn default() -> Self {
+    MockServer {
+      id: uuid::Uuid::new_v4().to_string(),
+      scheme: MockServerScheme::HTTP,
+      address: SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0),
+      pact: Default::default(),
+      matches: Arc::new(Mutex::new(vec![])),
+      shutdown_tx: RefCell::new(None),
+      config: Default::default(),
+      metrics: Arc::new(Mutex::new(Default::default())),
+      spec_version: Default::default()
     }
   }
 }
@@ -400,7 +416,11 @@ impl MockServer {
   /// Returns the URL of the mock server
   pub fn url(&self) -> String {
     if self.address.ip().is_unspecified() {
-      format!("{}://{}:{}", self.scheme, Ipv6Addr::LOCALHOST, self.address.port())
+      if self.address.is_ipv4() {
+        format!("{}://{}:{}", self.scheme, Ipv4Addr::LOCALHOST, self.address.port())
+      } else {
+        format!("{}://[{}]:{}", self.scheme, Ipv6Addr::LOCALHOST, self.address.port())
+      }
     } else {
       format!("{}://{}", self.scheme, self.address)
     }
@@ -415,12 +435,14 @@ impl MockServer {
 
 #[cfg(test)]
 mod tests {
+  use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+  use std::str::FromStr;
   use expectest::prelude::*;
   use maplit::hashmap;
   use pact_models::PactSpecification;
   use serde_json::{json, Value};
 
-  use crate::mock_server::MockServerConfig;
+  use crate::mock_server::{MockServer, MockServerConfig};
 
   #[test]
   fn test_mock_server_config_from_json() {
@@ -447,5 +469,50 @@ mod tests {
       "tlsKey": "key",
       "tlsCertificate": "cert"
     }))).to(be_equal_to(config));
+  }
+
+  #[test]
+  fn mock_server_url() {
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://[::1]:0"));
+    expect!(ms.port()).to(be_equal_to(0));
+
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://127.0.0.1:0"));
+    expect!(ms.port()).to(be_equal_to(0));
+
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://[::1]:0"));
+    expect!(ms.port()).to(be_equal_to(0));
+
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://127.0.0.1:0"));
+    expect!(ms.port()).to(be_equal_to(0));
+
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv6Addr::from_str("fe80::42:31ff:fe22:6d4b").unwrap().into(), 80),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://[fe80::42:31ff:fe22:6d4b]:80"));
+    expect!(ms.port()).to(be_equal_to(80));
+
+    let ms = MockServer {
+      address: SocketAddr::new(Ipv4Addr::from([10, 0, 0, 1]).into(), 1025),
+      .. MockServer::default()
+    };
+    expect!(ms.url()).to(be_equal_to("http://10.0.0.1:1025"));
+    expect!(ms.port()).to(be_equal_to(1025));
   }
 }
