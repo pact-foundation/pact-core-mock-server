@@ -1,5 +1,31 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.0 - Updated mock server using Hyper 1.0 and Rustls 0.23
+
+* e66c15ce - chore: Update release scripts for pre-release version (Ronald Holshausen, Tue Jun 18 10:46:01 2024 +1000)
+* 3edfd717 - chore: Implement remaining commented out test (Ronald Holshausen, Tue Jun 18 10:33:16 2024 +1000)
+* 1b702911 - feat: Support user supplied cert and private key (Ronald Holshausen, Tue Jun 18 10:17:40 2024 +1000)
+* ec7e68f7 - chore: cleanup all compiler warnings when features are turned off (Ronald Holshausen, Mon Jun 17 16:52:37 2024 +1000)
+* cf964174 - fix: Import was used when feature was not enabled (Ronald Holshausen, Mon Jun 17 16:33:38 2024 +1000)
+* 09d31c1c - fix: Update test to use IP4 (Ronald Holshausen, Mon Jun 17 16:24:18 2024 +1000)
+* af1cc22f - feat: Working mock server with TLS + self-signed cert (Ronald Holshausen, Mon Jun 17 16:20:58 2024 +1000)
+* bf310ad4 - Merge branch 'main' into v2.0.x (Ronald Holshausen, Mon Jun 17 10:49:22 2024 +1000)
+* febf7974 - chore: Upgrade dependencies (itertools, pact_matching, pact_models) (Ronald Holshausen, Mon Jun 17 10:44:07 2024 +1000)
+* ca162787 - chore: Skip IP6 in tests when running within docker (Ronald Holshausen, Fri Jun 7 16:38:33 2024 +1000)
+* 18ea437a - chore: Skip IP6 in tests when running within docker (Ronald Holshausen, Fri Jun 7 16:34:21 2024 +1000)
+* e1a35e93 - chore: Got pact_mock_server_cli building and tests passing (Ronald Holshausen, Fri Jun 7 16:00:14 2024 +1000)
+* fddf27e0 - chore: cleanup some compiler warnings (Ronald Holshausen, Fri Jun 7 10:48:00 2024 +1000)
+* 8174d01c - chore: Add deprecation notices, missing builder functions, got existing tests passing (Ronald Holshausen, Fri Jun 7 10:27:52 2024 +1000)
+* 196cabbc - bump version to 1.2.9 (Ronald Holshausen, Thu May 30 16:43:51 2024 +1000)
+* 7a03ba6c - feat: Working mock server with IP4 and IP6 address (Ronald Holshausen, Thu May 16 13:35:41 2024 +1000)
+* d6c70f64 - feat: Allow the mock server address to be specified (Ronald Holshausen, Thu May 16 10:58:11 2024 +1000)
+* 43c8faa0 - feat: Basic mock server working with Hyper 1.0 and IP4 connection (Ronald Holshausen, Thu May 16 10:04:21 2024 +1000)
+* 2cbaa01b - refactor: Implemented graceful shutdown of the mock server implementation loop (Ronald Holshausen, Wed May 15 15:14:28 2024 +1000)
+* 219bc18a - refactor: Initial implementation using channels instead of mutable state (Ronald Holshausen, Wed May 15 11:42:11 2024 +1000)
+* 7660f68b - refactor: missing feature toggles after moving code (Ronald Holshausen, Mon May 13 15:54:11 2024 +1000)
+* e3e8ed39 - refactor: Move the existig hyper code into legacy module; add initial builder for creating a mock server (Ronald Holshausen, Mon May 13 15:44:31 2024 +1000)
+* 4ca5a20c - chore: Bump major version of mock server crates (Ronald Holshausen, Fri May 10 14:54:23 2024 +1000)
+
 # 1.2.8 - Maintenance Release
 
 * bf152dd4 - chore: Upgrade pact_matching to 1.2.3 (Ronald Holshausen, Thu May 30 16:32:08 2024 +1000)
