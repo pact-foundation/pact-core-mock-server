@@ -5,6 +5,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 #[cfg(feature = "tls")] use std::sync::Arc;
+use std::time::Duration;
 
 #[allow(unused_imports)] use anyhow::anyhow;
 use bytes::Bytes;
@@ -38,6 +39,7 @@ use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
@@ -127,6 +129,8 @@ pub(crate) async fn create_and_bind(
         _ = &mut shutdown_recv => {
           debug!("Received shutdown signal, waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
+          debug!("Waiting for event loop to complete");
+          sleep(Duration::from_millis(100)).await;
           debug!("Existing connections complete, exiting main loop");
           drop(event_send);
           break;
@@ -232,6 +236,8 @@ pub(crate) async fn create_and_bind_https(
         _ = &mut shutdown_recv => {
           debug!("Received shutdown signal, waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
+          debug!("Waiting for event loop to complete");
+          sleep(Duration::from_millis(100)).await;
           debug!("Existing connections complete, exiting main loop");
           drop(event_send);
           break;

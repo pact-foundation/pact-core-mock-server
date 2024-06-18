@@ -275,11 +275,12 @@ impl MockServer {
 
   /// Send the shutdown signal to the server
   pub fn shutdown(&self) -> anyhow::Result<()> {
-    let shutdown_future = self.shutdown_tx.take();
-    match shutdown_future {
+    let shutdown = self.shutdown_tx.take();
+    match shutdown {
       Some(sender) => {
         match sender.send(()) {
           Ok(()) => {
+
             let metrics = {
               let guard = self.metrics.lock().unwrap();
               guard.clone()
