@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use futures::executor::block_on;
+use pact_models::generators::generate_hexadecimal;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, ReadWritePact, write_pact};
 use pact_models::PactSpecification;
@@ -195,7 +195,7 @@ impl Clone for MockServer {
 impl Default for MockServer {
   fn default() -> Self {
     MockServer {
-      id: uuid::Uuid::new_v4().to_string(),
+      id: generate_hexadecimal(8),
       scheme: MockServerScheme::HTTP,
       address: SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0),
       pact: Default::default(),
@@ -217,7 +217,7 @@ impl MockServer {
     pact: V4Pact,
     config: MockServerConfig
   ) -> anyhow::Result<MockServer> {
-    let server_id = uuid::Uuid::new_v4().to_string();
+    let server_id = generate_hexadecimal(8);
 
     let address = if config.address.is_empty() {
       SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)
@@ -256,7 +256,7 @@ impl MockServer {
     pact: V4Pact,
     config: MockServerConfig
   ) -> anyhow::Result<MockServer> {
-    let server_id = uuid::Uuid::new_v4().to_string();
+    let server_id = generate_hexadecimal(8);
 
     let address = if config.address.is_empty() {
       SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)
