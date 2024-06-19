@@ -293,7 +293,7 @@ fn basic_mock_server_test() -> anyhow::Result<()> {
     .build()
     .unwrap();
 
-  let mock_server = runtime.block_on(MockServerBuilder::new()
+  let mut mock_server = runtime.block_on(MockServerBuilder::new()
       .with_v4_pact(pact)
       .with_id(id)
       .bind_to(addr)

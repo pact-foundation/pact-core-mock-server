@@ -38,7 +38,7 @@ use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
-use tokio::task::JoinSet;
+use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
@@ -75,7 +75,7 @@ pub(crate) async fn create_and_bind(
   pact: V4Pact,
   addr: SocketAddr,
   config: MockServerConfig
-) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>)> {
+) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>, JoinHandle<()>)> {
   let listener = TcpListener::bind(addr).await?;
   let local_addr = listener.local_addr()?;
 
@@ -83,7 +83,7 @@ pub(crate) async fn create_and_bind(
   let (shutdown_send, mut shutdown_recv) = oneshot::channel::<()>();
   let (event_send, event_recv) = mpsc::channel::<MockServerEvent>(256);
 
-  tokio::spawn(async move {
+  let handle = tokio::spawn(async move {
     loop {
       let event_send = event_send.clone();
       let server_id = server_id.clone();
@@ -127,19 +127,21 @@ pub(crate) async fn create_and_bind(
         }
 
         _ = &mut shutdown_recv => {
-          debug!("Received shutdown signal, waiting for existing connections to complete");
+          trace!("Received shutdown signal, waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
-          debug!("Waiting for event loop to complete");
+          trace!("Waiting for event loop to complete");
           sleep(Duration::from_millis(100)).await;
-          debug!("Existing connections complete, exiting main loop");
+          trace!("Existing connections complete, exiting main loop");
           drop(event_send);
           break;
         }
       }
     }
+
+    trace!("Mock server main loop done");
   });
 
-  Ok((local_addr, shutdown_send, event_recv))
+  Ok((local_addr, shutdown_send, event_recv, handle))
 }
 
 /// Create and bind the HTTPS server, spawning the server loop onto the runtime and returning the bound
@@ -151,7 +153,7 @@ pub(crate) async fn create_and_bind_https(
   pact: V4Pact,
   addr: SocketAddr,
   config: MockServerConfig
-) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>)> {
+) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>, JoinHandle<()>)> {
   if CryptoProvider::get_default().is_none() {
     warn!("No TLS cryptographic provider has been configured, defaulting to the standard FIPS provider");
     CryptoProvider::install_default(default_provider())
@@ -178,7 +180,7 @@ pub(crate) async fn create_and_bind_https(
   };
   let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
 
-  tokio::spawn(async move {
+  let handle = tokio::spawn(async move {
     loop {
       let event_send = event_send.clone();
       let server_id = server_id.clone();
@@ -246,7 +248,7 @@ pub(crate) async fn create_and_bind_https(
     }
   });
 
-  Ok((local_addr, shutdown_send, event_recv))
+  Ok((local_addr, shutdown_send, event_recv, handle))
 }
 
 /// Main hyper request handler
@@ -543,7 +545,7 @@ mod tests {
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {
-    let (_addr, shutdown, events) = create_and_bind(
+    let (_addr, shutdown, events, handle) = create_and_bind(
       "can_fetch_results_on_current_thread".to_string(),
       RequestResponsePact::default().as_v4_pact().unwrap(),
       ([0, 0, 0, 0], 0u16).into(),
@@ -551,6 +553,7 @@ mod tests {
     ).await.unwrap();
 
     shutdown.send(()).unwrap();
+    let _ = handle.await;
 
     // 0 matches have been produced
     assert_eq!(events.len(), 0);

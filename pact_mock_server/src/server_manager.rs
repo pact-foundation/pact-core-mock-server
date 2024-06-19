@@ -281,14 +281,16 @@ impl ServerManager {
     let id = id.into();
     match self.mock_servers.remove(&id) {
       Some(entry) => match entry.mock_server {
-        Either::Left(mock_server) => {
-          let metrics = {
-            let guard = mock_server.metrics.lock().unwrap();
-            guard.clone()
-          };
-          debug!("Shutting down mock server with ID {} - {:?}", id, metrics);
+        Either::Left(mut mock_server) => {
           match mock_server.shutdown() {
-            Ok(()) => true,
+            Ok(()) => {
+              let metrics = {
+                let guard = mock_server.metrics.lock().unwrap();
+                guard.clone()
+              };
+              debug!("Shutting down mock server with ID {} - {:?}", id, metrics);
+              true
+            },
             Err(err) => {
               error!("Failed to shutdown the mock server with ID {}: {}", id, err);
               false

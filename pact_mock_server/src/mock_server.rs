@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
+use futures::executor::block_on;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, ReadWritePact, write_pact};
 use pact_models::PactSpecification;
@@ -21,6 +22,7 @@ use pact_models::v4::pact::V4Pact;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::Receiver;
+use tokio::task::JoinHandle;
 use tracing::{debug, info, trace, warn};
 
 use crate::hyper_server::create_and_bind;
@@ -165,7 +167,11 @@ pub struct MockServer {
   /// Metrics collected by the mock server
   pub metrics: Arc<Mutex<MockServerMetrics>>,
   /// Pact spec version to use
-  pub spec_version: PactSpecification
+  pub spec_version: PactSpecification,
+  /// Handle for the mock server main loop
+  pub task_handle: Option<JoinHandle<()>>,
+  /// Handle for the mock server event loop
+  pub event_loop_handle: Option<JoinHandle<()>>
 }
 
 impl Clone for MockServer {
@@ -179,7 +185,9 @@ impl Clone for MockServer {
       shutdown_tx: RefCell::new(None),
       config: self.config.clone(),
       metrics: self.metrics.clone(),
-      spec_version: self.spec_version.clone()
+      spec_version: self.spec_version.clone(),
+      task_handle: None,
+      event_loop_handle: None
     }
   }
 }
@@ -195,7 +203,9 @@ impl Default for MockServer {
       shutdown_tx: RefCell::new(None),
       config: Default::default(),
       metrics: Arc::new(Mutex::new(Default::default())),
-      spec_version: Default::default()
+      spec_version: Default::default(),
+      task_handle: None,
+      event_loop_handle: None
     }
   }
 }
@@ -216,7 +226,7 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting mock server");
-    let (address, shutdown_send, event_recv) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let (address, shutdown_send, event_recv, task_handle) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
     trace!(%server_id, %address, "Mock server started");
 
     let mut mock_server = MockServer {
@@ -228,10 +238,12 @@ impl MockServer {
       shutdown_tx: RefCell::new(Some(shutdown_send)),
       config: config.clone(),
       metrics: Default::default(),
-      spec_version: Default::default()
+      spec_version: Default::default(),
+      task_handle: Some(task_handle),
+      event_loop_handle: None
     };
 
-    mock_server.start_event_loop(event_recv).await;
+    mock_server.start_event_loop(event_recv);
 
     Ok(mock_server)
   }
@@ -253,7 +265,7 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting TLS mock server");
-    let (address, shutdown_send, event_recv) = create_and_bind_https(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let (address, shutdown_send, event_recv, task_handle) = create_and_bind_https(server_id.clone(), pact.clone(), address, config.clone()).await?;
     trace!(%server_id, %address, "TLS mock server started");
 
     let mut mock_server = MockServer {
@@ -265,22 +277,35 @@ impl MockServer {
       shutdown_tx: RefCell::new(Some(shutdown_send)),
       config: config.clone(),
       metrics: Default::default(),
-      spec_version: Default::default()
+      spec_version: Default::default(),
+      task_handle: Some(task_handle),
+      event_loop_handle: None
     };
 
-    mock_server.start_event_loop(event_recv).await;
+    mock_server.start_event_loop(event_recv);
 
     Ok(mock_server)
   }
 
-  /// Send the shutdown signal to the server
-  pub fn shutdown(&self) -> anyhow::Result<()> {
+  /// Send the shutdown signal to the server. This function will block the current thread
+  /// waiting for the mock server tasks to complete.
+  pub fn shutdown(&mut self) -> anyhow::Result<()> {
+    trace!(server_id = %self.id, address = %self.address, "Shutting mock server down");
     let shutdown = self.shutdown_tx.take();
     match shutdown {
       Some(sender) => {
         match sender.send(()) {
           Ok(()) => {
-
+            trace!(server_id = %self.id, address = %self.address, "Shutdown event sent, waiting for tasks to complete");
+            // Wait for the main loop and event loop to finish
+            if let Some(handle) = self.task_handle.take() {
+              let _ = block_on(handle);
+            }
+            trace!(server_id = %self.id, address = %self.address, "Main loop complete");
+            if let Some(handle) = self.event_loop_handle.take() {
+              let _ = block_on(handle);
+            }
+            trace!(server_id = %self.id, address = %self.address, "Event loop complete");
             let metrics = {
               let guard = self.metrics.lock().unwrap();
               guard.clone()
@@ -296,12 +321,12 @@ impl MockServer {
   }
 
   /// Start the event loop for the mock server
-  async fn start_event_loop(&mut self, mut event_recv: Receiver<MockServerEvent>) {
+  fn start_event_loop(&mut self, mut event_recv: Receiver<MockServerEvent>) {
     let server_id = self.id.clone();
     let metrics = self.metrics.clone();
     let matches = self.matches.clone();
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
       trace!(%server_id, "Starting mock server event loop");
 
       let mut total_events = 0;
@@ -326,6 +351,7 @@ impl MockServer {
 
       trace!(%server_id, total_events, "Mock server event loop done");
     });
+    self.event_loop_handle = Some(handle);
   }
 
   /// Converts this mock server to a `Value` struct

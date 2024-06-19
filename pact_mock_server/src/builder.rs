@@ -220,7 +220,7 @@ mod tests {
         .build()
         .unwrap();
 
-      let mock_server = runtime.block_on(async {
+      let mut mock_server = runtime.block_on(async {
         MockServerBuilder::new()
           .with_v4_pact(pact)
           .start()
@@ -264,7 +264,7 @@ mod tests {
       .build()
       .unwrap();
 
-    let mock_server = runtime.block_on(async {
+    let mut mock_server = runtime.block_on(async {
       MockServerBuilder::new()
         .bind_to("127.0.0.1:0")
         .with_v4_pact(pact)
@@ -310,7 +310,7 @@ mod tests {
       .build()
       .unwrap();
 
-    let mock_server = runtime.block_on(async {
+    let mut mock_server = runtime.block_on(async {
       MockServerBuilder::new()
         .bind_to("127.0.0.1:0")
         .with_v4_pact(pact)
@@ -424,7 +424,7 @@ jp9nJakYPl9nMMdHRHKNXo+jxR49Ww4sikVl0oCGC8I3BzlAy6vdRMBekPayxU+Y
 ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
 -----END CERTIFICATE-----"#;
 
-  #[test_log::test(tokio::test)]
+  #[test_log::test(tokio::test(flavor = "multi_thread"))]
   #[cfg(feature = "tls")]
   async fn basic_mock_server_https_test_with_provided_cert() -> anyhow::Result<()> {
     let _ = CryptoProvider::install_default(default_provider());
@@ -433,7 +433,7 @@ ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
       .. V4Pact::default()
     };
 
-    let mock_server = MockServerBuilder::new()
+    let mut mock_server = MockServerBuilder::new()
       .bind_to("127.0.0.1:0")
       .with_v4_pact(pact)
       .with_tls_certs(CERT, PRIVATE_KEY)
