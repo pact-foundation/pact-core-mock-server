@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.1 - Bugfix Release
+
+* ecd0b143 - fix: blocking when shutting down the mock server can cause deadlocks (Ronald Holshausen, Wed Jun 19 17:37:01 2024 +1000)
+* ee81e140 - chore: Shorten the mock server IDs, they do not have to be so long (Ronald Holshausen, Wed Jun 19 17:36:27 2024 +1000)
+* 9efbb501 - feat: Use the task handles to wait for the mock server tasks to complete on shutdown (Ronald Holshausen, Wed Jun 19 10:57:50 2024 +1000)
+* 47559ee1 - chore: Add 100ms delay to give the mock server event loop time to complete on shutdown (Ronald Holshausen, Wed Jun 19 09:30:44 2024 +1000)
+* 89944a4f - fix: Mock server url was incorrect when using IP6 address (Ronald Holshausen, Tue Jun 18 17:17:58 2024 +1000)
+* 484c9ffe - chore: Update mock server CLI to use the new builder for TLS mock servers (Ronald Holshausen, Tue Jun 18 12:33:18 2024 +1000)
+* b857217f - chore: TLS test was failing on Windows due to -> Failed to install the standard FIPS provider (Ronald Holshausen, Tue Jun 18 11:48:50 2024 +1000)
+* 9b86e78e - fix: Correct TLS tests after upgrade to latest Rustls (Ronald Holshausen, Tue Jun 18 11:27:20 2024 +1000)
+* e5495283 - bump version to 2.0.0-beta.1 (Ronald Holshausen, Tue Jun 18 11:01:40 2024 +1000)
+
 # 2.0.0-beta.0 - Updated mock server using Hyper 1.0 and Rustls 0.23
 
 * e66c15ce - chore: Update release scripts for pre-release version (Ronald Holshausen, Tue Jun 18 10:46:01 2024 +1000)
