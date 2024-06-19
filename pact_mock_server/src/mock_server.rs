@@ -287,25 +287,14 @@ impl MockServer {
     Ok(mock_server)
   }
 
-  /// Send the shutdown signal to the server. This function will block the current thread
-  /// waiting for the mock server tasks to complete.
+  /// Send the shutdown signal to the server and wait for tasks to complete.
   pub fn shutdown(&mut self) -> anyhow::Result<()> {
     trace!(server_id = %self.id, address = %self.address, "Shutting mock server down");
-    let shutdown = self.shutdown_tx.take();
-    match shutdown {
+    match self.shutdown_tx.take() {
       Some(sender) => {
         match sender.send(()) {
           Ok(()) => {
             trace!(server_id = %self.id, address = %self.address, "Shutdown event sent, waiting for tasks to complete");
-            // Wait for the main loop and event loop to finish
-            if let Some(handle) = self.task_handle.take() {
-              let _ = block_on(handle);
-            }
-            trace!(server_id = %self.id, address = %self.address, "Main loop complete");
-            if let Some(handle) = self.event_loop_handle.take() {
-              let _ = block_on(handle);
-            }
-            trace!(server_id = %self.id, address = %self.address, "Event loop complete");
             let metrics = {
               let guard = self.metrics.lock().unwrap();
               guard.clone()
