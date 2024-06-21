@@ -1,5 +1,6 @@
 //! Provides a builder for constructing mock servers
 
+use std::net::Ipv4Addr;
 #[allow(unused_imports)] use anyhow::{anyhow, Context};
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
@@ -69,6 +70,15 @@ impl MockServerBuilder {
   /// could fail with port conflicts.
   pub fn bind_to_port(mut self, port: u16) -> Self {
     self.config.address = format!("[::1]:{}", port);
+    self
+  }
+
+  /// Sets the mock server to bind to the given port on the IP4
+  /// loopback adapter (ip4-localhost, `127.0.0.1`). Specify 0 for the port to get a random OS assigned
+  /// port. This is what you would mostly want with a mock server in a test, otherwise your test
+  /// could fail with port conflicts.
+  pub fn bind_to_ip4_port(mut self, port: u16) -> Self {
+    self.config.address = format!("{}:{}", Ipv4Addr::LOCALHOST, port);
     self
   }
 
@@ -158,6 +168,11 @@ impl MockServerBuilder {
       .ok_or_else(|| anyhow!("Transport '{}' is not a known transport", transport))?;
     self.config.transport_entry = Some(transport_entry);
     Ok(self)
+  }
+
+  /// Returns true if the address is not empty
+  pub fn address_assigned(&self) -> bool {
+    !self.config.address.is_empty()
   }
 
   /// Start the mock server, consuming this builder and returning a mock server instance

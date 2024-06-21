@@ -31,7 +31,7 @@ use crate::matching::MatchResult;
 use crate::utils::json_to_bool;
 
 /// Mock server configuration
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct MockServerConfig {
   /// If CORS Pre-Flight requests should be responded to
   pub cors_preflight: bool,
@@ -48,7 +48,9 @@ pub struct MockServerConfig {
   pub tls_config: Option<ServerConfig>,
   /// Transport entry for the mock server
   #[cfg(feature = "plugins")]
-  pub transport_entry: Option<CatalogueEntry>
+  pub transport_entry: Option<CatalogueEntry>,
+  /// If connection keep alive should be enabled
+  pub keep_alive: bool
 }
 
 impl MockServerConfig {
@@ -62,6 +64,8 @@ impl MockServerConfig {
           config.cors_preflight = json_to_bool(v).unwrap_or_default();
         } else if k == "pactSpecification" {
           config.pact_specification = PactSpecification::from(json_to_string(v));
+        } else if k == "keepAlive" {
+          config.keep_alive = json_to_bool(v).unwrap_or_default();
         } else {
           config.transport_config.insert(k.clone(), v.clone());
         }
@@ -69,6 +73,68 @@ impl MockServerConfig {
     }
 
     config
+  }
+
+  /// Return default config with keep alive enabled
+  pub fn with_keep_alive(keep_alive: bool) -> Self {
+    MockServerConfig {
+      keep_alive,
+      .. MockServerConfig::default()
+    }
+  }
+}
+
+impl Default for MockServerConfig {
+  #[cfg(all(feature = "tls", feature = "plugins"))]
+  fn default() -> Self {
+    MockServerConfig {
+      cors_preflight: false,
+      pact_specification: Default::default(),
+      transport_config: Default::default(),
+      address: "".to_string(),
+      mockserver_id: None,
+      tls_config: None,
+      transport_entry: None,
+      keep_alive: true
+    }
+  }
+
+  #[cfg(all(feature = "tls", not(feature = "plugins")))]
+  fn default() -> Self {
+    MockServerConfig {
+      cors_preflight: false,
+      pact_specification: Default::default(),
+      transport_config: Default::default(),
+      address: "".to_string(),
+      mockserver_id: None,
+      tls_config: None,
+      keep_alive: true
+    }
+  }
+
+  #[cfg(all(not(feature = "tls"), feature = "plugins"))]
+  fn default() -> Self {
+    MockServerConfig {
+      cors_preflight: false,
+      pact_specification: Default::default(),
+      transport_config: Default::default(),
+      address: "".to_string(),
+      mockserver_id: None,
+      transport_entry: None,
+      keep_alive: true
+    }
+  }
+
+  #[cfg(not(any(feature = "tls", feature = "plugins")))]
+  fn default() -> Self {
+    MockServerConfig {
+      cors_preflight: false,
+      pact_specification: Default::default(),
+      transport_config: Default::default(),
+      address: "".to_string(),
+      mockserver_id: None,
+      keep_alive: true
+    }
   }
 }
 
@@ -79,7 +145,8 @@ impl PartialEq for MockServerConfig {
       && self.pact_specification == other.pact_specification
       && self.transport_config == other.transport_config
       && self.address == other.address
-      && self.mockserver_id == other.mockserver_id;
+      && self.mockserver_id == other.mockserver_id
+      && self.keep_alive == other.keep_alive;
 
     #[cfg(feature = "plugins")]
     {
@@ -484,6 +551,14 @@ mod tests {
       "pactSpecification": "V4",
       "tlsKey": "key",
       "tlsCertificate": "cert"
+    }))).to(be_equal_to(config));
+
+    let config = MockServerConfig {
+      keep_alive: true,
+      .. MockServerConfig::default()
+    };
+    expect!(MockServerConfig::from_json(&json!({
+      "keepAlive": true
     }))).to(be_equal_to(config));
   }
 

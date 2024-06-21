@@ -98,7 +98,7 @@ pub(crate) async fn create_and_bind(
               let io = TokioIo::new(stream);
               join_set.spawn(LOG_ID.scope(server_id.clone(), async move {
                 if let Err(err) = http1::Builder::new()
-                  .keep_alive(false)
+                  .keep_alive(config.keep_alive)
                   .serve_connection(io, service_fn(|req: Request<Incoming>| {
                     let pact = pact.clone();
                     let event_send = event_send.clone();
