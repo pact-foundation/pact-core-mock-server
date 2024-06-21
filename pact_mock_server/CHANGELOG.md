@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.2 - Added keep alive option
+
+* fd86ee8b - feat: Added keep alive option to the mock server config (defaults to true) (Ronald Holshausen, Fri Jun 21 15:20:10 2024 +1000)
+* c1a13c36 - bump version to 2.0.0-beta.2 (Ronald Holshausen, Wed Jun 19 17:50:34 2024 +1000)
+
 # 2.0.0-beta.1 - Bugfix Release
 
 * ecd0b143 - fix: blocking when shutting down the mock server can cause deadlocks (Ronald Holshausen, Wed Jun 19 17:37:01 2024 +1000)
