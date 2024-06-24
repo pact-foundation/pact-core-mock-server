@@ -1859,6 +1859,7 @@ dependencies = [
  "reqwest 0.12.5",
  "rustls 0.23.10",
  "rustls-pemfile 2.1.2",
+ "rustls-webpki 0.102.4",
  "serde",
  "serde_json",
  "test-env-log",

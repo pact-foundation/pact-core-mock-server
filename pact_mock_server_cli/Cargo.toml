@@ -38,7 +38,7 @@ pact_models = { version = "~1.2.1", default-features = false }
 rand = "0.8.5"
 regex = "1.10.2"
 reqwest = { version = "0.12.4", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
-rustls = { version = "0.23.5", optional = true }
+rustls = { version = "0.23.5", optional = true, default-features = false, features = ["ring"] }
 serde_json = "1.0.108"
 tokio = { version = "1.35.1", features = ["full"] }
 tracing = "0.1.40"
