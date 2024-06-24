@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.3 - Remove aws_lc_rs
+
+* 5b6df8e8 - chore: Remove default features on Rustls (Ronald Holshausen, Mon Jun 24 15:04:00 2024 +1000)
+* 2978e1a6 - chore: Add support for ring as aws_lc_rs does not support Windows (Ronald Holshausen, Mon Jun 24 14:38:43 2024 +1000)
+* 85cb2143 - bump version to 2.0.0-beta.3 (Ronald Holshausen, Fri Jun 21 15:42:39 2024 +1000)
+
 # 2.0.0-beta.2 - Added keep alive option
 
 * fd86ee8b - feat: Added keep alive option to the mock server config (defaults to true) (Ronald Holshausen, Fri Jun 21 15:20:10 2024 +1000)
