@@ -7,7 +7,7 @@ use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager;
 #[cfg(feature = "tls")] use rcgen::{CertifiedKey, generate_simple_self_signed};
-#[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+#[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 #[cfg(feature = "tls")] use rustls::pki_types::PrivateKeyDer;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
@@ -207,7 +207,7 @@ mod tests {
   use pact_models::v4::http_parts::HttpRequest;
   use pact_models::v4::interaction::V4Interaction;
   use reqwest::header::ACCEPT;
-  #[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+  #[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
   #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 
   use super::MockServerBuilder;
