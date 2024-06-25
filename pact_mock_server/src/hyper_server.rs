@@ -625,15 +625,17 @@ mod tests {
     shutdown.send(()).unwrap();
     let _ = handle.await;
 
-    assert_eq!(events.len(), 4);
+    // Should be at least 3 events
+    expect!(events.len()).to(be_greater_or_equal_to(3));
     assert_eq!(events.recv().await.unwrap(), MockServerEvent::RequestReceived("/".to_string()));
     if let MockServerEvent::RequestMatch(_) = events.recv().await.unwrap() {
       // expected
     } else {
       panic!("Was expected a request match event");
     }
-    // For some reason, a http2 connection returns an error once the server is shutdown
-    assert_eq!(events.recv().await.unwrap(), MockServerEvent::ConnectionFailed("connection error".to_string()));
-    assert_eq!(events.recv().await.unwrap(), MockServerEvent::ServerShutdown);
+    // For some reason, a http2 connection returns an error once the server is shutdown on Linux
+    let mut events_list = vec![];
+    events.recv_many(&mut events_list, 2).await;
+    assert_eq!(events_list.last().unwrap(), &MockServerEvent::ServerShutdown);
   }
 }
