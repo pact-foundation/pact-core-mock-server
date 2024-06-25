@@ -14,9 +14,9 @@ use hyper::{Request, Response};
 use hyper::body::Incoming;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder;
-use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto;
 use itertools::Itertools;
 use maplit::hashmap;
 use pact_matching::logging::LOG_ID;
@@ -29,8 +29,8 @@ use pact_models::v4::calc_content_type;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rcgen::{CertifiedKey, generate_simple_self_signed};
-#[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
+#[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::pki_types::PrivateKeyDer;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
@@ -39,13 +39,11 @@ use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::{JoinHandle, JoinSet};
-use tokio::time::sleep;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
-use crate::mock_server::MockServerEvent::{ConnectionFailed, ServerShutdown};
 
 #[derive(Debug, Clone)]
 pub(crate) enum InteractionError {
@@ -80,6 +78,7 @@ pub(crate) async fn create_and_bind(
   let local_addr = listener.local_addr()?;
 
   let mut join_set = JoinSet::new();
+  let graceful = hyper_util::server::graceful::GracefulShutdown::new();
   let (shutdown_send, mut shutdown_recv) = oneshot::channel::<()>();
   let (event_send, event_recv) = mpsc::channel::<MockServerEvent>(256);
 
@@ -95,31 +94,40 @@ pub(crate) async fn create_and_bind(
           match connection {
             Ok((stream, remote_address)) => {
               debug!("Received connection from remote {}", remote_address);
-              let io = TokioIo::new(stream);
+              let io = TokioIo::new(Box::pin(stream));
+              let sid = server_id.clone();
+              let ev = event_send.clone();
+              let mut server = auto::Builder::new(TokioExecutor::new());
+              server.http1().keep_alive(config.keep_alive);
+              server.http2().keep_alive_interval( if config.keep_alive { None } else { Some(Duration::from_secs(1)) });
+              let conn = server
+                .serve_connection_with_upgrades(io, service_fn(move |req: Request<Incoming>| {
+                  let pact = pact.clone();
+                  let event_send = ev.clone();
+                  let config = config.clone();
+                  let server_id = sid.clone();
+                  LOG_ID.scope(server_id, async move {
+                    handle_mock_request_error(
+                      handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
+                    )
+                  })
+                })
+              );
+
+              let conn = graceful.watch(conn.into_owned());
               join_set.spawn(LOG_ID.scope(server_id.clone(), async move {
-                if let Err(err) = http1::Builder::new()
-                  .keep_alive(config.keep_alive)
-                  .serve_connection(io, service_fn(|req: Request<Incoming>| {
-                    let pact = pact.clone();
-                    let event_send = event_send.clone();
-                    let config = config.clone();
-                    LOG_ID.scope(server_id.clone(), async move {
-                      handle_mock_request_error(
-                        handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
-                      )
-                    })
-                  }))
-                  .await {
+                if let Err(err) = conn.await {
                     error!("failed to serve connection: {err}");
-                    if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
+                    if let Err(err) = event_send.send(MockServerEvent::ConnectionFailed(err.to_string())).await {
                       error!("Failed to send ConnectionFailed event: {}", err);
                     }
                 }
+                trace!("Connection dropped: {}", remote_address);
               }));
             },
             Err(e) => {
               error!("failed to accept connection: {e}");
-              if let Err(err) = event_send.send(ConnectionFailed(e.to_string())).await {
+              if let Err(err) = event_send.send(MockServerEvent::ConnectionFailed(e.to_string())).await {
                 error!("Failed to send ConnectionFailed event: {}", err);
               }
             }
@@ -127,10 +135,12 @@ pub(crate) async fn create_and_bind(
         }
 
         _ = &mut shutdown_recv => {
-          trace!("Received shutdown signal, waiting for existing connections to complete");
+          trace!("Received shutdown signal, signalling server shutdown");
+          graceful.shutdown().await;
+          trace!("Waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
           trace!("Existing connections complete, exiting main loop");
-          if let Err(err) = event_send.send(ServerShutdown).await {
+          if let Err(err) = event_send.send(MockServerEvent::ServerShutdown).await {
             error!("Failed to send ServerShutdown event: {}", err);
           }
           break;
@@ -164,6 +174,7 @@ pub(crate) async fn create_and_bind_https(
   let local_addr = listener.local_addr()?;
 
   let mut join_set = JoinSet::new();
+  let graceful = hyper_util::server::graceful::GracefulShutdown::new();
   let (shutdown_send, mut shutdown_recv) = oneshot::channel::<()>();
   let (event_send, event_recv) = mpsc::channel::<MockServerEvent>(256);
 
@@ -196,31 +207,40 @@ pub(crate) async fn create_and_bind_https(
               let tls_acceptor = tls_acceptor.clone();
               match tls_acceptor.accept(stream).await {
                 Ok(tls_stream) => {
-                  let io = TokioIo::new(tls_stream);
+                  let sid = server_id.clone();
+                  let ev = event_send.clone();
+                  let io = TokioIo::new(Box::pin(tls_stream));
+                  let mut server = auto::Builder::new(TokioExecutor::new());
+                  server.http1().keep_alive(config.keep_alive);
+                  server.http2().keep_alive_interval( if config.keep_alive { None } else { Some(Duration::from_secs(1)) });
+                  let conn = server
+                    .serve_connection_with_upgrades(io, service_fn(move |req: Request<Incoming>| {
+                      let pact = pact.clone();
+                      let event_send = ev.clone();
+                      let config = config.clone();
+                      let server_id = sid.clone();
+                      LOG_ID.scope(server_id, async move {
+                        handle_mock_request_error(
+                          handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
+                        )
+                      })
+                    })
+                  );
+
+                  let conn = graceful.watch(conn.into_owned());
                   join_set.spawn(LOG_ID.scope(server_id.clone(), async move {
-                    if let Err(err) = http1::Builder::new()
-                      .keep_alive(false)
-                      .serve_connection(io, service_fn(|req: Request<Incoming>| {
-                        let pact = pact.clone();
-                        let event_send = event_send.clone();
-                        let config = config.clone();
-                        LOG_ID.scope(server_id.clone(), async move {
-                          handle_mock_request_error(
-                            handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
-                          )
-                        })
-                      }))
-                      .await {
+                    if let Err(err) = conn.await {
                         error!("failed to serve connection: {err}");
-                        if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
+                        if let Err(err) = event_send.send(MockServerEvent::ConnectionFailed(err.to_string())).await {
                           error!("Failed to send ConnectionFailed event: {}", err);
                         }
                     }
+                    trace!("Connection dropped: {}", remote_address);
                   }));
                 },
                 Err(err) => {
                   error!("failed to perform tls handshake: {err:#}");
-                  if let Err(err) = event_send.send(ConnectionFailed(err.to_string())).await {
+                  if let Err(err) = event_send.send(MockServerEvent::ConnectionFailed(err.to_string())).await {
                     error!("Failed to send ConnectionFailed event: {}", err);
                   }
                 }
@@ -228,7 +248,7 @@ pub(crate) async fn create_and_bind_https(
             },
             Err(e) => {
               error!("failed to accept connection: {e}");
-              if let Err(err) = event_send.send(ConnectionFailed(e.to_string())).await {
+              if let Err(err) = event_send.send(MockServerEvent::ConnectionFailed(e.to_string())).await {
                 error!("Failed to send ConnectionFailed event: {}", err);
               }
             }
@@ -236,12 +256,14 @@ pub(crate) async fn create_and_bind_https(
         }
 
         _ = &mut shutdown_recv => {
-          debug!("Received shutdown signal, waiting for existing connections to complete");
+          trace!("Received shutdown signal, signalling server shutdown");
+          graceful.shutdown().await;
+          trace!("Waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
-          debug!("Waiting for event loop to complete");
-          sleep(Duration::from_millis(100)).await;
-          debug!("Existing connections complete, exiting main loop");
-          drop(event_send);
+          trace!("Existing connections complete, exiting main loop");
+          if let Err(err) = event_send.send(MockServerEvent::ServerShutdown).await {
+            error!("Failed to send ServerShutdown event: {}", err);
+          }
           break;
         }
       }
@@ -538,7 +560,10 @@ mod tests {
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
   use pact_models::pact::Pact;
+  use pact_models::prelude::RequestResponseInteraction;
   use pact_models::sync_pact::RequestResponsePact;
+  use pretty_assertions::assert_eq;
+  use reqwest::StatusCode;
 
   use super::*;
 
@@ -556,7 +581,7 @@ mod tests {
 
     // Only the shutdown event should be generated
     assert_eq!(events.len(), 1);
-    assert_eq!(events.recv().await.unwrap(), ServerShutdown);
+    assert_eq!(events.recv().await.unwrap(), MockServerEvent::ServerShutdown);
   }
 
   #[test]
@@ -572,5 +597,43 @@ mod tests {
       "user-agent".to_string() => vec!["test".to_string(), "test2".to_string()],
       "content-type".to_string() => vec!["text/plain".to_string()]
     })));
+  }
+
+  #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
+  async fn support_http2() {
+    let pact = RequestResponsePact {
+      interactions: vec![ RequestResponseInteraction::default() ],
+      .. RequestResponsePact::default()
+    };
+    let (addr, shutdown, mut events, handle) = create_and_bind(
+      "can_fetch_results_on_current_thread".to_string(),
+      pact.as_v4_pact().unwrap(),
+      ([127, 0, 0, 1], 0u16).into(),
+      MockServerConfig::default()
+    ).await.unwrap();
+
+    let client = reqwest::ClientBuilder::new()
+      .http2_prior_knowledge()
+      .build()
+      .unwrap();
+    let response = client.get(format!("http://127.0.0.1:{}", addr.port()))
+      .send()
+      .await
+      .unwrap();
+    expect!(response.status()).to(be_equal_to(StatusCode::OK));
+
+    shutdown.send(()).unwrap();
+    let _ = handle.await;
+
+    assert_eq!(events.len(), 4);
+    assert_eq!(events.recv().await.unwrap(), MockServerEvent::RequestReceived("/".to_string()));
+    if let MockServerEvent::RequestMatch(_) = events.recv().await.unwrap() {
+      // expected
+    } else {
+      panic!("Was expected a request match event");
+    }
+    // For some reason, a http2 connection returns an error once the server is shutdown
+    assert_eq!(events.recv().await.unwrap(), MockServerEvent::ConnectionFailed("connection error".to_string()));
+    assert_eq!(events.recv().await.unwrap(), MockServerEvent::ServerShutdown);
   }
 }
