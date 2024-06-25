@@ -204,7 +204,7 @@ impl MockServerMetrics {
 }
 
 /// Events sent from the mock server task to be consumed by the mock server event loop.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MockServerEvent {
   /// Connection failed with error
   ConnectionFailed(String),
@@ -212,6 +212,8 @@ pub enum MockServerEvent {
   RequestReceived(String),
   /// Result of matching a request
   RequestMatch(MatchResult),
+  /// Server is shutting down
+  ServerShutdown
 }
 
 /// Struct to represent the "foreground" part of mock server
@@ -401,6 +403,10 @@ impl MockServer {
           MockServerEvent::RequestMatch(result) => {
             let mut guard = matches.lock().unwrap();
             guard.push(result.clone());
+          }
+          MockServerEvent::ServerShutdown => {
+            trace!(%server_id, total_events, "Exiting mock server event loop");
+            break;
           }
         }
       }

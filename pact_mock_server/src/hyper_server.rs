@@ -45,7 +45,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
-use crate::mock_server::MockServerEvent::ConnectionFailed;
+use crate::mock_server::MockServerEvent::{ConnectionFailed, ServerShutdown};
 
 #[derive(Debug, Clone)]
 pub(crate) enum InteractionError {
@@ -129,10 +129,10 @@ pub(crate) async fn create_and_bind(
         _ = &mut shutdown_recv => {
           trace!("Received shutdown signal, waiting for existing connections to complete");
           while let Some(_) = join_set.join_next().await {};
-          trace!("Waiting for event loop to complete");
-          sleep(Duration::from_millis(100)).await;
           trace!("Existing connections complete, exiting main loop");
-          drop(event_send);
+          if let Err(err) = event_send.send(ServerShutdown).await {
+            error!("Failed to send ServerShutdown event: {}", err);
+          }
           break;
         }
       }
@@ -534,7 +534,6 @@ fn error_body(request: &HttpRequest, error: &String) -> String {
 
 #[cfg(test)]
 mod tests {
-  use expectest::expect;
   use expectest::prelude::*;
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
@@ -545,7 +544,7 @@ mod tests {
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {
-    let (_addr, shutdown, events, handle) = create_and_bind(
+    let (_addr, shutdown, mut events, handle) = create_and_bind(
       "can_fetch_results_on_current_thread".to_string(),
       RequestResponsePact::default().as_v4_pact().unwrap(),
       ([0, 0, 0, 0], 0u16).into(),
@@ -555,8 +554,9 @@ mod tests {
     shutdown.send(()).unwrap();
     let _ = handle.await;
 
-    // 0 matches have been produced
-    assert_eq!(events.len(), 0);
+    // Only the shutdown event should be generated
+    assert_eq!(events.len(), 1);
+    assert_eq!(events.recv().await.unwrap(), ServerShutdown);
   }
 
   #[test]
