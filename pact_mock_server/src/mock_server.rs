@@ -9,6 +9,8 @@ use std::fmt::Display;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use pact_models::generators::generate_hexadecimal;
@@ -364,6 +366,7 @@ impl MockServer {
         match sender.send(()) {
           Ok(()) => {
             trace!(server_id = %self.id, address = %self.address, "Shutdown event sent, waiting for tasks to complete");
+            thread::sleep(Duration::from_millis(100));
             let metrics = {
               let guard = self.metrics.lock().unwrap();
               guard.clone()
