@@ -19,7 +19,7 @@ use maplit::btreemap;
 use pact_models::pact::load_pact_from_json;
 #[cfg(feature = "tls")] use pact_models::pact::Pact;
 use pact_models::PactSpecification;
-#[cfg(feature = "tls")] use rustls::crypto::aws_lc_rs::default_provider;
+#[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 use serde_json::{self, json, Value};
 use tokio::select;
