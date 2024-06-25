@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.4 - Support HTTP2 + Fix server shutdown
+
+* 65286080 - fix: failing test on MacOS (Ronald Holshausen, Tue Jun 25 16:24:27 2024 +1000)
+* 376b4cf0 - feat: Support HTTP1 + HTTP2 + upgrades + graceful server and connection shutdown (Ronald Holshausen, Tue Jun 25 16:12:33 2024 +1000)
+* 6453371f - fix: add small wait after mockserver shutdown so the events can be completly processed (Ronald Holshausen, Tue Jun 25 13:55:30 2024 +1000)
+* 72259393 - fix: Signal server shutdown with an event instead of dropping the channel send end (Ronald Holshausen, Tue Jun 25 12:13:30 2024 +1000)
+* 6c56dcb5 - chore: switch hyper-rustls to use ring over aws-lc-rs (Ronald Holshausen, Tue Jun 25 11:07:02 2024 +1000)
+* ef7c9848 - chore: Try remove default features from all rustls-based crates (Ronald Holshausen, Tue Jun 25 09:55:44 2024 +1000)
+* 23de2683 - chore: Try remove default features from all rustls-based crates (Ronald Holshausen, Tue Jun 25 09:33:11 2024 +1000)
+* a2591dba - chore: Try remove default features from all rustls-based crates (Ronald Holshausen, Mon Jun 24 16:08:27 2024 +1000)
+* 9e3765c9 - bump version to 2.0.0-beta.4 (Ronald Holshausen, Mon Jun 24 15:36:43 2024 +1000)
+
 # 2.0.0-beta.3 - Remove aws_lc_rs
 
 * 5b6df8e8 - chore: Remove default features on Rustls (Ronald Holshausen, Mon Jun 24 15:04:00 2024 +1000)
