@@ -1780,6 +1780,7 @@ name = "pact_mock_server_cli"
 version = "2.0.0-beta.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "clap",
  "env_logger 0.11.3",
  "expectest",
@@ -3525,9 +3526,9 @@ dependencies = [
 
 [[package]]
 name = "webmachine-rust"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7b53d8b46af80a2a26a3eb4a8b149ce1349ff49cbeb06e83b933c079709ff7c"
+checksum = "d88878b50434671690dc18eb627e20e1e3393e3b4db35101ec963809752689c1"
 dependencies = [
  "anyhow",
  "bytes",

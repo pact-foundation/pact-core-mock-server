@@ -5,7 +5,6 @@
 
 #![warn(missing_docs)]
 
-use std::cell::RefCell;
 use std::env;
 use std::io;
 use std::str::FromStr;
@@ -105,11 +104,6 @@ pub(crate) struct ServerOpts {
 }
 
 lazy_static!{
-  pub(crate) static ref SERVER_OPTIONS: Mutex<RefCell<ServerOpts>> = Mutex::new(RefCell::new(ServerOpts {
-    output_path: None,
-    base_port: None,
-    server_key: String::default()
-  }));
   pub(crate) static ref SERVER_MANAGER: Mutex<ServerManager> = Mutex::new(ServerManager::new());
 }
 
@@ -149,14 +143,12 @@ async fn handle_command_args() -> Result<(), i32> {
           let base_port = sub_matches.get_one::<u16>("base-port").cloned();
           let server_key = sub_matches.get_one::<String>("server-key").map(|s| s.to_owned())
             .unwrap_or_else(|| rand::thread_rng().sample_iter(Alphanumeric).take(16).map(char::from).collect::<String>());
-          {
-            let inner = (*SERVER_OPTIONS).lock().unwrap();
-            let mut options = inner.deref().borrow_mut();
-            options.output_path = output_path;
-            options.base_port = base_port;
-            options.server_key = server_key;
-          }
-          server::start_server(port).await
+          let options = ServerOpts {
+            output_path,
+            base_port,
+            server_key,
+          };
+          server::start_server(port, options).await
         },
         Some(("list", _)) => list::list_mock_servers(host, port, usage.as_str()).await,
         Some(("create", sub_matches)) => create_mock::create_mock_server(host, port, sub_matches, usage.as_str()).await,
