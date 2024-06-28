@@ -22,36 +22,35 @@ multipart = ["pact_matching/multipart", "pact_mock_server/multipart"] # suport f
 tls = ["pact_mock_server/tls", "dep:rustls"]
 
 [dependencies]
-anyhow = "1.0.75"
-clap = { version = "4.5.6", features = ["cargo"] }
-futures = "0.3.29"
+anyhow = "1.0.86"
+clap = { version = "4.5.7", features = ["cargo"] }
 http = "1.1.0"
-hyper = "1.3.1"
+hyper = { version = "1.3.1", features = ["full"] }
 hyper-util = "0.1.5"
 maplit = "1.0.2"
 itertools = "0.13.0"
-log = "0.4.20"
-lazy_static = "1.4.0"
+log = "0.4.22"
+lazy_static = "1.5.0"
 pact_matching = { version = "~1.2.4", default-features = false }
-pact_mock_server = { version = "~2.0.0-beta.0", path = "../pact_mock_server", default-features = false }
+pact_mock_server = { version = "~2.0.0-beta.4", path = "../pact_mock_server", default-features = false }
 pact_models = { version = "~1.2.1", default-features = false }
 rand = "0.8.5"
-regex = "1.10.2"
-reqwest = { version = "0.12.4", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
-rustls = { version = "0.23.5", optional = true, default-features = false, features = ["ring"] }
+regex = "1.10.5"
+reqwest = { version = "0.12.5", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+rustls = { version = "0.23.10", optional = true, default-features = false, features = ["ring"] }
 serde_json = "1.0.108"
-tokio = { version = "1.35.1", features = ["full"] }
+tokio = { version = "1.38.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-appender = "0.2.3"
 tracing-core = "0.1.32"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "local-time", "tracing-log"] }
-url = "2.5.0"
-uuid = { version = "1.6.1", features = ["v4"] }
+url = "2.5.2"
+uuid = { version = "1.9.1", features = ["v4"] }
 webmachine-rust = "0.4.0"
 
 [dev-dependencies]
-quickcheck = "1"
+quickcheck = "1.0.3"
 expectest = "0.12.0"
-trycmd = "0.15.0"
-test-log = "0.2.14"
+trycmd = "0.15.4"
+test-log = "0.2.16"
 env_logger = "0.11.3"

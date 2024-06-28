@@ -21,3 +21,4 @@ logs/
 autom4te.cache/
 *~
 .vscode/
+pact_mock_server.log.*
