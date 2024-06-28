@@ -25,7 +25,7 @@ use pact_models::PactSpecification;
 use serde_json::{self, json, Value};
 use tokio::runtime::Handle;
 use tokio::select;
-use tokio::sync::oneshot::channel;
+use tokio::sync::oneshot::{channel, Sender};
 use tokio::task::JoinSet;
 use tracing::{debug, error, info, trace};
 use uuid::Uuid;
@@ -232,7 +232,7 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext, output_path: 
   }
 }
 
-fn shutdown_resource(auth: String) -> WebmachineResource {
+fn shutdown_resource(auth: String, shutdown_tx: Arc<Sender<()>>) -> WebmachineResource {
   WebmachineResource {
     allowed_methods: owned_vec(&["POST"]),
     forbidden: callback(move |context, _| {
@@ -262,7 +262,9 @@ fn shutdown_resource(auth: String) -> WebmachineResource {
 
       match shutdown_period {
         Ok(period) => {
-          // TODO: let _ = shutdown.send(());
+          if let Some(shutdown_tx) = Arc::into_inner(shutdown_tx.clone()) {
+            let _ = shutdown_tx.send(());
+          }
           thread::spawn(move || {
             info!("Scheduling master server to shutdown in {}ms", period);
             thread::sleep(Duration::from_millis(period));
@@ -375,6 +377,7 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
       error!("Failed to bind to localhost port {}: {}", port, err);
       1
     })?;
+
   let (shutdown_tx, mut shutdown_rx) = channel::<()>();
   let mut join_set = JoinSet::new();
 
@@ -453,7 +456,7 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
         .. WebmachineResource::default()
       },
       "/mockserver" => mock_server_resource(options.clone()),
-      "/shutdown" => shutdown_resource(auth)
+      "/shutdown" => shutdown_resource(auth, Arc::new(shutdown_tx))
     }
   });
 
