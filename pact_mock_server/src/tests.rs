@@ -226,10 +226,10 @@ fn match_request_with_header_with_multiple_values() -> anyhow::Result<()> {
 
   let mismatches = manager.find_mock_server_by_id(&id, &|_, ms| {
     ms.unwrap_left().mismatches()
-  });
+  }).unwrap();
   manager.shutdown_mock_server_by_port(port);
 
-  expect!(mismatches).to(be_none());
+  expect!(mismatches.iter()).to(be_empty());
   expect!(response.unwrap().status()).to(be_equal_to(200));
 
   Ok(())
