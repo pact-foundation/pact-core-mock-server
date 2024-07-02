@@ -119,12 +119,14 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
               }
             } else {
               debug!("Starting mock server with id {}", &mock_server_id);
+              let mut server_manager = SERVER_MANAGER.lock().unwrap();
+              trace!("Unlocked server manager");
               result = MockServerBuilder::new()
                 .with_pact(pact)
                 .with_config(config)
-                .bind_to_port(get_next_port(base_port))
+                .bind_to_ip4_port(get_next_port(base_port))
                 .with_id(mock_server_id.as_str())
-                .attach_to_global_manager();
+                .attach_to_manager(&mut server_manager);
             };
           }
 
@@ -134,10 +136,9 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
             result = MockServerBuilder::new()
               .with_pact(pact)
               .with_config(config)
-              .bind_to_port(get_next_port(base_port))
+              .bind_to_ip4_port(get_next_port(base_port))
               .with_id(mock_server_id.as_str())
-              .attach_to_global_manager()
-              .map(|ms| ms.port());
+              .attach_to_global_manager();
           }
 
           match result {
@@ -182,13 +183,15 @@ fn start_https_server(
   id: &String
 ) -> anyhow::Result<MockServer> {
   debug!("Starting TLS mock server with id {}", id);
+  let mut server_manager = SERVER_MANAGER.lock().unwrap();
+  trace!("Unlocked server manager");
   MockServerBuilder::new()
     .with_pact(pact)
     .with_config(config)
     .bind_to_port(port)
     .with_id(id.as_str())
     .with_self_signed_tls()?
-    .attach_to_global_manager()
+    .attach_to_manager(&mut server_manager)
 }
 
 fn query_param_set(context: &mut WebmachineContext, name: &str) -> bool {
@@ -402,7 +405,7 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
           let server_manager = SERVER_MANAGER.lock().unwrap();
           trace!("Unlocked server manager");
           let mock_servers = server_manager.map_mock_servers(MockServer::to_json);
-          trace!("Got mock server JSON");
+          trace!(?mock_servers, "Got mock server JSON");
           let json_response = json!({ "mockServers" : mock_servers });
           trace!("Returning response");
           Some(json_response.to_string().into())
