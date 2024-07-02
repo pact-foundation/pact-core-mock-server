@@ -76,19 +76,36 @@ impl ServerManager {
   /// Consumes the mock server builder, and then spawns the resulting mock server on the server
   /// manager's runtime. Note that this function will block the current calling thread.
   pub fn spawn_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
+    #[allow(unused_assignments)]
+    let mut mock_server = MockServer::default();
+
     #[cfg(feature = "tls")]
     {
-      if builder.tls_configured() {
+      mock_server = if builder.tls_configured() {
         self.runtime.block_on(builder.start_https())
       } else {
         self.runtime.block_on(builder.start())
-      }
+      }?;
     }
 
     #[cfg(not(feature = "tls"))]
     {
-      self.runtime.block_on(builder.start())
+      mock_server = self.runtime.block_on(builder.start())?;
     }
+
+    let mock_server_id = mock_server.id.clone();
+    let port = mock_server.port();
+    let ms_clone = mock_server.clone();
+    self.mock_servers.insert(
+      mock_server_id,
+      ServerEntry {
+        mock_server: Either::Left(mock_server),
+        port,
+        resources: vec![]
+      },
+    );
+
+    Ok(ms_clone)
   }
 
     /// Start a new server on the runtime
