@@ -284,7 +284,9 @@ impl MockServer {
     pact: V4Pact,
     config: MockServerConfig
   ) -> anyhow::Result<MockServer> {
-    let server_id = generate_hexadecimal(8);
+    let server_id = config.mockserver_id
+      .clone()
+      .unwrap_or_else(|| generate_hexadecimal(8));
 
     let address = if config.address.is_empty() {
       SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)

@@ -20,7 +20,6 @@ use maplit::btreemap;
 use pact_models::generators::generate_hexadecimal;
 use pact_models::pact::load_pact_from_json;
 #[cfg(feature = "tls")] use pact_models::pact::Pact;
-use pact_models::PactSpecification;
 #[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 use serde_json::{self, json, Value};
@@ -96,8 +95,6 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
           let mock_server_id = generate_hexadecimal(8);
           let config = MockServerConfig {
             cors_preflight: query_param_set(context, "cors"),
-            pact_specification: PactSpecification::default(),
-            transport_config: Default::default(),
             .. MockServerConfig::default()
           };
           debug!("Mock server config = {:?}", config);
@@ -138,7 +135,7 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
               .with_config(config)
               .bind_to_ip4_port(get_next_port(base_port))
               .with_id(mock_server_id.as_str())
-              .attach_to_global_manager();
+              .attach_to_manager(&mut server_manager);
           }
 
           match result {

@@ -17,10 +17,10 @@ use lazy_static::*;
 use pact_models::PactSpecification;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use regex::Regex;
 use tracing_core::LevelFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::FmtSubscriber;
-use uuid::Uuid;
 
 use pact_mock_server::server_manager::ServerManager;
 
@@ -82,8 +82,17 @@ fn integer_value(v: &str) -> Result<u16, String> {
   v.parse::<u16>().map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
 }
 
-fn uuid_value(v: &str) -> Result<Uuid, String> {
-  Uuid::parse_str(v).map_err(|e| format!("'{}' is not a valid UUID value: {}", v, e) )
+fn mock_server_id(v: &str) -> Result<String, String> {
+  if v.is_empty() {
+    Err("Server ID can not be empty".to_string())
+  } else {
+    let re = Regex::new(r"[A-Z0-9]{8}").unwrap();
+    if re.is_match(v) {
+      Ok(v.to_string())
+    } else {
+      Err(format!("'{}' is not a valid server ID", v))
+    }
+  }
 }
 
 #[tokio::main]
@@ -278,7 +287,7 @@ fn setup_args() -> Command {
         .required_unless_present("mock-server-port")
         .conflicts_with("mock-server-port")
         .help("the ID of the mock server")
-        .value_parser(uuid_value))
+        .value_parser(mock_server_id))
       .arg(Arg::new("mock-server-port")
         .short('m')
         .long("mock-server-port")
@@ -297,7 +306,7 @@ fn setup_args() -> Command {
         .required_unless_present("mock-server-port")
         .conflicts_with("mock-server-port")
         .help("the ID of the mock server")
-        .value_parser(uuid_value))
+        .value_parser(mock_server_id))
       .arg(Arg::new("mock-server-port")
         .short('m')
         .long("mock-server-port")
