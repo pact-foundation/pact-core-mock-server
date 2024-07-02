@@ -1,5 +1,30 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.0 - First beta with new mock server
+
+* 00f78d1f - chore: Upgrade pact_mock_server to 2.0.0-beta.5 (Ronald Holshausen, Tue Jul 2 16:17:05 2024 +1000)
+* 96958106 - chore: Fix compile error when feature are turned off (Ronald Holshausen, Tue Jul 2 16:04:27 2024 +1000)
+* 833e1c71 - fix: Handling of the mock server ID (Ronald Holshausen, Tue Jul 2 15:46:23 2024 +1000)
+* 36728503 - feat: Use comfy-table to show the list of mock servers (Ronald Holshausen, Tue Jul 2 15:23:55 2024 +1000)
+* 96476c96 - fix: Use the same global manager for all commands (Ronald Holshausen, Tue Jul 2 13:57:33 2024 +1000)
+* 82208f6e - fix: Remove unnecessary task spaning when creating a new mock server (Ronald Holshausen, Tue Jul 2 13:23:11 2024 +1000)
+* 9c88af8b - chore: Add signal for graceful server shutdown (Ronald Holshausen, Fri Jun 28 15:30:31 2024 +1000)
+* d13d8c8f - chore: Upgrade webmachine to 0.5.0 (Ronald Holshausen, Fri Jun 28 15:17:26 2024 +1000)
+* 0b0db447 - chore(pact_mock_server_cli): Update depdendencies (Ronald Holshausen, Fri Jun 28 11:14:00 2024 +1000)
+* 6c56dcb5 - chore: switch hyper-rustls to use ring over aws-lc-rs (Ronald Holshausen, Tue Jun 25 11:07:02 2024 +1000)
+* a2591dba - chore: Try remove default features from all rustls-based crates (Ronald Holshausen, Mon Jun 24 16:08:27 2024 +1000)
+* 484c9ffe - chore: Update mock server CLI to use the new builder for TLS mock servers (Ronald Holshausen, Tue Jun 18 12:33:18 2024 +1000)
+* e66c15ce - chore: Update release scripts for pre-release version (Ronald Holshausen, Tue Jun 18 10:46:01 2024 +1000)
+* 3edfd717 - chore: Implement remaining commented out test (Ronald Holshausen, Tue Jun 18 10:33:16 2024 +1000)
+* 0ac8911c - fix: Incorrect function was used when feature was not enabled (Ronald Holshausen, Mon Jun 17 16:37:07 2024 +1000)
+* af1cc22f - feat: Working mock server with TLS + self-signed cert (Ronald Holshausen, Mon Jun 17 16:20:58 2024 +1000)
+* bf310ad4 - Merge branch 'main' into v2.0.x (Ronald Holshausen, Mon Jun 17 10:49:22 2024 +1000)
+* febf7974 - chore: Upgrade dependencies (itertools, pact_matching, pact_models) (Ronald Holshausen, Mon Jun 17 10:44:07 2024 +1000)
+* e1a35e93 - chore: Got pact_mock_server_cli building and tests passing (Ronald Holshausen, Fri Jun 7 16:00:14 2024 +1000)
+* bf152dd4 - chore: Upgrade pact_matching to 1.2.3 (Ronald Holshausen, Thu May 30 16:32:08 2024 +1000)
+* 4ca5a20c - chore: Bump major version of mock server crates (Ronald Holshausen, Fri May 10 14:54:23 2024 +1000)
+* 1a9f909d - bump version to 1.0.7 (Ronald Holshausen, Wed May 8 10:44:09 2024 +1000)
+
 # 1.0.6 - Maintenance Release
 
 * cc62ff52 - chore: Update pact_mock_server crate to 1.2.7 (Ronald Holshausen, Wed May 8 10:38:25 2024 +1000)
