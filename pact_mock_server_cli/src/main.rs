@@ -24,11 +24,9 @@ use uuid::Uuid;
 
 use pact_mock_server::server_manager::ServerManager;
 
-pub(crate) fn display_error(error: String, usage: &str) -> ! {
-    eprintln!("ERROR: {}", error);
-    eprintln!();
-    eprintln!("{}", usage);
-    panic!("{}", error)
+pub(crate) fn display_error(error: String, _usage: &str, code: i32) -> ! {
+  eprintln!("ERROR: {}\nExiting with status {}", error, code);
+  std::process::exit(code)
 }
 
 pub(crate) fn handle_error(error: &str) -> i32 {

@@ -53,16 +53,16 @@ pub async fn list_mock_servers(host: &str, port: u16, usage: &str) -> Result<(),
           },
           Err(err) => {
             error!("Failed to parse JSON: {}\n", err);
-            display_error(format!("Failed to parse JSON: {}", err), usage);
+            display_error(format!("Failed to parse JSON: {}", err), usage, 10);
           }
         }
       } else {
         let body = result.text().await.unwrap_or_default();
-        display_error(format!("Master mock server returned an error: {}\n{}", status, body), usage);
+        display_error(format!("Master mock server returned an error: {}\n{}", status, body), usage, 10);
       }
     },
     Err(err) => {
-      display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage);
+      display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage, 10);
     }
   }
 }

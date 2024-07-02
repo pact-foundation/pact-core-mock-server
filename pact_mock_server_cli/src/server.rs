@@ -5,7 +5,7 @@ use std::{
   thread,
   time::Duration
 };
-use std::net::{Ipv6Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -17,18 +17,17 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use itertools::Either;
 use maplit::btreemap;
+use pact_models::generators::generate_hexadecimal;
 use pact_models::pact::load_pact_from_json;
 #[cfg(feature = "tls")] use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 #[cfg(feature = "tls")] use rustls::crypto::ring::default_provider;
 #[cfg(feature = "tls")] use rustls::crypto::CryptoProvider;
 use serde_json::{self, json, Value};
-use tokio::runtime::Handle;
 use tokio::select;
 use tokio::sync::oneshot::{channel, Sender};
 use tokio::task::JoinSet;
 use tracing::{debug, error, info, trace};
-use uuid::Uuid;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
@@ -94,7 +93,7 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
               422_u16
             })?;
           debug!("Loaded pact = {:?}", pact);
-          let mock_server_id = Uuid::new_v4().to_string();
+          let mock_server_id = generate_hexadecimal(8);
           let config = MockServerConfig {
             cors_preflight: query_param_set(context, "cors"),
             pact_specification: PactSpecification::default(),
@@ -125,8 +124,7 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
                 .with_config(config)
                 .bind_to_port(get_next_port(base_port))
                 .with_id(mock_server_id.as_str())
-                .attach_to_global_manager()
-                .map(|ms| ms.port());
+                .attach_to_global_manager();
             };
           }
 
@@ -144,10 +142,10 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
 
           match result {
             Ok(mock_server) => {
-              debug!("mock server started on port {}", mock_server);
+              debug!("Mock server started on port {}", mock_server.port());
               let mock_server_json = json!({
                 "id" : json!(mock_server_id),
-                "port" : json!(mock_server as i64),
+                "port" : json!(mock_server.port() as i64),
               });
               let json_response = json!({ "mockServer" : mock_server_json });
               context.response.body = Some(Bytes::from(json_response.to_string()));
@@ -182,7 +180,7 @@ fn start_https_server(
   config: MockServerConfig,
   port: u16,
   id: &String
-) -> anyhow::Result<u16> {
+) -> anyhow::Result<MockServer> {
   debug!("Starting TLS mock server with id {}", id);
   MockServerBuilder::new()
     .with_pact(pact)
@@ -191,7 +189,6 @@ fn start_https_server(
     .with_id(id.as_str())
     .with_self_signed_tls()?
     .attach_to_global_manager()
-    .map(|ms| ms.port())
 }
 
 fn query_param_set(context: &mut WebmachineContext, name: &str) -> bool {
@@ -371,7 +368,7 @@ fn mock_server_resource(options: ServerOpts) -> WebmachineResource {
 }
 
 pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
-  let addr = SocketAddr::new(Ipv6Addr::LOCALHOST.into(), port);
+  let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
   let listener = tokio::net::TcpListener::bind(addr).await
     .map_err(|err|{
       error!("Failed to bind to localhost port {}: {}", port, err);
@@ -416,7 +413,6 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
           let (tx, rx) = mpsc::channel();
           let (tx2, rx2) = mpsc::channel();
 
-          let mut context = context.clone();
           if let Some(base_port) = base_port {
             context.metadata.insert("base_port".to_string(), base_port.into());
           }
@@ -428,7 +424,10 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
           let start_fn = move || {
             let handle = thread::current();
             debug!("starting mock server on thread {}", handle.name().unwrap_or("<unknown>"));
-            let mut ctx = rx.recv().unwrap();
+            let mut ctx = rx.recv().map_err(|err| {
+              error!("Failed to receive context from channel: {}", err);
+              500_u16
+            })?;
             let result = start_provider(&mut ctx);
             debug!("Result of starting mock server: {:?}", result.clone());
             match tx2.send(ctx) {
@@ -443,8 +442,12 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
           match thread::spawn(start_fn).join() {
             Ok(res) => {
               debug!("Result of thread: {:?}", res);
-              let ctx = rx2.recv().unwrap();
+              let ctx = rx2.recv().map_err(|err| {
+                error!("Failed to receive final context from channel: {}", err);
+                500_u16
+              })?;
               context.response = ctx.response;
+              trace!("Final context = {:?}", context);
               res
             },
             Err(err) => {
@@ -460,38 +463,36 @@ pub async fn start_server(port: u16, options: ServerOpts) -> Result<(), i32> {
     }
   });
 
-  Handle::current().block_on(async move {
-    trace!("Starting main server loop");
-    loop {
-      let dispatcher = dispatcher.clone();
-      select! {
-        connection = listener.accept() => {
-          match connection {
-            Ok((stream, remote_address)) => {
-              debug!("Received connection from remote {}", remote_address);
-              let io = TokioIo::new(stream);
-              join_set.spawn(async move {
-                if let Err(err) = http1::Builder::new()
-                  .serve_connection(io, service_fn(|req: Request<Incoming>| dispatcher.dispatch(req))).await {
-                  error!("Failed to serve incoming connection: {err}");
-                }
-              });
-            },
-            Err(e) => {
-              error!("Failed to accept connection: {e}");
-            }
+  trace!("Starting main server loop");
+  loop {
+    let dispatcher = dispatcher.clone();
+    select! {
+      connection = listener.accept() => {
+        match connection {
+          Ok((stream, remote_address)) => {
+            debug!("Received connection from remote {}", remote_address);
+            let io = TokioIo::new(stream);
+            join_set.spawn(async move {
+              if let Err(err) = http1::Builder::new()
+                .serve_connection(io, service_fn(|req: Request<Incoming>| dispatcher.dispatch(req))).await {
+                error!("Failed to serve incoming connection: {err}");
+              }
+            });
+          },
+          Err(e) => {
+            error!("Failed to accept connection: {e}");
           }
         }
+      }
 
-        _ = &mut shutdown_rx => {
-          debug!("Received shutdown signal, waiting for existing connections to complete");
-          while let Some(_) = join_set.join_next().await {};
-          debug!("Existing connections complete, exiting main loop");
-          break;
-        }
+      _ = &mut shutdown_rx => {
+        debug!("Received shutdown signal, waiting for existing connections to complete");
+        while let Some(_) = join_set.join_next().await {};
+        debug!("Existing connections complete, exiting main loop");
+        break;
       }
     }
-    trace!("Main server loop done");
-    Ok(())
-  })
+  }
+  trace!("Main server loop done");
+  Ok(())
 }
