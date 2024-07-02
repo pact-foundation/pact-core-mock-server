@@ -130,6 +130,8 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
           #[cfg(not(feature = "tls"))]
           {
             debug!("Starting mock server with id {}", &mock_server_id);
+            let mut server_manager = crate::SERVER_MANAGER.lock().unwrap();
+            trace!("Unlocked server manager");
             result = MockServerBuilder::new()
               .with_pact(pact)
               .with_config(config)
