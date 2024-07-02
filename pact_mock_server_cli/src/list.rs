@@ -1,4 +1,6 @@
-use serde_json::{self, json, Value};
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::Table;
+use serde_json::{self, Value};
 use tracing::error;
 
 use crate::{display_error, handle_error};
@@ -29,26 +31,19 @@ pub async fn list_mock_servers(host: &str, port: u16, usage: &str) -> Result<(),
               .ok_or_else(|| handle_error("Invalid JSON received from master server - no mockServers attribute"))?;
             let mock_servers = mock_servers_json.as_array()
               .ok_or_else(|| handle_error("Invalid JSON received from master server - mockServers is not an array"))?;
-            let provider_len = mock_servers.iter().fold(0, |acc, ms| {
-              let unknown = &json!("<unknown>");
-              let provider = ms.get("provider").unwrap_or(unknown)
-                .as_str().unwrap_or("<unknown>");
-              if provider.len() > acc {
-                provider.len()
-              } else {
-                acc
-              }
-            });
 
-            println!("{0:36}  {1:5}  {2:3$}  {4}", "Mock Server Id", "Port",
-                     "Provider", provider_len, "Verification State");
+            let mut table = Table::new();
+            table
+              .load_preset(UTF8_FULL)
+              .set_header(vec!["Mock Server Id", "Port", "Provider", "Verification State"]);
             for ms in mock_servers {
               let id = json2string(ms.get("id"));
               let port = json2string(ms.get("port"));
               let provider = json2string(ms.get("provider"));
               let status = json2string(ms.get("status"));
-              println!("{0}  {1}  {2:3$}  {4}", id, port, provider, provider_len, status);
+              table.add_row(vec![id.as_str(), port.as_str(), provider.as_str(), status.as_str()]);
             };
+            println!("{table}");
             Ok(())
           },
           Err(err) => {
