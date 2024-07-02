@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0-beta.5 - Bugfix Release
+
+* 1115b3f2 - chore: fix broken test (Ronald Holshausen, Tue Jul 2 15:56:43 2024 +1000)
+* 833e1c71 - fix: Handling of the mock server ID (Ronald Holshausen, Tue Jul 2 15:46:23 2024 +1000)
+* fba93b6b - fix: Add a function to attach a mock server to a known manager (Ronald Holshausen, Tue Jul 2 13:48:14 2024 +1000)
+* d80d9e42 - fix: When attaching the mock server to the server manager, the manager needs to take ownership (Ronald Holshausen, Tue Jul 2 13:19:02 2024 +1000)
+* 1b377dd3 - chore: Use a channel to signal when the mock server task is done (Ronald Holshausen, Thu Jun 27 11:46:52 2024 +1000)
+* 7ce8b2ff - bump version to 2.0.0-beta.5 (Ronald Holshausen, Tue Jun 25 16:40:38 2024 +1000)
+
 # 2.0.0-beta.4 - Support HTTP2 + Fix server shutdown
 
 * 65286080 - fix: failing test on MacOS (Ronald Holshausen, Tue Jun 25 16:24:27 2024 +1000)
