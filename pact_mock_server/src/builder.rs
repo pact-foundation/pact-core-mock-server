@@ -194,6 +194,13 @@ impl MockServerBuilder {
     let manager = guard.get_or_insert_with(|| ServerManager::new());
     manager.spawn_mock_server(self)
   }
+
+  /// Starts the mockserver, consuming this builder and registers it with the server manager.
+  /// The mock server tasks will be spawned on the server manager's runtime.
+  /// Returns the mock server instance.
+  pub fn attach_to_manager(self, manager: &mut ServerManager) -> anyhow::Result<MockServer> {
+    manager.spawn_mock_server(self)
+  }
 }
 
 #[cfg(test)]
