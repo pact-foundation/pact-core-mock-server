@@ -229,12 +229,14 @@ pub fn create_tls_mock_server(
   }
 }
 
-/// Function to check if a mock server has matched all its requests. The port number is
-/// passed in, and if all requests have been matched, true is returned. False is returned if there
-/// is no mock server on the given port, or if any request has not been successfully matched.
+/// Function to check if a mock server running on the global manager has matched all its requests.
+/// The port number is passed in, and if all requests have been matched, true is returned. False is
+/// returned if there is no mock server on the given port, or if any request has not been
+/// successfully matched.
 ///
 /// Note that for mock servers provided by plugins, if the call to the plugin fails, a value of false
 /// will also be returned.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn mock_server_matched(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
@@ -265,13 +267,15 @@ pub fn mock_server_matched(mock_server_port: i32) -> bool {
     .unwrap_or(false)
 }
 
-/// Gets all the mismatches from a mock server in JSON format. The port number of the mock
-/// server is passed in, and the results are returned in JSON format as a String.
+/// Gets all the mismatches from a mock server running on the global manager in JSON format.
+/// The port number of the mock server is passed in, and the results are returned in JSON format
+/// as a String.
 ///
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
 /// For mock servers provided by plugins, if the call to the plugin fails, a JSON value with an
 /// error attribute will be returned.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
@@ -322,7 +326,7 @@ pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
     })
 }
 
-/// Trigger a mock server to write out its pact file. This function should
+/// Trigger a mock server running on the global manager to write out its pact file. This function should
 /// be called if all the consumer tests have passed. The directory to write the file to is passed
 /// as the second parameter. If `None` is passed in, the current working directory is used.
 /// If overwrite is true, the file will be overwritten with the contents of the current pact.
@@ -330,6 +334,7 @@ pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
 ///
 /// Returns `Ok` if the pact file was successfully written. Returns an `Err` if the file can
 /// not be written, or there is no mock server running on that port.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn write_pact_file(
   mock_server_port: i32,
   directory: Option<String>,
@@ -390,16 +395,19 @@ pub fn write_pact_file(
   }
 }
 
-/// Shuts down the mock server with the provided port. Returns a boolean value to indicate if
-/// the mock server was successfully shut down.
+/// Shuts down the mock server running on the global manager with the provided port. Returns a
+/// boolean value to indicate if the mock server was successfully shut down.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn shutdown_mock_server(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .shutdown_mock_server_by_port(mock_server_port as u16)
 }
 
-/// Find a mock server by port number and map it using supplied function if found. Returns the
-/// result of the function call wrapped in a Some. Returns a None if the mock server was not found.
+/// Find a mock server running on the global manager by port number and map it using supplied
+/// function if found. Returns the result of the function call wrapped in a Some. Returns a None
+/// if the mock server was not found.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn find_mock_server_by_port<R>(
   port: u16,
   f: &dyn Fn(&ServerManager, &String, Either<&MockServer, &PluginMockServer>) -> R
@@ -409,8 +417,9 @@ pub fn find_mock_server_by_port<R>(
     .find_mock_server_by_port(port, f)
 }
 
-/// Shuts down the mock server with the provided ID. Returns a boolean value to indicate if
-/// the mock server was successfully shut down.
+/// Shuts down the mock server running on the global manager with the provided ID. Returns a
+/// boolean value to indicate if the mock server was successfully shut down.
+#[deprecated(since = "2.0.0-beta.5", note = "Crates that require a static manager should setup one themselves, and use the mock server manager directly")]
 pub fn shutdown_mock_server_by_id(id: &str) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
