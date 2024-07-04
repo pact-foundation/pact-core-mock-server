@@ -63,6 +63,7 @@
 //! let response = http_client.get(format!("http://127.0.0.1:{}/path", mock_server.port()).as_str())
 //!   .send()
 //!   .await?;
+//! assert_eq!(response.text().await?, "Hello from the mock server");
 //!
 //! // Shut the mock server down. This will dispose of the running background tasks.
 //! mock_server.shutdown()?;
@@ -75,6 +76,10 @@
 //! ```
 
 #![warn(missing_docs)]
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+struct Readme;
 
 use std::sync::Mutex;
 
