@@ -31,7 +31,7 @@ itertools = "0.13.0"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
 pact_matching = { version =  "~1.2.4", default-features = false }
-pact_models = { version = "~1.2.1", default-features = false }
+pact_models = { version = "~1.2.2", default-features = false }
 pact-plugin-driver = { version = "~0.7.0", optional = true, default-features = false }
 rustls = { version = "~0.21.10", optional = true }
 rustls-pemfile = { version = "1.0.4", optional = true }
