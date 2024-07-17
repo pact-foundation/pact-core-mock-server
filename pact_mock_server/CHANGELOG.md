@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.9 - Maintenance Release
+
+* 62012b8c - chore: Upgrade pact_matching to 1.2.5 (Ronald Holshausen, Wed Jul 17 14:36:26 2024 +1000)
+* 3c32b221 - chore: Upgrade pact_models to 1.2.2 (Ronald Holshausen, Wed Jul 17 11:20:30 2024 +1000)
+* 7785a77c - chore: Upgrade pact-plugin-driver to 0.7.0 (Ronald Holshausen, Wed Jul 17 10:17:39 2024 +1000)
+* febf7974 - chore: Upgrade dependencies (itertools, pact_matching, pact_models) (Ronald Holshausen, Mon Jun 17 10:44:07 2024 +1000)
+* 196cabbc - bump version to 1.2.9 (Ronald Holshausen, Thu May 30 16:43:51 2024 +1000)
+
 # 1.2.8 - Maintenance Release
 
 * bf152dd4 - chore: Upgrade pact_matching to 1.2.3 (Ronald Holshausen, Thu May 30 16:32:08 2024 +1000)
