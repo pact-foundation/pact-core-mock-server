@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0 - Final 2.0.0 release
+
+* b595cd45 - chore: Remove the beta pre-release label (Ronald Holshausen, Thu Jul 18 16:22:39 2024 +1000)
+* 79a470a1 - chore: Cleanup deprecation warnings (Ronald Holshausen, Thu Jul 18 16:16:49 2024 +1000)
+* 3863afd5 - chore: Upgrade dependencies (Ronald Holshausen, Thu Jul 18 16:06:41 2024 +1000)
+* c6072314 - chore: Upgrade pact_matching to 1.2.5 (Ronald Holshausen, Wed Jul 17 14:50:41 2024 +1000)
+* f190ef87 - chore: Upgrade pact_models to 1.2.2 (Ronald Holshausen, Wed Jul 17 11:20:30 2024 +1000)
+* 6a0c3b36 - chore: Upgrade pact-plugin-driver to 0.7.0 (Ronald Holshausen, Wed Jul 17 10:17:39 2024 +1000)
+* 6a58f5af - chore: Mark the remaining legacy functions as deprecated (Ronald Holshausen, Thu Jul 4 17:35:00 2024 +1000)
+* ca41cca4 - chore: Update readme (Ronald Holshausen, Thu Jul 4 17:21:08 2024 +1000)
+* e95294e8 - chore: Update doc comments with example using the mock server builder (Ronald Holshausen, Thu Jul 4 16:52:00 2024 +1000)
+* 2ea067bd - bump version to 2.0.0-beta.6 (Ronald Holshausen, Tue Jul 2 16:13:55 2024 +1000)
+
 # 2.0.0-beta.5 - Bugfix Release
 
 * 1115b3f2 - chore: fix broken test (Ronald Holshausen, Tue Jul 2 15:56:43 2024 +1000)
