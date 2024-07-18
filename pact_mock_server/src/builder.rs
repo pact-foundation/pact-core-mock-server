@@ -13,7 +13,8 @@ use pact_models::v4::pact::V4Pact;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 #[allow(unused_imports)] use tracing::warn;
 
-use crate::{configure_core_catalogue, MANAGER};
+use crate::configure_core_catalogue;
+#[allow(deprecated)] use crate::MANAGER;
 use crate::mock_server::{MockServer, MockServerConfig};
 use crate::server_manager::ServerManager;
 
@@ -189,6 +190,7 @@ impl MockServerBuilder {
   /// Starts the mockserver, consuming this builder and registers it with the global server manager.
   /// The mock server tasks will be spawned on the server manager's runtime.
   /// Returns the mock server instance.
+  #[deprecated(since = "2.0.0", note = "Crates that require a static manager should setup one themselves")]
   pub fn attach_to_global_manager(self) -> anyhow::Result<MockServer> {
     let mut guard = MANAGER.lock().unwrap();
     let manager = guard.get_or_insert_with(|| ServerManager::new());

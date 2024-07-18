@@ -9,7 +9,8 @@ use serde_json::json;
 #[allow(unused_imports)] use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::{configure_core_catalogue, MANAGER, MockServerError, WritePactFileErr};
+use crate::{configure_core_catalogue, MockServerError, WritePactFileErr};
+#[allow(deprecated)] use crate::MANAGER;
 use crate::mock_server::{MockServer, MockServerConfig};
 use crate::server_manager::{PluginMockServer, ServerManager};
 
@@ -469,8 +470,11 @@ mod tests {
     let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
       .header(ACCEPT, "application/json").send();
 
+    #[allow(deprecated)]
     let all_matched = mock_server_matched(port);
+    #[allow(deprecated)]
     let mismatches = mock_server_mismatches(port);
+    #[allow(deprecated)]
     shutdown_mock_server(port);
 
     expect!(all_matched).to(be_true());
