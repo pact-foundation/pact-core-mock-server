@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.1 - Bugfix Release
+
+* 616b588e - chore: Upgrade bytes crate to 1.7.1 (Ronald Holshausen, Tue Aug 27 15:14:29 2024 +1000)
+* 5cb006dd - fix: Default the Pact spec version to the version from the Pact if not overridden (Ronald Holshausen, Tue Aug 27 15:06:13 2024 +1000)
+* bf019cda - chore: Upgrade pact_matching to 1.2.7 (Ronald Holshausen, Tue Aug 27 15:03:04 2024 +1000)
+* 4699f555 - bump version to 2.0.1 (Ronald Holshausen, Thu Jul 18 16:28:20 2024 +1000)
+
 # 2.0.0 - Final 2.0.0 release
 
 * b595cd45 - chore: Remove the beta pre-release label (Ronald Holshausen, Thu Jul 18 16:22:39 2024 +1000)
