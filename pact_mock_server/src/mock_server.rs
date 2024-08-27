@@ -307,7 +307,7 @@ impl MockServer {
       shutdown_tx: RefCell::new(Some(shutdown_send)),
       config: config.clone(),
       metrics: Default::default(),
-      spec_version: Default::default(),
+      spec_version: config.pact_specification,
       event_loop_rx: None
     };
 
@@ -493,7 +493,7 @@ impl MockServer {
 
     info!("Writing pact out to '{}'", filename.display());
     let specification = match self.spec_version {
-      PactSpecification::Unknown => PactSpecification::V3,
+      PactSpecification::Unknown => self.pact.specification_version(),
       _ => self.spec_version
     };
     match write_pact(v4_pact.boxed(), filename.as_path(), specification, overwrite) {
