@@ -23,7 +23,7 @@ tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls
 
 [dependencies]
 anyhow = "1.0.86"
-bytes = "1.6.1"
+bytes = "1.7.1"
 futures = "0.3.30"
 hyper = { version = "1.4.1", features = ["full"] }
 http-body-util = "0.1.2"
