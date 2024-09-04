@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.10 - Maintenance Release
+
+* 8b7cf3e0 - chore: Update dependencies (Ronald Holshausen, Wed Sep 4 10:13:59 2024 +1000)
+* c1f9d819 - chore: Upgrade pact-plugin-driver to 0.7.1 (Ronald Holshausen, Wed Sep 4 10:04:57 2024 +1000)
+* 12f582f9 - bump version to 1.2.10 (Ronald Holshausen, Wed Jul 17 14:40:48 2024 +1000)
+
 # 1.2.9 - Maintenance Release
 
 * 62012b8c - chore: Upgrade pact_matching to 1.2.5 (Ronald Holshausen, Wed Jul 17 14:36:26 2024 +1000)
