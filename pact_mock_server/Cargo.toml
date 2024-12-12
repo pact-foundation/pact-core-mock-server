@@ -22,34 +22,34 @@ multipart = ["pact_matching/multipart"] # suport for MIME multipart bodies
 tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
 
 [dependencies]
-anyhow = "1.0.86"
-bytes = "1.7.1"
-futures = "0.3.30"
-hyper = { version = "0.14.30", features = ["full"] }
+anyhow = "1.0.94"
+bytes = "1.9.0"
+futures = "0.3.31"
+hyper = { version = "0.14.31", features = ["full"] }
 hyper-rustls = { version = "0.24.2", optional = true }
 itertools = "0.13.0"
 lazy_static = "1.5.0"
 maplit = "1.0.2"
 pact_matching = { version =  "~1.2.7", default-features = false }
-pact_models = { version = "~1.2.4", default-features = false }
-pact-plugin-driver = { version = "~0.7.1", optional = true, default-features = false }
+pact_models = { version = "~1.2.6", default-features = false }
+pact-plugin-driver = { version = "~0.7.2", optional = true, default-features = false }
 rustls = { version = "~0.21.12", optional = true }
 rustls-pemfile = { version = "1.0.4", optional = true }
-serde = { version = "1.0.209", features = ["derive"] }
-serde_json = "1.0.127"
-thiserror = "1.0.63"
-tokio = { version = "1.40.0", features = ["full"] }
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+thiserror = "2.0.6"
+tokio = { version = "1.42.0", features = ["full"] }
 tokio-rustls = { version = "~0.24.1", optional = true }
-tracing = "0.1.40"
-tracing-core = "0.1.32"
-url = "2.5.2"
-uuid = { version = "1.10.0", features = ["v4"] }
+tracing = "0.1.41"
+tracing-core = "0.1.31"
+url = "2.5.4"
+uuid = { version = "1.11.0", features = ["v4"] }
 
 [dev-dependencies]
 quickcheck = "1.0.3"
 expectest = "0.12.0"
-reqwest = { version = "0.12.7", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+reqwest = { version = "0.12.9", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 env_logger = "0.11.5"
 test-log = "0.2.16"
 test-env-log = "0.2.8"
-tracing-subscriber = "0.3.18"
+tracing-subscriber = "0.3.19"
