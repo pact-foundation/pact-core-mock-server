@@ -1,6 +1,6 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
-# 1.2.11 - Maintenence Release
+# 1.2.11 - Maintenance Release
 
 * 22456d95 - chore: Update dependencies (Ronald Holshausen, Fri Dec 13 09:53:38 2024 +1100)
 * 85eb7eb8 - fix: Pass the transport config to the plugin in the test context under the transport_config key (Ronald Holshausen, Fri Dec 13 09:41:55 2024 +1100)
