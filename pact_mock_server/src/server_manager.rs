@@ -18,6 +18,7 @@ use pact_models::pact::Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::mock_server::MockServerDetails;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 #[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::{debug, error, trace};
 #[cfg(feature = "plugins")] use url::Url;
 
@@ -210,10 +211,15 @@ impl ServerManager {
           port: addr.port() as u32,
           tls: false
         };
-        let test_context = hashmap! {};
+        let test_context = hashmap! {
+          "transport_config".to_string() => Value::Object(config.transport_config
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect())
+        };
         let result = self.runtime.block_on(
           pact_plugin_driver::plugin_manager::start_mock_server_v2(transport, v4_pact.boxed(),
-                                                                   mock_server_config, test_context)
+            mock_server_config, test_context)
         )?;
         self.mock_servers.insert(
           id,
