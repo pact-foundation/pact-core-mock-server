@@ -1,6 +1,12 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build:
@@ -45,11 +51,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: |
-         docker run --rm --user "$(id -u)":"$(id -g)" -v $(pwd):/workspace -w /workspace -t -e TZ=UTC -e NO_IP6=1 pactfoundation/rust-musl-build ./scripts/ci-musl-build.sh
+          docker run --rm --user "$(id -u)":"$(id -g)" -v $(pwd):/workspace -w /workspace -t -e TZ=UTC -e NO_IP6=1 pactfoundation/rust-musl-build ./scripts/ci-musl-build.sh
 
   check-features:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - run: cargo check --no-default-features
-         
