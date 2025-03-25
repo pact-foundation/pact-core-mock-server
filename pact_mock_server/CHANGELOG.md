@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.3 - Maintenance Release
+
+* b12f32d8 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
+* 4c83cd88 - chore: Upgrade pact_models to 1.3.0 (Ronald Holshausen, Wed Mar 26 10:42:01 2025 +1100)
+* d73b1a06 - bump version to 2.0.3 (Ronald Holshausen, Wed Sep 4 10:47:47 2024 +1000)
+
 # 2.0.2 - Maintenance Release
 
 * 5789dea1 - chore: Update dependencies (Ronald Holshausen, Wed Sep 4 10:33:02 2024 +1000)
