@@ -30,7 +30,7 @@ http = "1.1.0"
 hyper = { version = "1.4.1", features = ["full"] }
 hyper-util = "0.1.7"
 maplit = "1.0.2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 log = "0.4.22"
 lazy_static = "1.5.0"
 pact_matching = { version = "~1.2.10", default-features = false }
