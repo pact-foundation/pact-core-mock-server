@@ -38,12 +38,12 @@ use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::{JoinHandle, JoinSet};
-use tokio::task_local;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
+use crate::LOG_ID;
 
 #[derive(Debug, Clone)]
 pub(crate) enum InteractionError {

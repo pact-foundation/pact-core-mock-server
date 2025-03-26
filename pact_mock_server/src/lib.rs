@@ -90,6 +90,7 @@ use std::sync::Mutex;
   CatalogueEntryType,
   register_core_entries
 };
+use tokio::task_local;
 #[allow(unused_imports)] use tracing::{error, info, warn};
 
 use crate::server_manager::ServerManager;
