@@ -19,7 +19,6 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use itertools::Itertools;
 use maplit::hashmap;
-use pact_matching::logging::LOG_ID;
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::headers::parse_header;
@@ -39,11 +38,19 @@ use tokio::select;
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::mpsc::Sender;
 use tokio::task::{JoinHandle, JoinSet};
+use tokio::task_local;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
+
+task_local! {
+  /// Log ID to accumulate logs against
+  #[allow(missing_docs)]
+  #[deprecated(note = "This must be moved to the FFI crate")]
+  pub static LOG_ID: String;
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum InteractionError {
