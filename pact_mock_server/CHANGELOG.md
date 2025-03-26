@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.14 - Maintenance Release
+
+* c98d12e1 - fix: tasklocal LOG_ID needs to be accessable from other crates (Ronald Holshausen, Wed Mar 26 15:39:15 2025 +1100)
+* 0669c8ca - bump version to 1.2.14 (Ronald Holshausen, Wed Mar 26 15:21:09 2025 +1100)
+
 # 1.2.13 - Maintenance Release
 
 * f315a872 - chore: Use a local tasklocal LOG_ID instead of the one from pact-matching which is deprecated (Ronald Holshausen, Wed Mar 26 15:17:55 2025 +1100)
