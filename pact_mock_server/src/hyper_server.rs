@@ -23,20 +23,12 @@ use pact_models::v4::http_parts::HttpRequest;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
 #[cfg(feature = "tls")] use tokio::net::{TcpListener, TcpStream};
-use tokio::task_local;
 #[cfg(feature = "tls")] use tokio_rustls::server::TlsStream;
 #[cfg(feature = "tls")] use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, trace, warn};
-
+use crate::LOG_ID;
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
-
-task_local! {
-  /// Log ID to accumulate logs against
-  #[allow(missing_docs)]
-  #[deprecated(note = "This must be moved to the FFI crate")]
-  pub static LOG_ID: String;
-}
 
 #[derive(Debug, Clone)]
 enum InteractionError {

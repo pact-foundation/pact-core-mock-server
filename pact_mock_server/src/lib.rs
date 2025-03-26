@@ -38,6 +38,7 @@ use pact_models::pact::{load_pact_from_json, Pact};
 #[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::get_mock_server_results;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 use serde_json::json;
+use tokio::task_local;
 #[allow(unused_imports)] use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -50,6 +51,13 @@ pub mod server_manager;
 mod hyper_server;
 #[cfg(feature = "tls")] pub mod tls;
 mod utils;
+
+task_local! {
+  /// Log ID to accumulate logs against
+  #[allow(missing_docs)]
+  #[deprecated(note = "This must be moved to the FFI crate")]
+  pub static LOG_ID: String;
+}
 
 /// Mock server errors
 #[derive(thiserror::Error, Debug)]
