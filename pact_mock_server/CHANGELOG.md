@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.13 - Maintenance Release
+
+* f315a872 - chore: Use a local tasklocal LOG_ID instead of the one from pact-matching which is deprecated (Ronald Holshausen, Wed Mar 26 15:17:55 2025 +1100)
+* d363529e - bump version to 1.2.13 (Ronald Holshausen, Wed Mar 26 10:17:42 2025 +1100)
+
 # 1.2.12 - Maintenance Release
 
 * f343aae4 - chore: Upgrade pact_models to 1.3.0 (Ronald Holshausen, Wed Mar 26 10:11:19 2025 +1100)
