@@ -45,13 +45,6 @@ use tracing::{debug, error, info, trace, warn};
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::{MockServerConfig, MockServerEvent};
 
-task_local! {
-  /// Log ID to accumulate logs against
-  #[allow(missing_docs)]
-  #[deprecated(note = "This must be moved to the FFI crate")]
-  pub static LOG_ID: String;
-}
-
 #[derive(Debug, Clone)]
 pub(crate) enum InteractionError {
   RequestHeaderEncodingError,

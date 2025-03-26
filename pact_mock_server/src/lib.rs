@@ -102,6 +102,13 @@ pub mod legacy;
 pub mod builder;
 pub mod hyper_server;
 
+task_local! {
+  /// Log ID to accumulate logs against
+  #[allow(missing_docs)]
+  #[deprecated(note = "This must be moved to the FFI crate")]
+  pub static LOG_ID: String;
+}
+
 /// Mock server errors
 #[derive(thiserror::Error, Debug)]
 pub enum MockServerError {
