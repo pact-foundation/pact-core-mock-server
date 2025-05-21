@@ -1889,9 +1889,9 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "1.2.10"
+version = "2.0.0-beta.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8a63ef173ee082986dd7ebdb1ba469b57f45afe15e0a09ec60786ef635384d5"
+checksum = "42d3449e46391784513d6016962c8f29827b38d4513e6d709711c1e95089a71f"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -1904,6 +1904,7 @@ dependencies = [
  "http",
  "infer",
  "itertools 0.14.0",
+ "kiss_xml",
  "lazy_static",
  "lenient_semver",
  "maplit",
@@ -1920,6 +1921,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "snailquote",
  "sxd-document",
  "tokio",
  "tracing",
@@ -1930,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2937,6 +2939,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
 
 [[package]]
+name = "snailquote"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec62a949bda7f15800481a711909f946e1204f2460f89210eaf7f57730f88f86"
+dependencies = [
+ "thiserror 1.0.69",
+ "unicode_categories",
+]
+
+[[package]]
 name = "snapbox"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3610,6 +3622,12 @@ name = "unicode-width"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
+
+[[package]]
+name = "unicode_categories"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
 name = "untrusted"

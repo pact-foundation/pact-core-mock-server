@@ -17,6 +17,7 @@ use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::V4InteractionType;
 use pact_models::v4::pact::V4Pact;
+use tracing::error;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -123,11 +124,19 @@ pub async fn match_request(
   let interactions = pact.filter_interactions(V4InteractionType::Synchronous_HTTP);
   let match_results = futures::stream::iter(interactions)
     .filter(|i| future::ready(i.is_request_response()))
-    .then(|i| async move {
+    .filter_map(|i| async move {
       let interaction = i.as_v4_http().unwrap();
-      (interaction.clone(), pact_matching::match_request(interaction.request.clone(),
-        req.clone(), &pact.boxed(), &i).await)
-    }).collect::<Vec<(SynchronousHttp, RequestMatchResult)>>().await;
+      let result = pact_matching::match_request(interaction.request.clone(),
+        req.clone(), &pact.boxed(), &i).await;
+      match result {
+        Ok(match_result) => Some((interaction.clone(), match_result)),
+        Err(err) => {
+          error!("Failed to match request for interaction '{}': {}", interaction.description, err);
+          None
+        }
+      }
+    })
+    .collect::<Vec<(SynchronousHttp, RequestMatchResult)>>().await;
   let mut sorted = match_results.iter().sorted_by(|(_, i1), (_, i2)| {
     Ord::cmp(&i2.score(), &i1.score())
   });
