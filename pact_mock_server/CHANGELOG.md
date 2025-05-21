@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.1.0 - Update to Rust 2024 and V2 matching engine
+
+* b225aa1d - feat: Add form_urlencoded feature (Ronald Holshausen, Wed May 21 11:49:39 2025 +1000)
+* 87cc5ba7 - chore: Update pact_matching to 2.0.0-beta.1 (Ronald Holshausen, Wed May 21 11:48:27 2025 +1000)
+* acab927a - chore: Update to pact_matching 2.0.0-beta (Ronald Holshausen, Wed May 21 10:53:46 2025 +1000)
+* a4a966bf - chore(pact_mock_server): Update dependencies (Ronald Holshausen, Wed May 21 10:43:49 2025 +1000)
+* a4b7cb67 - chore(pact_mock_server): Upgrade to Rust 2024 edition (Ronald Holshausen, Wed May 21 10:39:38 2025 +1000)
+* 4441dcb7 - chore: fix build after cherry pick from v1.x (Ronald Holshausen, Thu Mar 27 09:53:50 2025 +1100)
+* b75a6240 - fix: tasklocal LOG_ID needs to be accessable from other crates (Ronald Holshausen, Wed Mar 26 15:39:15 2025 +1100)
+* 02469b44 - chore: Use a local tasklocal LOG_ID instead of the one from pact-matching which is deprecated (Ronald Holshausen, Wed Mar 26 15:17:55 2025 +1100)
+* 32d36f91 - bump version to 2.0.4 (Ronald Holshausen, Wed Mar 26 10:56:26 2025 +1100)
+
 # 2.0.3 - Maintenance Release
 
 * b12f32d8 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
