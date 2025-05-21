@@ -448,7 +448,7 @@ async fn match_result_to_hyper_response(
   };
 
   match match_result {
-    MatchResult::RequestMatch(_, ref response, _) => {
+    MatchResult::RequestMatch(_, response, _) => {
       debug!("Test context = {:?}", context);
       let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context).await;
       info!("Request matched, sending response");
