@@ -14,12 +14,13 @@ exclude = [
 ]
 
 [features]
-default = ["datetime", "xml", "plugins", "multipart", "tls"]
+default = ["datetime", "xml", "plugins", "multipart", "tls", "form_urlencoded"]
 datetime = ["pact_models/datetime", "pact-plugin-driver?/datetime", "pact_matching/datetime"] # Support for date/time matchers and expressions
 xml = ["pact_models/xml", "pact-plugin-driver?/xml", "pact_matching/xml"] # support for matching XML documents
 plugins = ["dep:pact-plugin-driver", "pact_matching/plugins"]
 multipart = ["pact_matching/multipart"] # suport for MIME multipart bodies
 tls = ["dep:hyper-rustls", "dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls", "dep:rcgen", "dep:rustls-webpki"]
+form_urlencoded = ["pact_models/form_urlencoded", "pact_matching/form_urlencoded"]
 
 [dependencies]
 anyhow = "1.0.98"
