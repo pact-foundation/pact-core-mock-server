@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.16 - Fix for Alpine
+
+* 661c6c95 - fix: Onig crate needs default-features = false so it compiles on Alpine (Ronald Holshausen, Wed Jun 11 13:59:35 2025 +1000)
+* 14ca2abd - bump version to 1.2.16 (Ronald Holshausen, Wed Jun 11 11:50:24 2025 +1000)
+
 # 1.2.15 - Maintenance Release
 
 * a44bec3d - fix: Upgrade onig to 6.5.1 as the Match Whole String for is_match fix has been released (Ronald Holshausen, Wed Jun 11 11:46:16 2025 +1000)
