@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.4 - Maintenance Release
+
+* 23684e67 - bump version to 2.0.4 (Ronald Holshausen, Wed Mar 26 10:56:26 2025 +1100)
+* 01419502 - fix: rustls-pemfile and rustls-webpki need the default features set (Ronald Holshausen, Wed Jun 11 15:19:11 2025 +1000)
+* cc91078c - fix: Upgrade onig to 6.5.1 as the Match Whole String for is_match fix has been released (Ronald Holshausen, Wed Jun 11 11:46:16 2025 +1000)
+* 7c935f70 - chore: Upgrade pact_matching to 1.2.11, pact_models to 1.3.2 and pact-plugin-driver to 0.7.4 (Ronald Holshausen, Wed Jun 11 11:42:02 2025 +1000)
+
 # 2.0.3 - Maintenance Release
 
 * b12f32d8 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
