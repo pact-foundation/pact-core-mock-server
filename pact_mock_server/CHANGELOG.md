@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.15 - Maintenance Release
+
+* a44bec3d - fix: Upgrade onig to 6.5.1 as the Match Whole String for is_match fix has been released (Ronald Holshausen, Wed Jun 11 11:46:16 2025 +1000)
+* 711c2860 - chore: Upgrade pact_matching to 1.2.11, pact_models to 1.3.2 and pact-plugin-driver to 0.7.4 (Ronald Holshausen, Wed Jun 11 11:42:02 2025 +1000)
+* acbbf6a8 - bump version to 1.2.15 (Ronald Holshausen, Wed Mar 26 15:41:21 2025 +1100)
+
 # 1.2.14 - Maintenance Release
 
 * c98d12e1 - fix: tasklocal LOG_ID needs to be accessable from other crates (Ronald Holshausen, Wed Mar 26 15:39:15 2025 +1100)
