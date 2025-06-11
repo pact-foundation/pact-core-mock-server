@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.1.1 - Maintenance Release
+
+* 1cdbbfa5 - Merge branch 'v2.0.x' (Ronald Holshausen, Wed Jun 11 16:07:41 2025 +1000)
+* 4442eecd - bump version to 2.0.5 (Ronald Holshausen, Wed Jun 11 15:55:48 2025 +1000)
+* e632fd4e - update changelog for release 2.0.4 (Ronald Holshausen, Wed Jun 11 15:49:40 2025 +1000)
+* 23684e67 - bump version to 2.0.4 (Ronald Holshausen, Wed Mar 26 10:56:26 2025 +1100)
+* cb81f586 - update changelog for release 2.0.3 (Ronald Holshausen, Wed Mar 26 10:55:07 2025 +1100)
+* fe84be50 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
+* 1eab281b - bump version to 2.0.3 (Ronald Holshausen, Wed Sep 4 10:47:47 2024 +1000)
+* a735c008 - update changelog for release 2.0.2 (Ronald Holshausen, Wed Sep 4 10:46:16 2024 +1000)
+* 5ade7faa - update changelog for release 2.0.2 (Ronald Holshausen, Wed Jun 11 15:35:11 2025 +1000)
+* 01419502 - fix: rustls-pemfile and rustls-webpki need the default features set (Ronald Holshausen, Wed Jun 11 15:19:11 2025 +1000)
+* cc91078c - fix: Upgrade onig to 6.5.1 as the Match Whole String for is_match fix has been released (Ronald Holshausen, Wed Jun 11 11:46:16 2025 +1000)
+* 7c935f70 - chore: Upgrade pact_matching to 1.2.11, pact_models to 1.3.2 and pact-plugin-driver to 0.7.4 (Ronald Holshausen, Wed Jun 11 11:42:02 2025 +1000)
+* 73a6d61e - bump version to 2.1.1 (Ronald Holshausen, Wed May 21 11:58:43 2025 +1000)
+
 # 2.1.0 - Update to Rust 2024 and V2 matching engine
 
 * b225aa1d - feat: Add form_urlencoded feature (Ronald Holshausen, Wed May 21 11:49:39 2025 +1000)
