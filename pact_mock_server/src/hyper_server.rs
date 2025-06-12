@@ -435,7 +435,7 @@ async fn match_result_to_hyper_response(
   let cors_preflight = config.cors_preflight;
   let context = hashmap!{
     "mockServer" => json!({
-      "url": local_addr.to_string(),
+      "url": format!("http://{}", local_addr),
       "port": local_addr.port()
     })
   };
