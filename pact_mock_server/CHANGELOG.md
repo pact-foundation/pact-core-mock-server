@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.1.2 - Bugfix Release
+
+* d73852ca - fix: Mock server URL in the test context was incorrectly formatted (Ronald Holshausen, Thu Jun 12 11:14:29 2025 +1000)
+* 8d3b89ae - bump version to 2.1.2 (Ronald Holshausen, Wed Jun 11 16:11:53 2025 +1000)
+
 # 2.1.1 - Maintenance Release
 
 * 1cdbbfa5 - Merge branch 'v2.0.x' (Ronald Holshausen, Wed Jun 11 16:07:41 2025 +1000)
