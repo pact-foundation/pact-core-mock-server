@@ -59,7 +59,7 @@ pub fn start_mock_server_with_config(
   config: MockServerConfig
 ) -> Result<i32, String> {
   configure_core_catalogue();
-  pact_matching::matchers::configure_core_catalogue();
+  pact_matching::matchingrules::configure_core_catalogue();
 
   #[allow(deprecated)]
   MANAGER.lock().unwrap()
@@ -120,7 +120,7 @@ pub fn start_tls_mock_server_with_config(
   config: MockServerConfig
 ) -> Result<i32, String> {
   configure_core_catalogue();
-  pact_matching::matchers::configure_core_catalogue();
+  pact_matching::matchingrules::configure_core_catalogue();
 
   #[allow(deprecated)]
   MANAGER.lock().unwrap()
@@ -155,7 +155,7 @@ pub fn start_mock_server_for_transport(
   config: MockServerConfig
 ) -> anyhow::Result<i32> {
   configure_core_catalogue();
-  pact_matching::matchers::configure_core_catalogue();
+  pact_matching::matchingrules::configure_core_catalogue();
 
   let key = format!("transport/{}", transport);
   let transport_entry = catalogue_manager::lookup_entry(key.as_str())
@@ -180,7 +180,7 @@ pub fn create_mock_server(
   addr: std::net::SocketAddr
 ) -> anyhow::Result<i32> {
   configure_core_catalogue();
-  pact_matching::matchers::configure_core_catalogue();
+  pact_matching::matchingrules::configure_core_catalogue();
 
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {

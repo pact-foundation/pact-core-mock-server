@@ -28,7 +28,7 @@ impl MockServerBuilder {
   /// Construct a new builder
   pub fn new() -> Self {
     configure_core_catalogue();
-    pact_matching::matchers::configure_core_catalogue();
+    pact_matching::matchingrules::configure_core_catalogue();
 
     MockServerBuilder {
       config: Default::default(),
