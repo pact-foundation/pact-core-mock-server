@@ -7,10 +7,12 @@
 
 use std::env;
 use std::io;
+use std::process::ExitCode;
 use std::str::FromStr;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
+use clap::ArgMatches;
 use clap::{Arg, ArgAction, command, Command};
 use clap::error::ErrorKind;
 use lazy_static::*;
@@ -41,7 +43,7 @@ mod list;
 mod verify;
 mod shutdown;
 
-fn print_version() {
+pub fn print_version() {
     println!("pact mock server version  : v{}", clap::crate_version!());
     println!("pact specification version: v{}", PactSpecification::V4.version_str());
 }
@@ -95,14 +97,6 @@ fn mock_server_id(v: &str) -> Result<String, String> {
   }
 }
 
-#[tokio::main]
-async fn main() {
-  match handle_command_args().await {
-    Ok(_) => (),
-    Err(err) => std::process::exit(err)
-  }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct ServerOpts {
   pub output_path: Option<String>,
@@ -114,13 +108,45 @@ lazy_static!{
   pub(crate) static ref SERVER_MANAGER: Mutex<ServerManager> = Mutex::new(ServerManager::new());
 }
 
-async fn handle_command_args() -> Result<(), i32> {
+pub async fn handle_command_args() -> Result<(), i32> {
   let mut app = setup_args();
 
-  let usage = app.render_usage().to_string();
   let matches = app.try_get_matches();
   match matches {
-    Ok(ref matches) => {
+    Ok(results) => handle_matches(&results).await,
+
+    Err(ref err) => {
+      match err.kind() {
+        ErrorKind::DisplayHelp => {
+          println!("{}", err);
+          Ok(())
+        },
+        ErrorKind::DisplayVersion => {
+          print_version();
+          println!();
+          Ok(())
+        },
+        _ => {
+          err.exit()
+        }
+      }
+    }
+  }
+}
+
+pub fn process_mock_command(args: &ArgMatches) -> Result<(), ExitCode>  {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let res = handle_matches(args).await;
+        match res {
+            Ok(()) => Ok(()),
+            Err(code) => Err(ExitCode::from(code as u8)),
+        }
+    })
+}
+
+
+
+async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
       let log_level = matches.get_one::<String>("loglevel").map(|lvl| lvl.as_str());
       let no_file_log = matches.get_flag("no-file-log");
       let no_term_log = matches.get_flag("no-term-log");
@@ -144,6 +170,8 @@ async fn handle_command_args() -> Result<(), i32> {
       let localhost = "localhost".to_string();
       let host = matches.get_one::<String>("host").unwrap_or(&localhost);
 
+      let usage = setup_args().render_usage().to_string();
+
       match matches.subcommand() {
         Some(("start", sub_matches)) => {
           let output_path = sub_matches.get_one::<String>("output").map(|s| s.to_owned());
@@ -164,27 +192,8 @@ async fn handle_command_args() -> Result<(), i32> {
         Some(("shutdown-master", sub_matches)) => shutdown::shutdown_master_server(host, port, sub_matches, usage.as_str()).await,
         _ => Err(3)
       }
-    },
-    Err(ref err) => {
-      match err.kind() {
-        ErrorKind::DisplayHelp => {
-          println!("{}", err);
-          Ok(())
-        },
-        ErrorKind::DisplayVersion => {
-          print_version();
-          println!();
-          Ok(())
-        },
-        _ => {
-          err.exit()
-        }
-      }
-    }
-  }
 }
-
-fn setup_args() -> Command {
+pub fn setup_args() -> Command {
   #[allow(unused_mut)]
   let mut create_command = Command::new("create")
     .about("Creates a new mock server from a pact file")
