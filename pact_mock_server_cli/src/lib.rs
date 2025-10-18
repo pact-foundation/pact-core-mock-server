@@ -208,7 +208,12 @@ pub fn setup_args() -> Command {
       .short('c')
       .long("cors-preflight")
       .action(ArgAction::SetTrue)
-      .help("Handle CORS pre-flight requests"));
+      .help("Handle CORS pre-flight requests"))
+    .arg(Arg::new("specification")
+      .long("specification")
+      .action(ArgAction::Set)
+      .num_args(1)
+      .help("The Pact specification version to use (defaults to V4)"));
 
   #[cfg(feature = "tls")]
   {
