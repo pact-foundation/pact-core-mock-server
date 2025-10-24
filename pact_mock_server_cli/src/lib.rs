@@ -21,10 +21,10 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use regex::Regex;
 use tracing_core::LevelFilter;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::FmtSubscriber;
 
 use pact_mock_server::server_manager::ServerManager;
+use tracing_subscriber::layer::SubscriberExt;
 
 pub(crate) fn display_error(error: String, _usage: &str, code: i32) -> ! {
   eprintln!("ERROR: {}\nExiting with status {}", error, code);
@@ -62,13 +62,20 @@ fn setup_loggers(
 
   if command == "start" && !no_file_log {
     let file_appender = tracing_appender::rolling::daily(output.unwrap_or("."), "pact_mock_server.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    let subscriber = FmtSubscriber::builder()
-      .with_max_level(log_level)
-      .with_writer(non_blocking.and(io::stdout))
-      .with_thread_names(true)
-      .with_ansi(!no_term_log)
-      .finish();
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    static mut LOG_GUARD: Option<tracing_appender::non_blocking::WorkerGuard> = None;
+    unsafe {
+      LOG_GUARD = Some(guard);
+    }
+    let file_layer = tracing_subscriber::fmt::layer()
+      .with_writer(non_blocking)
+      .with_ansi(false)
+      .with_thread_names(true);
+
+    let subscriber = 
+    FmtSubscriber::builder().with_max_level(log_level).with_ansi(!no_term_log).finish()
+      .with(file_layer);
+
     tracing::subscriber::set_global_default(subscriber)
   } else {
     let subscriber = FmtSubscriber::builder()
