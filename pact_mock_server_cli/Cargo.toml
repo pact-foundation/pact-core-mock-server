@@ -59,7 +59,7 @@ env_logger = "0.11.5"
 
 # create bin and lib entries
 [[bin]]
-name = "pact_mock_server_cli"
+name = "pact-mock-server"
 path = "src/bin.rs"
 [lib]
 name = "pact_mock_server_cli"

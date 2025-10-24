@@ -1,6 +1,6 @@
 Creates a new mock server from a pact file
 
-Usage: pact_mock_server_cli create [OPTIONS] --file <file>
+Usage: pact-mock-server create [OPTIONS] --file <file>
 
 Options:
   -f, --file <file>                    the pact file to define the mock server
