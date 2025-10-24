@@ -56,3 +56,11 @@ expectest = "0.12.0"
 trycmd = "0.15.7"
 test-log = "0.2.16"
 env_logger = "0.11.5"
+
+# create bin and lib entries
+[[bin]]
+name = "pact-mock-server"
+path = "src/bin.rs"
+[lib]
+name = "pact_mock_server_cli"
+path = "src/lib.rs"

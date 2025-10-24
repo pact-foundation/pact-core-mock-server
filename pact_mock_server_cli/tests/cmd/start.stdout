@@ -1,6 +1,6 @@
 Starts the master mock server
 
-Usage: pact_mock_server_cli start [OPTIONS]
+Usage: pact-mock-server start [OPTIONS]
 
 Options:
       --help                     Print help and exit

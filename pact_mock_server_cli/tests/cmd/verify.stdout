@@ -1,6 +1,6 @@
 Verify the mock server by id or port number, and generate a pact file if all ok
 
-Usage: pact_mock_server_cli verify [OPTIONS]
+Usage: pact-mock-server verify [OPTIONS]
 
 Options:
       --help

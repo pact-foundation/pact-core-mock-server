@@ -19,8 +19,8 @@ build_x86_64() {
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/pact_mock_server_cli" \
-            "$ARTIFACTS_DIR/pact_mock_server_cli-linux-x86_64.gz"
+            "$CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/pact-mock-server" \
+            "$ARTIFACTS_DIR/pact-mock-server-linux-x86_64.gz"
     fi
 }
 
@@ -34,8 +34,8 @@ build_aarch64() {
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/aarch64-unknown-linux-musl/release/pact_mock_server_cli" \
-            "$ARTIFACTS_DIR/pact_mock_server_cli-linux-aarch64.gz"
+            "$CARGO_TARGET_DIR/aarch64-unknown-linux-musl/release/pact-mock-server" \
+            "$ARTIFACTS_DIR/pact-mock-server-linux-aarch64.gz"
     fi
 }
 

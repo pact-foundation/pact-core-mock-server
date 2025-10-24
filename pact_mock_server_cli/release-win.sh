@@ -20,8 +20,8 @@ build_x86_64() {
     # If --release in cargo flags, then gzip and sum the release artifacts
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/pact_mock_server_cli.exe" \
-            "$ARTIFACTS_DIR/pact_mock_server_cli-windows-x86_64.exe.gz"
+            "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/pact-mock-server.exe" \
+            "$ARTIFACTS_DIR/pact-mock-server-windows-x86_64.exe.gz"
     fi
 }
 
@@ -31,8 +31,8 @@ build_aarch64() {
 
     if [[ "${cargo_flags[*]}" =~ "--release" ]]; then
         gzip_and_sum \
-            "$CARGO_TARGET_DIR/aarch64-pc-windows-msvc/release/pact_mock_server_cli.exe" \
-            "$ARTIFACTS_DIR/pact_mock_server_cli-windows-aarch64.exe.gz"
+            "$CARGO_TARGET_DIR/aarch64-pc-windows-msvc/release/pact-mock-server.exe" \
+            "$ARTIFACTS_DIR/pact-mock-server-windows-aarch64.exe.gz"
     fi
 }
 

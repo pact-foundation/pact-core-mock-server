@@ -1,2 +1,2 @@
-bin.name = "pact_mock_server_cli"
+bin.name = "pact-mock-server"
 args = "shutdown --help"

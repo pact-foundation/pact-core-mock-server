@@ -1,6 +1,6 @@
 Lists all the running mock servers
 
-Usage: pact_mock_server_cli list [OPTIONS]
+Usage: pact-mock-server list [OPTIONS]
 
 Options:
       --help                 Print help and exit
