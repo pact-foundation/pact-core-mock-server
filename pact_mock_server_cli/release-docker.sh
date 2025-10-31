@@ -27,3 +27,17 @@ docker manifest create pactfoundation/pact-mock-server:latest \
     --amend pactfoundation/pact-mock-server:$1-amd64 \
     --amend pactfoundation/pact-mock-server:$1-arm64v8
 docker manifest push pactfoundation/pact-mock-server:latest
+
+# publish to ghcr, pactfoundation must be renamed to pact-foundation
+docker tag pactfoundation/pact-mock-server:$1-amd64 ghcr.io/pact-foundation/pact-mock-server:$1-amd64
+docker push ghcr.io/pact-foundation/pact-mock-server:$1-amd64
+docker tag pactfoundation/pact-mock-server:$1-arm64v8 ghcr.io/pact-foundation/pact-mock-server:$1-arm64v8
+docker push ghcr.io/pact-foundation/pact-mock-server:$1-arm64v8
+docker manifest create ghcr.io/pact-foundation/pact-mock-server:$1 \
+    --amend ghcr.io/pact-foundation/pact-mock-server:$1-amd64 \
+    --amend ghcr.io/pact-foundation/pact-mock-server:$1-arm64v8
+docker manifest push ghcr.io/pact-foundation/pact-mock-server:$1
+docker manifest create ghcr.io/pact-foundation/pact-mock-server:latest \
+    --amend ghcr.io/pact-foundation/pact-mock-server:$1-amd64 \
+    --amend ghcr.io/pact-foundation/pact-mock-server:$1-arm64v8
+docker manifest push ghcr.io/pact-foundation/pact-mock-server:latest
