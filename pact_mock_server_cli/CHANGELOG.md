@@ -1,5 +1,30 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.0.0 - [Feature Release]
+
+* 59278827 - chore(deps): cli - update all deps bar webmachine-rust (Yousaf Nabi, Fri Oct 24 13:09:58 2025 +0100)
+* 05aa5e63 - chore(docker): rename to pactfoundation/pact-mock-server (Yousaf Nabi, Wed Oct 29 20:27:03 2025 +0000)
+* f1ab67bc - chore(pact_mock_server_cli): rename bin.rs to bin/pact-mock-server (Yousaf Nabi, Wed Oct 29 20:26:28 2025 +0000)
+* a48de452 - feat!: rename binary to pact-mock-server (Yousaf Nabi, Fri Oct 24 12:56:04 2025 +0100)
+* 1bf02075 - fix: ensure we write logs to file (Yousaf Nabi, Fri Oct 24 12:11:05 2025 +0100)
+* 19b1066a - feat: allow setting of pact specification version to output on mock server creation (Yousaf Nabi, Sat Oct 18 01:57:52 2025 +0100)
+* 87316f47 - chore: rename main.rs to lib.rs to align with rust conventions (Yousaf Nabi, Wed Oct 8 23:59:05 2025 +0100)
+* fc2925f6 - feat: cli as lib (Yousaf Nabi, Sat Sep 27 12:04:49 2025 +0100)
+* a21104cd - chore: Update pact_matching to 2.0.1 (Ronald Holshausen, Fri Aug 1 09:18:02 2025 +1000)
+* ebaa186d - chore: Update pact_matching to 2.0.0 (Ronald Holshausen, Thu Jul 31 15:23:24 2025 +1000)
+* 1cdbbfa5 - Merge branch 'v2.0.x' (Ronald Holshausen, Wed Jun 11 16:07:41 2025 +1000)
+* fe84be50 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
+* aa17c97a - chore(pact_mock_server_cli): Update dependencies (Ronald Holshausen, Wed Sep 4 10:52:27 2024 +1000)
+* 7c935f70 - chore: Upgrade pact_matching to 1.2.11, pact_models to 1.3.2 and pact-plugin-driver to 0.7.4 (Ronald Holshausen, Wed Jun 11 11:42:02 2025 +1000)
+* acab927a - chore: Update to pact_matching 2.0.0-beta (Ronald Holshausen, Wed May 21 10:53:46 2025 +1000)
+* b12f32d8 - chore: Update dependencies (Ronald Holshausen, Wed Mar 26 10:51:10 2025 +1100)
+* 4c83cd88 - chore: Upgrade pact_models to 1.3.0 (Ronald Holshausen, Wed Mar 26 10:42:01 2025 +1100)
+* 4f619446 - chore(pact_mock_server_cli): Update dependencies (Ronald Holshausen, Wed Sep 4 10:52:27 2024 +1000)
+* f23e3508 - chore: Upgrade pact-plugin-driver to 0.7.1 (Ronald Holshausen, Wed Sep 4 09:29:48 2024 +1000)
+* c6072314 - chore: Upgrade pact_matching to 1.2.5 (Ronald Holshausen, Wed Jul 17 14:50:41 2024 +1000)
+* f190ef87 - chore: Upgrade pact_models to 1.2.2 (Ronald Holshausen, Wed Jul 17 11:20:30 2024 +1000)
+* 20dd88cf - bump version to 2.0.0-beta.1 (Ronald Holshausen, Tue Jul 2 16:59:32 2024 +1000)
+
 # 2.0.0-beta.0 - First beta with new mock server
 
 * 00f78d1f - chore: Upgrade pact_mock_server to 2.0.0-beta.5 (Ronald Holshausen, Tue Jul 2 16:17:05 2024 +1000)
