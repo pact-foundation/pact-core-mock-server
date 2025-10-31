@@ -17,7 +17,7 @@ use clap::{Arg, ArgAction, command, Command};
 use clap::error::ErrorKind;
 use lazy_static::*;
 use pact_models::PactSpecification;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::Rng;
 use regex::Regex;
 use tracing_core::LevelFilter;
