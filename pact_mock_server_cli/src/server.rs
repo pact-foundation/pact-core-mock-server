@@ -93,10 +93,23 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
             })?;
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = generate_hexadecimal(8);
-          let config = MockServerConfig {
+          let pact_specification = match context.request.query.get("specification") {
+            Some(specs) => {
+              match specs.first() {
+                Some(spec) if !spec.is_empty() => Some(spec.clone()),
+                _ => None,
+              }
+            },
+            None => None
+          };
+
+          let mut config = MockServerConfig {
             cors_preflight: query_param_set(context, "cors"),
             .. MockServerConfig::default()
-          };
+            };
+          if let Some(spec) = pact_specification {
+            config.pact_specification = spec.into();
+          }
           debug!("Mock server config = {:?}", config);
 
           #[allow(unused_assignments)]

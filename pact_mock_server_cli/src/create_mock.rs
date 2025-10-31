@@ -15,14 +15,19 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches, usa
 
   match RequestResponsePact::read_pact(Path::new(file)) {
     Ok(ref pact) => {
-      let mut args = vec![];
+      let mut args = Vec::<String>::new();
       if matches.get_flag("cors") {
         info!("Setting mock server to handle CORS pre-flight requests");
-        args.push("cors=true");
+        args.push("cors=true".to_string());
+      }
+      if let Some(specification) = matches.get_one::<String>("specification") {
+        info!("Setting mock server to use pact specification {}", specification);
+        let spec_arg = format!("specification={}", specification);
+        args.push(spec_arg);
       }
       if matches.get_flag("tls") {
         info!("Setting mock server to use TLS");
-        args.push("tls=true");
+        args.push("tls=true".to_string());
       }
       let url = if args.is_empty() {
         format!("http://{}:{}/", host, port)
