@@ -181,8 +181,8 @@ pub(crate) async fn create_and_bind_https(
   let tls_config = match &config.tls_config {
     Some(config) => config.clone(),
     None => {
-      let CertifiedKey { cert, key_pair } = generate_simple_self_signed(["localhost".to_string()])?;
-      let private_key = PrivateKeyDer::try_from(key_pair.serialize_der())
+      let CertifiedKey { cert, signing_key } = generate_simple_self_signed(["localhost".to_string()])?;
+      let private_key = PrivateKeyDer::try_from(signing_key.serialize_der())
         .map_err(|err| anyhow!(err))?;
       ServerConfig::builder()
         .with_no_client_auth()
