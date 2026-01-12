@@ -154,18 +154,30 @@ fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
           }
 
           match result {
-            Ok(mock_server) => {
-              debug!("Mock server started on port {}", mock_server.port());
-              let mock_server_json = json!({
-                "id" : json!(mock_server_id),
-                "port" : json!(mock_server.port() as i64),
-              });
+            Ok(mock_server_details) => {
+              let mock_server_json = match mock_server_details {
+                Either::Left(mock_server) => {
+                  debug!("Mock server started on port {}", mock_server.port());
+                  json!({
+                    "id" : mock_server_id,
+                    "port" : mock_server.port()
+                  })
+                }
+                Either::Right((id, port)) => {
+                  debug!("Plugin Mock server started on port {}", port);
+                  json!({
+                    "id" : id,
+                    "port" : port,
+                  })
+                }
+              };
+
               let json_response = json!({ "mockServer" : mock_server_json });
               context.response.body = Some(Bytes::from(json_response.to_string()));
               context.response.add_header("Location",
                 vec![HeaderValue::basic(format!("/mockserver/{}", mock_server_id).as_str())]);
               Ok(true)
-            },
+            }
             Err(msg) => {
               context.response.body = Some(json_error(format!("Failed to start mock server - {}", msg)));
               Err(422)
@@ -193,7 +205,7 @@ fn start_https_server(
   config: MockServerConfig,
   port: u16,
   id: &String
-) -> anyhow::Result<MockServer> {
+) -> anyhow::Result<Either<MockServer, (String, u16)>> {
   debug!("Starting TLS mock server with id {}", id);
   let mut server_manager = SERVER_MANAGER.lock().unwrap();
   trace!("Unlocked server manager");

@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::ffi::CString;
 #[cfg(feature = "plugins")] use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{Ipv6Addr, SocketAddr};
 #[cfg(feature = "plugins")] use std::net::ToSocketAddrs;
 
 use anyhow::anyhow;
@@ -75,7 +75,77 @@ impl ServerManager {
 
   /// Consumes the mock server builder, and then spawns the resulting mock server on the server
   /// manager's runtime. Note that this function will block the current calling thread.
-  pub fn spawn_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
+  ///
+  /// The returned value depends on whether the mock server is directly managed by this manager
+  /// or provided by a plugin. For plugin provided mock servers, the function will return the
+  /// mock server ID and port.
+  pub fn spawn_mock_server(
+    &mut self,
+    builder: MockServerBuilder
+  ) -> anyhow::Result<Either<MockServer, (String, u16)>> {
+    #[cfg(feature = "plugins")]
+    {
+      if let Some(transport) = builder.config.transport_entry.clone() {
+        if transport.provider_type == CatalogueEntryProviderType::PLUGIN {
+          let config = builder.config;
+          let mut pact = builder.pact;
+
+          for interaction in pact.interactions.iter_mut() {
+            if let None = interaction.transport() {
+              interaction.set_transport(transport.key.split("/").last().map(|i| i.to_string()));
+            }
+          }
+
+          let address = if config.address.is_empty() {
+            SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0)
+          } else {
+            config.address.parse()?
+          };
+
+          let mock_server_config = pact_plugin_driver::mock_server::MockServerConfig {
+            output_path: None,
+            host_interface: Some(address.ip().to_string()),
+            port: address.port() as u32,
+            tls: false
+          };
+          let test_context = hashmap! {};
+          let result = self.runtime.block_on(
+            pact_plugin_driver::plugin_manager::start_mock_server_v2(&transport, pact.boxed(),
+              mock_server_config, test_context)
+          )?;
+          let port = result.port as u16;
+          let id = result.key.clone();
+          self.mock_servers.insert(
+            id.clone(),
+            ServerEntry {
+              mock_server: Either::Right(PluginMockServer {
+                mock_server_details: result,
+                catalogue_entry: transport,
+                pact
+              }),
+              port,
+              resources: vec![]
+            }
+          );
+
+          Ok(Either::Right((id, port)))
+        } else {
+          self.spawn_http_mock_server(builder).map(Either::Left)
+        }
+      } else {
+        self.spawn_http_mock_server(builder).map(Either::Left)
+      }
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    self.spawn_http_mock_server(builder).map(Either::Left)
+  }
+
+  /// Consumes the mock server builder, and then spawns the resulting HTTP mock server on the server
+  /// manager's runtime. Note that this function will block the current calling thread.
+  ///
+  /// This function does not handle mock servers provided by plugins.
+  pub fn spawn_http_mock_server(&mut self, builder: MockServerBuilder) -> anyhow::Result<MockServer> {
     #[allow(unused_assignments)]
     let mut mock_server = MockServer::default();
 

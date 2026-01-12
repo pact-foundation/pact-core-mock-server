@@ -2,6 +2,7 @@
 
 use std::net::Ipv4Addr;
 #[allow(unused_imports)] use anyhow::{anyhow, Context};
+use itertools::Either;
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::pact::V4Pact;
@@ -20,8 +21,10 @@ use crate::server_manager::ServerManager;
 
 /// Builder for constructing mock servers
 pub struct MockServerBuilder {
-  config: MockServerConfig,
-  pact: V4Pact
+  /// Mock server configuration
+  pub config: MockServerConfig,
+  /// Pact to use for the mock server interactions
+  pub pact: V4Pact
 }
 
 impl MockServerBuilder {
@@ -161,6 +164,35 @@ impl MockServerBuilder {
 
   /// Set the transport to use. The default transports are 'http' and 'https'. Additional transports
   /// can be provided by plugins.
+  ///
+  /// Note that plugin mock servers can only be supported by assigning this builder to a
+  /// `ServerManager`, which will interact with the plugin driver to start the plugin mock server
+  /// correctly.
+  /// For instance:
+  /// ```no_run
+  /// # use pact_models::pact::Pact;
+  /// # use pact_models::v4::pact::V4Pact;
+  /// # use pact_mock_server::builder::MockServerBuilder;
+  /// # use pact_mock_server::server_manager::ServerManager;
+  /// # #[tokio::main]
+  /// # async fn main() -> anyhow::Result<()> {
+  /// # let some_grpc_pact = V4Pact::default().boxed();
+  /// // This won't work
+  /// let mock_server_details = MockServerBuilder::new()
+  ///    .with_pact(some_grpc_pact.boxed())
+  ///    .with_transport("grpc")?
+  ///    .start()
+  ///    .await?;
+  ///
+  /// // Instead, assign it to a server manager
+  /// let mut manager = ServerManager::new();
+  /// let builder = MockServerBuilder::new()
+  ///    .with_pact(some_grpc_pact.boxed())
+  ///    .with_transport("grpc")?;
+  /// let mock_server_details = builder.attach_to_manager(&mut manager)?;
+  /// # Ok::<(), anyhow::Error>(())
+  /// # }
+  /// ```
   #[cfg(feature = "plugins")]
   pub fn with_transport<S: Into<String>>(mut self, transport: S) -> anyhow::Result<Self> {
     let transport = transport.into();
@@ -194,14 +226,23 @@ impl MockServerBuilder {
   pub fn attach_to_global_manager(self) -> anyhow::Result<MockServer> {
     let mut guard = MANAGER.lock().unwrap();
     let manager = guard.get_or_insert_with(|| ServerManager::new());
-    manager.spawn_mock_server(self)
+    manager.spawn_http_mock_server(self)
   }
 
   /// Starts the mockserver, consuming this builder and registers it with the server manager.
   /// The mock server tasks will be spawned on the server manager's runtime.
-  /// Returns the mock server instance.
-  pub fn attach_to_manager(self, manager: &mut ServerManager) -> anyhow::Result<MockServer> {
+  /// Returns the mock server instance, unless the mock server was provided by a plugin, in which
+  /// case it just returns the mock server ID and port.
+  pub fn attach_to_manager(
+    self, manager:
+    &mut ServerManager
+  ) -> anyhow::Result<Either<MockServer, (String, u16)>> {
     manager.spawn_mock_server(self)
+  }
+  
+  /// Returns a clone of the config within this builder
+  pub fn config(&self) -> MockServerConfig {
+    self.config.clone()
   }
 }
 

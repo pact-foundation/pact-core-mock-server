@@ -215,7 +215,7 @@ fn match_request_with_header_with_multiple_values() -> anyhow::Result<()> {
     .with_v4_pact(pact)
     .with_id(id.clone())
     .bind_to("127.0.0.1:0");
-  let result = manager.spawn_mock_server(mock_server_builder);
+  let result = manager.spawn_http_mock_server(mock_server_builder);
   let mock_server = result.unwrap();
   let port = mock_server.port();
 
