@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.2.0 - Bugfix Release
+
+* 7d69bf72 - fix: ServerManager spawn_mock_server function now handles mock servers provided by plugins (Ronald Holshausen, Tue Jan 13 10:40:26 2026 +1100)
+* eddf0177 - chore: Bump minor version of the pact_mock_server crate (Ronald Holshausen, Tue Jan 13 10:30:52 2026 +1100)
+* 3e0ec76c - chore: remove unused dev dependencies (Ronald Holshausen, Mon Jan 12 16:49:08 2026 +1100)
+* 7f4453d9 - chore: Upgrade rcgen to 0.14.6 (Ronald Holshausen, Mon Jan 12 16:46:49 2026 +1100)
+* c0f0b2f6 - chore: Update all dependencies except rcgen (Ronald Holshausen, Mon Jan 12 16:41:38 2026 +1100)
+* a21104cd - chore: Update pact_matching to 2.0.1 (Ronald Holshausen, Fri Aug 1 09:18:02 2025 +1000)
+* ffc6a4d4 - bump version to 2.1.4 (Ronald Holshausen, Thu Jul 31 15:37:19 2025 +1000)
+
 # 2.1.3 - Maintenance Release
 
 * ebaa186d - chore: Update pact_matching to 2.0.0 (Ronald Holshausen, Thu Jul 31 15:23:24 2025 +1000)
