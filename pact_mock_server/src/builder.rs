@@ -344,7 +344,7 @@ mod tests {
     });
 
     let client = reqwest::blocking::Client::builder()
-      .danger_accept_invalid_certs(true)
+      .tls_danger_accept_invalid_certs(true)
       .build()
       .unwrap();
     let response = client.get(format!("https://127.0.0.1:{}", mock_server.port()).as_str())
@@ -467,7 +467,7 @@ ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
       .unwrap();
 
     let client = reqwest::Client::builder()
-      .danger_accept_invalid_certs(true)
+      .tls_danger_accept_invalid_certs(true)
       .build()
       .unwrap();
     let response = client.get(format!("https://127.0.0.1:{}", mock_server.port()).as_str())
