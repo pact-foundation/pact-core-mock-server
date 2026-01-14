@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.2.1 - Add functions to server manager to get mock server results
+
+* f64f0311 - chore: Correct flaky test (Ronald Holshausen, Wed Jan 14 16:24:10 2026 +1100)
+* 8fd64c9f - chore: Correct flaky test (Ronald Holshausen, Wed Jan 14 16:16:18 2026 +1100)
+* c4118123 - fix: correct imports when the plugins feature is disabled (Ronald Holshausen, Wed Jan 14 16:08:17 2026 +1100)
+* 0e58f2d9 - feat: Add functions to server manager to get mock server results (Ronald Holshausen, Wed Jan 14 15:51:28 2026 +1100)
+* 7838ac97 - bump version to 2.2.1 (Ronald Holshausen, Tue Jan 13 10:49:58 2026 +1100)
+
 # 2.2.0 - Bugfix Release
 
 * 7d69bf72 - fix: ServerManager spawn_mock_server function now handles mock servers provided by plugins (Ronald Holshausen, Tue Jan 13 10:40:26 2026 +1100)
