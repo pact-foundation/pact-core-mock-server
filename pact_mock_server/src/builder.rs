@@ -514,13 +514,17 @@ ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
     let response = client.get(format!("https://127.0.0.1:{}", mock_server.port()).as_str())
       .header(ACCEPT, "application/json")
       .send()
-      .await;
+      .await?
+      .error_for_status()
+      .unwrap();
+    let status = response.status();
+    let _body = response.text().await;
 
     let all_matched = mock_server.all_matched();
     let mismatches = mock_server.mismatches();
     mock_server.shutdown().unwrap();
 
-    expect!(response.unwrap().status()).to(be_equal_to(200));
+    expect!(status).to(be_equal_to(200));
     expect!(all_matched).to(be_true());
     expect!(mismatches).to(be_equal_to(vec![]));
 
