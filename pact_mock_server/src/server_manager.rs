@@ -9,18 +9,19 @@ use std::net::{Ipv6Addr, SocketAddr};
 #[cfg(feature = "plugins")] use std::net::ToSocketAddrs;
 
 use anyhow::anyhow;
-use itertools::Either;
+use itertools::{Either, Itertools};
 #[cfg(feature = "plugins")] use maplit::hashmap;
 use pact_models::pact::Pact;
 #[cfg(feature = "plugins")] use pact_models::prelude::v4::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 #[cfg(feature = "plugins")] use pact_plugin_driver::mock_server::MockServerDetails;
+use pact_plugin_driver::plugin_manager::get_mock_server_results;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 #[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use tracing::{debug, error, trace};
 #[cfg(feature = "plugins")] use url::Url;
 use crate::builder::MockServerBuilder;
-
 use crate::mock_server::{MockServer, MockServerConfig};
 
 /// Mock server that has been provided by a plugin
@@ -521,6 +522,121 @@ impl ServerManager {
       false
     }
   }
+
+  fn mock_server_entry_by_port(&self, port: u16) -> Option<&ServerEntry> {
+    self.mock_servers
+      .iter()
+      .find_map(|(_, entry)| if entry.port == port {
+        Some(entry)
+      } else {
+        None
+      })
+  }
+
+  fn mock_server_entry_matched(&self, entry: Option<&ServerEntry>) -> Option<bool> {
+    match entry {
+      Some(entry) => {
+        #[cfg(feature = "plugins")]
+        match &entry.mock_server {
+          Either::Left(mock_server) => Some(mock_server.all_matched()),
+          Either::Right(plugin_mock_server) => {
+            match self.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details)) {
+              Ok(results) => Some(results.is_empty()),
+              Err(err) => {
+                error!("Request to plugin to get matching results failed - {}", err);
+                Some(false)
+              }
+            }
+          }
+        }
+
+        #[cfg(not(feature = "plugins"))]
+        None
+      }
+      None => None
+    }
+  }
+
+  fn mock_server_entry_mismatches(&self, entry: Option<&ServerEntry>) -> anyhow::Result<Option<Vec<Value>>> {
+    match entry {
+      Some(entry) => {
+        match &entry.mock_server {
+          Either::Left(mock_server) => Ok(Some(mock_server.mismatches()
+            .iter()
+            .map(|mismatches| mismatches.to_json())
+            .collect())),
+          Either::Right(plugin_mock_server) => {
+            #[cfg(feature = "plugins")]
+            match self.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details)) {
+              Ok(results) => Ok(Some(results
+                .iter()
+                .map(|results| {
+                  json!({
+                    "path": results.path,
+                    "error": results.error,
+                    "mismatches": results.mismatches.iter().map(|mismatch| {
+                      json!({
+                          "expected": mismatch.expected,
+                          "actual": mismatch.actual,
+                          "mismatch": mismatch.mismatch,
+                          "path": mismatch.path,
+                          "diff": mismatch.diff.clone().unwrap_or_default()
+                      })
+                    })
+                    .collect_vec()
+                  })
+                })
+                .collect())),
+              Err(err) => {
+                error!(port = entry.port, "Request to plugin to get mock server matching results failed - {}", err);
+                Err(anyhow!("Request to plugin to get mock server (port={}) matching results failed - {}", entry.port, err))
+              }
+            }
+
+            #[cfg(not(feature = "plugins"))]
+            Err(anyhow!("plugins feature is not enabled"))
+          }
+        }
+      }
+      None => Ok(None)
+    }
+  }
+
+  /// Determines if the mock server running with the given ID has matched all its requests
+  /// correctly. If there is no mock server running with that ID, it will return `None`.
+  /// In the case the mock server has not received any requests, it will return `Some(true)`
+  /// as this is the default state.
+  pub fn mock_server_matched(&self, id: &str) -> Option<bool> {
+    let entry = self.mock_servers.get(id);
+    self.mock_server_entry_matched(entry)
+  }
+
+  /// Determines if the mock server running on the given port has matched all its requests
+  /// correctly. If there is no mock server running on that port, it will return `None`.
+  /// In the case the mock server has not received any requests, it will return `Some(true)`
+  /// as this is the default state.
+  pub fn mock_server_matched_by_port(&self, port: u16) -> Option<bool> {
+    let entry = self.mock_server_entry_by_port(port);
+    self.mock_server_entry_matched(entry)
+  }
+
+  /// Returns all the mismatches from the mock server with the given ID. If there is no
+  /// mock server with that ID, it will return `None`. The mismatch values are returned
+  /// as JSON. This is to support mock servers provided by plugins, which can have a different
+  /// format.
+  pub fn mock_server_mismatches(&self, id: &str) -> anyhow::Result<Option<Vec<Value>>> {
+    let entry = self.mock_servers.get(id);
+    self.mock_server_entry_mismatches(entry)
+  }
+
+  /// Returns all the mismatches from the mock server running on the given port. If there is no
+  /// mock server running on that port, it will return `None`. The mismatch values are returned
+  /// as JSON. This is to support mock servers provided by plugins, which can have a different
+  /// format.
+  pub fn mock_server_mismatches_by_port(&self, port: u16) -> anyhow::Result<Option<Vec<Value>>> {
+    let entry = self.mock_server_entry_by_port(port);
+    self.mock_server_entry_mismatches(entry)
+  }
 }
 
 #[cfg(test)]
@@ -529,41 +645,99 @@ mod tests {
   use std::net::TcpStream;
 
   use env_logger;
+  use expectest::prelude::*;
+  use hyper::header::ACCEPT;
   use pact_models::sync_pact::RequestResponsePact;
 
   use super::*;
 
   #[test]
-    #[cfg(not(target_os = "windows"))]
-    fn manager_should_start_and_shutdown_mock_server() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let mut manager = ServerManager::new();
-        #[allow(deprecated)]
-        let start_result = manager.start_mock_server("foobar".into(),
-                                                     RequestResponsePact::default().boxed(),
-                                                     0, MockServerConfig::default());
+  #[cfg(not(target_os = "windows"))]
+  fn manager_should_start_and_shutdown_mock_server() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut manager = ServerManager::new();
+    #[allow(deprecated)]
+    let start_result = manager.start_mock_server("foobar".into(),
+                                                 RequestResponsePact::default().boxed(),
+                                                 0, MockServerConfig::default());
 
-        assert!(start_result.is_ok());
-        let server_port = start_result.unwrap();
+    assert!(start_result.is_ok());
+    let server_port = start_result.unwrap();
 
-        // Server should be up
-        assert!(TcpStream::connect(("127.0.0.1", server_port)).is_ok());
+    // Server should be up
+    assert!(TcpStream::connect(("127.0.0.1", server_port)).is_ok());
 
-        // Should be able to read matches without blocking
-        let matches =
-            manager.find_mock_server_by_port_mut(server_port, &|mock_server| mock_server.matches());
-        assert_eq!(matches, Some(vec![]));
+    // Should be able to read matches without blocking
+    let matches =
+        manager.find_mock_server_by_port_mut(server_port, &|mock_server| mock_server.matches());
+    assert_eq!(matches, Some(vec![]));
 
-        let stopped = manager.shutdown_mock_server_by_port(server_port);
-        assert!(stopped);
+    let stopped = manager.shutdown_mock_server_by_port(server_port);
+    assert!(stopped);
 
-        // The tokio runtime is now out of tasks
-        drop(manager);
+    // The tokio runtime is now out of tasks
+    drop(manager);
 
-        let millis = time::Duration::from_millis(100);
-        thread::sleep(millis);
+    let millis = time::Duration::from_millis(100);
+    thread::sleep(millis);
 
-        // Server should be down
-        assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());
-    }
+    // Server should be down
+    assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());
+  }
+
+  #[test_log::test]
+  fn manager_can_return_mock_server_status() {
+    let pact = V4Pact::default();
+    let mut manager = ServerManager::new();
+    let mock_server = MockServerBuilder::new()
+      .bind_to("127.0.0.1:0")
+      .with_v4_pact(pact)
+      .attach_to_manager(&mut manager)
+      .unwrap()
+      .unwrap_left();
+
+    expect!(manager.mock_server_matched("some value")).to(be_none());
+    expect!(manager.mock_server_matched(mock_server.id.as_str())).to(be_some().value(true));
+    expect!(manager.mock_server_matched_by_port(666)).to(be_none());
+    expect!(manager.mock_server_matched_by_port(mock_server.port())).to(be_some().value(true));
+  }
+
+  #[test_log::test]
+  fn manager_can_return_mock_server_mismatches() {
+    let pact = V4Pact::default();
+    let mut manager = ServerManager::new();
+    let mock_server = MockServerBuilder::new()
+      .bind_to("127.0.0.1:0")
+      .with_v4_pact(pact)
+      .attach_to_manager(&mut manager)
+      .unwrap()
+      .unwrap_left();
+
+    let port = mock_server.port();
+    let client = reqwest::blocking::Client::new();
+    let _response = client.get(format!("http://127.0.0.1:{}", port).as_str())
+      .header(ACCEPT, "application/hal+json, application/json")
+      .send();
+
+    let expected_result = vec![json!({
+        "method": "GET",
+        "path": "/",
+        "request": {
+          "body": "",
+          "headers": {
+            "accept": "application/hal+json, application/json",
+            "host": format!("127.0.0.1:{}", port)
+          },
+          "method": "GET",
+          "path": "/"
+        },
+        "type": "request-not-found"
+      })];
+    expect!(manager.mock_server_mismatches("some value")).to(be_ok().value(None));
+    expect!(manager.mock_server_mismatches(mock_server.id.as_str())).to(be_ok()
+      .value(Some(expected_result.clone())));
+    expect!(manager.mock_server_mismatches_by_port(666)).to(be_ok().value(None));
+    expect!(manager.mock_server_mismatches_by_port(mock_server.port())).to(be_ok()
+      .value(Some(expected_result)));
+  }
 }
