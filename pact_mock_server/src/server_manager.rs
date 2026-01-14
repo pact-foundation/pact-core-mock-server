@@ -5,8 +5,8 @@
 use std::collections::BTreeMap;
 use std::ffi::CString;
 #[cfg(feature = "plugins")] use std::future::Future;
-use std::net::{Ipv6Addr, SocketAddr};
-#[cfg(feature = "plugins")] use std::net::ToSocketAddrs;
+use std::net::SocketAddr;
+#[cfg(feature = "plugins")] use std::net::{Ipv6Addr, ToSocketAddrs};
 
 use anyhow::anyhow;
 use itertools::{Either, Itertools};
@@ -15,10 +15,10 @@ use pact_models::pact::Pact;
 #[cfg(feature = "plugins")] use pact_models::prelude::v4::V4Pact;
 #[cfg(feature = "plugins")] use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 #[cfg(feature = "plugins")] use pact_plugin_driver::mock_server::MockServerDetails;
-use pact_plugin_driver::plugin_manager::get_mock_server_results;
+#[cfg(feature = "plugins")] use pact_plugin_driver::plugin_manager::get_mock_server_results;
 #[cfg(feature = "tls")] use rustls::ServerConfig;
 #[cfg(not(feature = "plugins"))] use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use tracing::{debug, error, trace};
 #[cfg(feature = "plugins")] use url::Url;
 use crate::builder::MockServerBuilder;
@@ -535,9 +535,9 @@ impl ServerManager {
 
   fn mock_server_entry_matched(&self, entry: Option<&ServerEntry>) -> Option<bool> {
     match entry {
-      Some(entry) => {
+      Some(_entry) => {
         #[cfg(feature = "plugins")]
-        match &entry.mock_server {
+        match &_entry.mock_server {
           Either::Left(mock_server) => Some(mock_server.all_matched()),
           Either::Right(plugin_mock_server) => {
             match self.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details)) {
@@ -564,18 +564,18 @@ impl ServerManager {
           Either::Left(mock_server) => Ok(Some(mock_server.mismatches()
             .iter()
             .map(|mismatches| mismatches.to_json())
-            .collect())),
-          Either::Right(plugin_mock_server) => {
+            .collect_vec())),
+          Either::Right(_plugin_mock_server) => {
             #[cfg(feature = "plugins")]
-            match self.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details)) {
+            match self.exec_async(get_mock_server_results(&_plugin_mock_server.mock_server_details)) {
               Ok(results) => Ok(Some(results
                 .iter()
                 .map(|results| {
-                  json!({
+                  serde_json::json!({
                     "path": results.path,
                     "error": results.error,
                     "mismatches": results.mismatches.iter().map(|mismatch| {
-                      json!({
+                      serde_json::json!({
                           "expected": mismatch.expected,
                           "actual": mismatch.actual,
                           "mismatch": mismatch.mismatch,
@@ -586,7 +586,7 @@ impl ServerManager {
                     .collect_vec()
                   })
                 })
-                .collect())),
+                .collect_vec())),
               Err(err) => {
                 error!(port = entry.port, "Request to plugin to get mock server matching results failed - {}", err);
                 Err(anyhow!("Request to plugin to get mock server (port={}) matching results failed - {}", entry.port, err))
@@ -648,6 +648,7 @@ mod tests {
   use expectest::prelude::*;
   use hyper::header::ACCEPT;
   use pact_models::sync_pact::RequestResponsePact;
+  use serde_json::json;
 
   use super::*;
 
