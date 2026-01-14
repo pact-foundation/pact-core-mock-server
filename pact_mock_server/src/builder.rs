@@ -520,9 +520,9 @@ ZSwZXle550Ns2jdFLpdSoFOHWsbPbsILG6ZXTlG9sJIZwujoYQ==
     let status = response.status();
     let _body = response.text().await;
 
+    mock_server.shutdown().unwrap();
     let all_matched = mock_server.all_matched();
     let mismatches = mock_server.mismatches();
-    mock_server.shutdown().unwrap();
 
     expect!(status).to(be_equal_to(200));
     expect!(all_matched).to(be_true());
