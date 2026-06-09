@@ -3,6 +3,3 @@ members = [
     "pact_*"
 ]
 resolver = "2"
-
-[patch.crates-io]
-pact_matching = { git = "https://github.com/pact-foundation/pact-reference.git" }
