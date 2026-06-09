@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.2.2 - V2 plugin support
+
+* 43db3405 - chore: Update pact-plugin-driver to 1.0.0-beta.2 to support initial V2 plugins (Ronald Holshausen, Tue Jun 9 15:05:40 2026 +1000)
+* 92cfdb0d - chore: update Pact plugin driver to version supporting initial V2 plugins (Ronald Holshausen, Fri May 29 13:54:37 2026 +1000)
+* e8569026 - bump version to 2.2.2 (Ronald Holshausen, Wed Jan 14 16:32:38 2026 +1100)
+
 # 2.2.1 - Add functions to server manager to get mock server results
 
 * f64f0311 - chore: Correct flaky test (Ronald Holshausen, Wed Jan 14 16:24:10 2026 +1100)
