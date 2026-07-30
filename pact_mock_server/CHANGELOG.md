@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.2.3 - Maintenance Release
+
+* ed457778 - chore: Update pact_models to 1.3.12 and pact_matching to 2.0.8 (Ronald Holshausen, Thu Jul 30 17:13:10 2026 +1000)
+* 0025f1bd - chore: bump pact_matching/pact_models/pact-plugin-driver requirements (Ronald Holshausen, Wed Jul 22 12:03:16 2026 +1000)
+* 824c0606 - bump version to 2.2.3 (Ronald Holshausen, Tue Jun 9 15:14:15 2026 +1000)
+
 # 2.2.2 - V2 plugin support
 
 * 43db3405 - chore: Update pact-plugin-driver to 1.0.0-beta.2 to support initial V2 plugins (Ronald Holshausen, Tue Jun 9 15:05:40 2026 +1000)
