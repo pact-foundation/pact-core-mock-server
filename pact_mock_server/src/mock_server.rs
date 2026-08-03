@@ -210,8 +210,6 @@ pub enum MockServerEvent {
   ConnectionFailed(String),
   /// Request received with path
   RequestReceived(String),
-  /// Result of matching a request
-  RequestMatch(MatchResult),
   /// Server is shutting down
   ServerShutdown
 }
@@ -295,7 +293,8 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting mock server");
-    let (address, shutdown_send, event_recv, _task_handle) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let matches = Arc::new(Mutex::new(vec![]));
+    let (address, shutdown_send, event_recv, _task_handle) = create_and_bind(server_id.clone(), pact.clone(), address, config.clone(), matches.clone()).await?;
     trace!(%server_id, %address, "Mock server started");
 
     let mut mock_server = MockServer {
@@ -303,7 +302,7 @@ impl MockServer {
       scheme: Default::default(),
       address,
       pact,
-      matches: Default::default(),
+      matches,
       shutdown_tx: RefCell::new(Some(shutdown_send)),
       config: config.clone(),
       metrics: Default::default(),
@@ -333,7 +332,8 @@ impl MockServer {
     };
 
     trace!(%server_id, %address, "Starting TLS mock server");
-    let (address, shutdown_send, event_recv, _task_handle) = create_and_bind_https(server_id.clone(), pact.clone(), address, config.clone()).await?;
+    let matches = Arc::new(Mutex::new(vec![]));
+    let (address, shutdown_send, event_recv, _task_handle) = create_and_bind_https(server_id.clone(), pact.clone(), address, config.clone(), matches.clone()).await?;
     trace!(%server_id, %address, "TLS mock server started");
 
     let mut mock_server = MockServer {
@@ -341,7 +341,7 @@ impl MockServer {
       scheme: MockServerScheme::HTTPS,
       address,
       pact,
-      matches: Default::default(),
+      matches,
       shutdown_tx: RefCell::new(Some(shutdown_send)),
       config: config.clone(),
       metrics: Default::default(),
@@ -383,7 +383,6 @@ impl MockServer {
   fn start_event_loop(&mut self, mut event_recv: Receiver<MockServerEvent>) {
     let server_id = self.id.clone();
     let metrics = self.metrics.clone();
-    let matches = self.matches.clone();
     let (sender, receiver) = mpsc::channel();
     self.event_loop_rx = Some(receiver);
 
@@ -392,7 +391,6 @@ impl MockServer {
 
       let mut total_events = 0;
       let metrics = metrics.clone();
-      let matches = matches.clone();
       while let Some(event) = event_recv.recv().await {
         trace!(%server_id, ?event, "Received event");
         total_events += 1;
@@ -402,10 +400,6 @@ impl MockServer {
           MockServerEvent::RequestReceived(path) => {
             let mut guard = metrics.lock().unwrap();
             guard.add_path(path);
-          }
-          MockServerEvent::RequestMatch(result) => {
-            let mut guard = matches.lock().unwrap();
-            guard.push(result.clone());
           }
           MockServerEvent::ServerShutdown => {
             trace!(%server_id, total_events, "Exiting mock server event loop");

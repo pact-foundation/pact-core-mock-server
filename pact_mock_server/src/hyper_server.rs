@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
-#[cfg(feature = "tls")] use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[allow(unused_imports)] use anyhow::anyhow;
@@ -72,7 +72,8 @@ pub(crate) async fn create_and_bind(
   server_id: String,
   pact: V4Pact,
   addr: SocketAddr,
-  config: MockServerConfig
+  config: MockServerConfig,
+  matches: Arc<Mutex<Vec<MatchResult>>>
 ) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>, JoinHandle<()>)> {
   let listener = TcpListener::bind(addr).await?;
   let local_addr = listener.local_addr()?;
@@ -88,6 +89,7 @@ pub(crate) async fn create_and_bind(
       let server_id = server_id.clone();
       let pact = pact.clone();
       let config = config.clone();
+      let matches = matches.clone();
 
       select! {
         connection = listener.accept() => {
@@ -106,9 +108,10 @@ pub(crate) async fn create_and_bind(
                   let event_send = ev.clone();
                   let config = config.clone();
                   let server_id = sid.clone();
+                  let matches = matches.clone();
                   LOG_ID.scope(server_id, async move {
                     handle_mock_request_error(
-                      handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
+                      handle_request(req, pact.clone(), event_send.clone(), matches.clone(), &local_addr, &config).await
                     )
                   })
                 })
@@ -162,7 +165,8 @@ pub(crate) async fn create_and_bind_https(
   server_id: String,
   pact: V4Pact,
   addr: SocketAddr,
-  config: MockServerConfig
+  config: MockServerConfig,
+  matches: Arc<Mutex<Vec<MatchResult>>>
 ) -> anyhow::Result<(SocketAddr, oneshot::Sender<()>, mpsc::Receiver<MockServerEvent>, JoinHandle<()>)> {
   if CryptoProvider::get_default().is_none() {
     warn!("No TLS cryptographic provider has been configured, defaulting to the standard FIPS provider");
@@ -197,6 +201,7 @@ pub(crate) async fn create_and_bind_https(
       let server_id = server_id.clone();
       let pact = pact.clone();
       let config = config.clone();
+      let matches = matches.clone();
 
       select! {
         connection = listener.accept() => {
@@ -219,9 +224,10 @@ pub(crate) async fn create_and_bind_https(
                       let event_send = ev.clone();
                       let config = config.clone();
                       let server_id = sid.clone();
+                      let matches = matches.clone();
                       LOG_ID.scope(server_id, async move {
                         handle_mock_request_error(
-                          handle_request(req, pact.clone(), event_send.clone(), &local_addr, &config).await
+                          handle_request(req, pact.clone(), event_send.clone(), matches.clone(), &local_addr, &config).await
                         )
                       })
                     })
@@ -278,6 +284,7 @@ async fn handle_request(
   req: Request<Incoming>,
   pact: V4Pact,
   event_send: Sender<MockServerEvent>,
+  matches: Arc<Mutex<Vec<MatchResult>>>,
   local_addr: &SocketAddr,
   config: &MockServerConfig
 ) -> Result<Response<Full<Bytes>>, InteractionError> {
@@ -322,8 +329,13 @@ async fn handle_request(
 
   let match_result = match_request(&pact_request, &pact).await;
 
-  if let Err(_) = event_send.send(MockServerEvent::RequestMatch(match_result.clone())).await {
-    error!("Failed to send RequestMatch event");
+  // Record the match result synchronously before returning the response. This ensures that
+  // pactffi_mock_server_matched() / pactffi_mock_server_mismatches() always sees the correct
+  // state immediately after the client receives the HTTP response, with no race against the
+  // async event loop.
+  {
+    let mut guard = matches.lock().unwrap();
+    guard.push(match_result.clone());
   }
 
   match_result_to_hyper_response(&pact_request, &match_result, local_addr, config).await
@@ -569,11 +581,13 @@ mod tests {
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {
+    let matches = Arc::new(Mutex::new(vec![]));
     let (_addr, shutdown, mut events, handle) = create_and_bind(
       "can_fetch_results_on_current_thread".to_string(),
       RequestResponsePact::default().as_v4_pact().unwrap(),
       ([0, 0, 0, 0], 0u16).into(),
-      MockServerConfig::default()
+      MockServerConfig::default(),
+      matches
     ).await.unwrap();
 
     shutdown.send(()).unwrap();
@@ -605,11 +619,13 @@ mod tests {
       interactions: vec![ RequestResponseInteraction::default() ],
       .. RequestResponsePact::default()
     };
+    let matches = Arc::new(Mutex::new(vec![]));
     let (addr, shutdown, mut events, handle) = create_and_bind(
       "can_fetch_results_on_current_thread".to_string(),
       pact.as_v4_pact().unwrap(),
       ([127, 0, 0, 1], 0u16).into(),
-      MockServerConfig::default()
+      MockServerConfig::default(),
+      matches.clone()
     ).await.unwrap();
 
     let client = reqwest::ClientBuilder::new()
@@ -625,17 +641,18 @@ mod tests {
     shutdown.send(()).unwrap();
     let _ = handle.await;
 
-    // Should be at least 3 events
-    expect!(events.len()).to(be_greater_or_equal_to(3));
+    // Match results are now recorded directly in the mutex, not via the event channel.
+    // Events should contain RequestReceived plus the shutdown event (and possibly a
+    // ConnectionFailed on Linux once the server shuts down).
+    expect!(events.len()).to(be_greater_or_equal_to(2));
     assert_eq!(events.recv().await.unwrap(), MockServerEvent::RequestReceived("/".to_string()));
-    if let MockServerEvent::RequestMatch(_) = events.recv().await.unwrap() {
-      // expected
-    } else {
-      panic!("Was expected a request match event");
-    }
     // For some reason, a http2 connection returns an error once the server is shutdown on Linux
     let mut events_list = vec![];
     events.recv_many(&mut events_list, 2).await;
     assert_eq!(events_list.last().unwrap(), &MockServerEvent::ServerShutdown);
+
+    // Verify the match result was recorded synchronously in the mutex
+    let guard = matches.lock().unwrap();
+    assert_eq!(guard.len(), 1);
   }
 }
