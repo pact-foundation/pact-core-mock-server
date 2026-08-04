@@ -12,6 +12,7 @@ builder can create both standard HTTP and HTTPS servers.
 
 The following example loads a Pact file, starts the mock server and then shuts it down later.
 ```rust
+# rustls::crypto::ring::default_provider().install_default().expect("Failed to install rustls crypto provider");
 tokio_test::block_on(async {
     use pact_models::prelude::{Pact, RequestResponsePact};
     use pact_mock_server::builder::MockServerBuilder;

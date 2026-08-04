@@ -648,6 +648,7 @@ mod tests {
   use expectest::prelude::*;
   use hyper::header::ACCEPT;
   use pact_models::sync_pact::RequestResponsePact;
+  use pretty_assertions::assert_eq;
   use serde_json::json;
 
   use super::*;
@@ -727,6 +728,7 @@ mod tests {
           "body": "",
           "headers": {
             "accept": "application/hal+json, application/json",
+            "accept-encoding": "gzip, deflate",
             "host": format!("127.0.0.1:{}", port)
           },
           "method": "GET",
@@ -735,8 +737,7 @@ mod tests {
         "type": "request-not-found"
       })];
     expect!(manager.mock_server_mismatches("some value")).to(be_ok().value(None));
-    expect!(manager.mock_server_mismatches(mock_server.id.as_str())).to(be_ok()
-      .value(Some(expected_result.clone())));
+    assert_eq!(Some(expected_result.clone()), manager.mock_server_mismatches(mock_server.id.as_str()).expect("valid response"));
     expect!(manager.mock_server_mismatches_by_port(666)).to(be_ok().value(None));
     expect!(manager.mock_server_mismatches_by_port(mock_server.port())).to(be_ok()
       .value(Some(expected_result)));
