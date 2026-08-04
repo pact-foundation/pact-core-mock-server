@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 2.2.4 - Bugfix Release
+
+* f2e30a2c - chore(pact-mock-server): Add form feature to reqwest (Ronald Holshausen, Tue Aug 4 10:33:10 2026 +1000)
+* dbb31664 - chore(pact-mock-server): Update dependencies + cleanup rustls features and deps (Ronald Holshausen, Tue Aug 4 10:17:53 2026 +1000)
+* 1bd0836b - Merge pull request #14 from pact-foundation/fix/race-condition-match-result-recording (Ronald Holshausen, Tue Aug 4 09:51:22 2026 +1000)
+* 5b2b3df1 - bump version to 2.2.4 (Ronald Holshausen, Thu Jul 30 17:18:01 2026 +1000)
+* 819ac3df - fix: record match results synchronously to eliminate race condition (#13) (Ronald Holshausen, Fri Jun 12 16:38:23 2026 +1000)
+
 # 2.2.3 - Maintenance Release
 
 * ed457778 - chore: Update pact_models to 1.3.12 and pact_matching to 2.0.8 (Ronald Holshausen, Thu Jul 30 17:13:10 2026 +1000)
