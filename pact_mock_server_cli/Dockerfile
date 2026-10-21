@@ -1,20 +1,22 @@
-ARG ARCH=
-FROM rust:1-alpine3.21 AS builder
-ARG BIN_ARCH=x86_64
-ARG VERSION=1.0.5
+# Packages the static musl pact-mock-server from a dist release. No step runs
+# on the target platform, so a multi-platform build needs no emulation.
+FROM --platform=$BUILDPLATFORM alpine:3.22 AS fetch
+ARG VERSION
+ARG TARGETARCH
+RUN apk add --no-cache ca-certificates curl xz
+WORKDIR /dist
+RUN case "$TARGETARCH" in \
+        amd64) target=x86_64-unknown-linux-musl ;; \
+        arm64) target=aarch64-unknown-linux-musl ;; \
+        *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/pact-foundation/pact-core-mock-server/releases/download/pact_mock_server_cli-v${VERSION}/pact_mock_server_cli-${target}.tar.xz" \
+       | tar xJ --strip-components=1 \
+    && install -m 0755 pact-mock-server /pact-mock-server
 
-RUN apk --no-cache add wget
-RUN wget -O pact-mock-server.gz https://github.com/pact-foundation/pact-core-mock-server/releases/download/pact_mock_server_cli-v${VERSION}/pact-mock-server-linux-${BIN_ARCH}.gz
-RUN gunzip pact-mock-server.gz
-RUN chmod +x pact-mock-server
-
-
-# Now, we need to build our _real_ Docker container, copying in the executable.
-FROM ${ARCH}alpine:3.21
-RUN apk --no-cache add ca-certificates
-COPY --from=builder \
-    /pact-mock-server \
-    /usr/local/bin/
+FROM alpine:3.22
+COPY --from=fetch /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=fetch /pact-mock-server /usr/local/bin/pact-mock-server
 
 EXPOSE 8080 9000-9020
 
