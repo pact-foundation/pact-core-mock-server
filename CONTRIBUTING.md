@@ -51,9 +51,3 @@ This will compile all the libraries and put the generated files in `rust/target/
 ### Releasing
 
 See [RELEASING](RELEASING.md) for how a release works and how to recover from a failed one.
-
-To be able to release a component, you need to:
-1. Have an account on [crates.io](crates.io). Go to that site, and select "Log in with GitHub". It will auto-create your user account.
-2. Get a maintainer to invite you to the crate for the component.
-3. Accept the invite on crates.io. This will allow you to release the Rust crate to crates.io.
-4. 

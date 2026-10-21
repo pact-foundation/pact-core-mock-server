@@ -25,10 +25,6 @@ permissions:
 jobs:
   publish:
     name: Build and push pact-mock-server images
-    # dist runs this after every release; only pact_mock_server_cli has an image.
-    if: >-
-      inputs.plan == ''
-      || startsWith(fromJson(inputs.plan || '{}').announcement_tag, 'pact_mock_server_cli-v')
     runs-on: ubuntu-latest
     steps:
       # A prerelease leaves `latest` on the last stable release.

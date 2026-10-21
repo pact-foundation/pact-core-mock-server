@@ -13,10 +13,6 @@ on:
       - reopened
       - ready_for_review
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   build:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
