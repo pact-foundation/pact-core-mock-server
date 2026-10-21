@@ -1,0 +1,73 @@
+name: Publish containers
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: pact_mock_server_cli version, without `v` (e.g. 2.0.0)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and push pact-mock-server images
+    # dist runs this after every release; only pact_mock_server_cli has an image.
+    if: >-
+      inputs.plan == ''
+      || startsWith(fromJson(inputs.plan || '{}').announcement_tag, 'pact_mock_server_cli-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version
+        id: version
+        env:
+          PLAN: ${{ inputs.plan }}
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ -n "$PLAN" ]]; then
+            tag=$(jq -r '.announcement_tag' <<<"$PLAN")
+            echo "version=${tag##*-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$MANUAL_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        working-directory: pact_mock_server_cli
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker buildx build . \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg "VERSION=$VERSION" \
+            --tag "pactfoundation/pact-mock-server:$VERSION" \
+            --tag pactfoundation/pact-mock-server:latest \
+            --tag "ghcr.io/pact-foundation/pact-mock-server:$VERSION" \
+            --tag ghcr.io/pact-foundation/pact-mock-server:latest \
+            --push
