@@ -10,3 +10,6 @@ resolver = "2"
 pact_models = { git = "https://github.com/pact-foundation/pact-reference.git" }
 pact_matching = { git = "https://github.com/pact-foundation/pact-reference.git" }
 pact-plugin-driver = { git = "https://github.com/pact-foundation/pact-plugins.git" }
+
+[profile.dist]
+inherits = "release"
