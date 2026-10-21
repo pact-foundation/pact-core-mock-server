@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates `<crate>-v<version>` for each workspace crate whose version has
+# Creates `<prefix>-v<version>` for each workspace crate whose version has
 # no tag, i.e. each crate whose release PR just merged, and pushes it.
 # Each tag goes in its own push: GitHub fires no events for a push of
 # more than three tags.

@@ -26,6 +26,8 @@ pr-run-mode = "upload"
 # The GitHub release follows the crates.io publish, so a failed publish
 # leaves no release behind.
 github-release = "announce"
+# A prerelease tag publishes to crates.io and gets a GitHub prerelease.
+publish-prereleases = true
 global-artifacts-jobs = ["./check-artifacts"]
 publish-jobs = ["./publish-crate"]
 post-announce-jobs = ["./legacy-artifacts", "./publish-containers", "./release-title"]
@@ -41,8 +43,8 @@ release-title = { contents = "write" }
 [dist.github-custom-runners]
 x86_64-apple-darwin = "macos-15-intel"
 aarch64-apple-darwin = "macos-15"
-# dist would cross-compile this with cargo-xwin on Linux; releases have
-# always built it with MSVC on Windows.
+# dist would cross-compile this with cargo-xwin on Linux. A Windows runner
+# builds it with the native MSVC toolchain, the same as x86_64.
 aarch64-pc-windows-msvc = "windows-2022"
 
 # Linux builds run in containers to fix what the binary links against:

@@ -45,6 +45,8 @@ A release pull request cannot merge while it requires a workspace crate version 
    - A `pact_mock_server_cli-v*` tag starts the dist Release workflow. It builds the archives for all eight targets, checks their linkage, and publishes the crate to crates.io. It then creates the GitHub release with the archives and the changelog section, and retitles the release.
 3. After a `pact_mock_server_cli` release, the legacy asset names are uploaded to its release, and the `pactfoundation/pact-mock-server` image is pushed to Docker Hub and GHCR for `linux/amd64` and `linux/arm64`, tagged `<version>` and `latest`.
 
+A prerelease version, such as `2.1.0-beta.1`, follows the same steps. It publishes to crates.io and gets a GitHub prerelease. Its image is tagged `<version>` only, so `latest` stays on the last stable release.
+
 ## Legacy asset names
 
 Each `pact_mock_server_cli` release also carries the pre-dist asset names: `pact-mock-server-{linux,macos}-{x86_64,aarch64}.gz` and `pact-mock-server-windows-{x86_64,aarch64}.exe.gz`, each with a `.sha256` file. The Linux names are the musl builds.
@@ -67,15 +69,16 @@ Each step of a release can also be run by hand. Run these commands from the repo
 
 ### Re-run failed jobs
 
-Most failures are transient, or are fixed outside the repository, e.g. a missing trusted publisher. Re-run only the failed jobs of the tag's release workflow:
+Most failures are transient, or are fixed outside the repository, e.g. a missing trusted publisher. Re-run only the failed jobs of the tag's release workflow. Find the run id with the workflow's file name, e.g. `release.yml` for the dist Release workflow or `release-crate.yml` for Release crate:
 
 ```sh
+gh run list --workflow release.yml --limit 5
 gh run rerun <run id> --failed
 ```
 
 This covers the jobs of Release PR (`tag`, `prepare`), Release crate (`publish`, `release`), the dist Release workflow (`plan`, the builds, `custom-check-artifacts`, `host`, `custom-publish-crate`, `announce`) and the post-announce jobs. For `prepare`, the next push to `main` also reruns it.
 
-Publishing skips a version already on crates.io. Don't re-run the whole workflow: release creation fails once the GitHub release exists.
+Publishing skips a version already on crates.io. Don't re-run the whole dist Release workflow: its release creation fails once the GitHub release exists. Release crate skips an existing GitHub release, so re-running all of it is safe.
 
 If `host` failed, nothing has been published. Re-run it.
 
@@ -175,6 +178,8 @@ Run the Publish containers workflow with the version:
 gh workflow run publish-containers.yml -f version=<version>
 ```
 
+The workflow also tags the images `latest` by default. For a prerelease, or for any version older than the latest release, add `-f latest=false`.
+
 To push locally instead, log in to Docker Hub with push access to `pactfoundation/pact-mock-server`, and to GHCR with a token that has the `write:packages` scope. The image downloads the musl archives from the `pact_mock_server_cli-v<version>` release, so that release must exist. Building both platforms needs a buildx builder that supports them, e.g. one made with `docker buildx create --use`.
 
 ```sh
@@ -189,3 +194,5 @@ docker buildx build pact_mock_server_cli \
   --tag ghcr.io/pact-foundation/pact-mock-server:latest \
   --push
 ```
+
+Leave out the two `latest` tags for a prerelease or an older version.
