@@ -58,8 +58,8 @@ These names are published until the legacy cut-off date, 2027-06-30, set in `.gi
 1. Remove the `allow-dirty = ["ci"]` line from `dist-workspace.toml`.
 2. Run `dist generate`.
 3. Restore the `allow-dirty = ["ci"]` line.
-4. Re-apply each `# hand edit:` block from the previous version of `release.yml` (`git diff` shows them).
-5. Run `dist generate --check`. It passes while the line is in place.
+4. Re-apply each `# hand edit:` block from the previous version of `release.yml`.
+5. Review `git diff .github/workflows/release.yml`. Besides the changes from the new dist version, it shows no hand edit removed or altered. `dist generate --check` cannot confirm this: it reports the hand edits as drift when the `allow-dirty` line is removed, and skips `release.yml` when the line is present.
 
 ## Recovering a release
 
@@ -118,7 +118,10 @@ If the Release PR workflow can't run at all, e.g. while the bot App is unavailab
 
 The Release PR workflow tags each version with no tag. If its `tag` job fails, re-run it, or tag by hand. This needs push access to tags.
 
+The script reads versions from the checked-out `Cargo.toml` and walks the current branch's history. Run it from an up-to-date `main`. From a stale `main` it tags nothing. From an unmerged `release/<crate>` branch it tags that unmerged version, and the pushed tag starts a release.
+
 ```sh
+git switch main && git pull origin main
 .github/scripts/tag-releases.sh Cargo.toml origin
 ```
 
