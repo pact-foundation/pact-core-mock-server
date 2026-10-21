@@ -50,9 +50,7 @@ This will compile all the libraries and put the generated files in `rust/target/
 
 ### Releasing
 
-The released libraries for each module are built by a GH action that attaches the libraries to the GH release for each
-crate. To release a crate, run the `release.groovy` script in the crate directory. This will guide you through the
-release process for the crate. Then create a GH release using the tag and changelog created by the script.
+See [RELEASING](RELEASING.md) for how a release works and how to recover from a failed one.
 
 To be able to release a component, you need to:
 1. Have an account on [crates.io](crates.io). Go to that site, and select "Log in with GitHub". It will auto-create your user account.
