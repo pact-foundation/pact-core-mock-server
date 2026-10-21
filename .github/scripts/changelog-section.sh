@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Prints the body of one version's section from a changelog whose
-# sections are `##` headings. release-plz writes `## [<version>]`; the
-# entries from before release-plz use `## <version> - <title>`.
+# sections are `##` headings. It finds release-plz's `## [<version>]`
+# headings only. Any other `##` heading, such as `## <version> - <title>`,
+# ends the previous section; the script exits 1 when asked for its version.
 #
 # Usage: changelog-section.sh <CHANGELOG.md> <version>
 # Exits 1 when the changelog has no section for <version>.

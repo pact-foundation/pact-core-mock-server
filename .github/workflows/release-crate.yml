@@ -38,5 +38,10 @@ jobs:
           crate=$(tag_crate "$TAG")
           version=$(tag_version "$TAG")
           .github/scripts/changelog-section.sh "$crate/CHANGELOG.md" "$version" > "$RUNNER_TEMP/notes.md"
+          # A semver prerelease version carries a `-` suffix.
+          prerelease=()
+          if [[ $version == *-* ]]; then
+            prerelease=(--prerelease)
+          fi
           gh release view "$TAG" >/dev/null 2>&1 || \
-            gh release create "$TAG" --title "$(.github/scripts/release-title.sh "$TAG")" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+            gh release create "$TAG" --title "$(.github/scripts/release-title.sh "$TAG")" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag "${prerelease[@]}"

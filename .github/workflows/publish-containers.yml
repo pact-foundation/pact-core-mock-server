@@ -1,3 +1,4 @@
+---
 name: Publish containers
 
 on:
@@ -12,6 +13,10 @@ on:
         description: pact_mock_server_cli version, without `v` (e.g. 2.0.0)
         type: string
         required: true
+      latest:
+        description: Also tag the images `latest`. Set false for an older version or a prerelease.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,17 +31,25 @@ jobs:
       || startsWith(fromJson(inputs.plan || '{}').announcement_tag, 'pact_mock_server_cli-v')
     runs-on: ubuntu-latest
     steps:
+      # A prerelease leaves `latest` on the last stable release.
       - name: Resolve version
         id: version
         env:
           PLAN: ${{ inputs.plan }}
           MANUAL_VERSION: ${{ inputs.version }}
+          MANUAL_LATEST: ${{ inputs.latest }}
         run: |
           if [[ -n "$PLAN" ]]; then
             tag=$(jq -r '.announcement_tag' <<<"$PLAN")
             echo "version=${tag##*-v}" >> "$GITHUB_OUTPUT"
+            if [[ $(jq -r '.announcement_is_prerelease' <<<"$PLAN") == true ]]; then
+              echo "latest=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "latest=true" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "version=$MANUAL_VERSION" >> "$GITHUB_OUTPUT"
+            echo "latest=$MANUAL_LATEST" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout
@@ -62,12 +75,17 @@ jobs:
         working-directory: pact_mock_server_cli
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          LATEST: ${{ steps.version.outputs.latest }}
         run: |
+          tags=()
+          for image in pactfoundation/pact-mock-server ghcr.io/pact-foundation/pact-mock-server; do
+            tags+=(--tag "$image:$VERSION")
+            if [[ $LATEST == true ]]; then
+              tags+=(--tag "$image:latest")
+            fi
+          done
           docker buildx build . \
             --platform linux/amd64,linux/arm64 \
             --build-arg "VERSION=$VERSION" \
-            --tag "pactfoundation/pact-mock-server:$VERSION" \
-            --tag pactfoundation/pact-mock-server:latest \
-            --tag "ghcr.io/pact-foundation/pact-mock-server:$VERSION" \
-            --tag ghcr.io/pact-foundation/pact-mock-server:latest \
+            "${tags[@]}" \
             --push

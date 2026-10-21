@@ -80,11 +80,6 @@ jobs:
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/dist
-      # sure would be cool if github gave us proper conditionals...
-      # so here's a doubly-nested ternary-via-truthiness to try to provide the best possible
-      # functionality based on whether this is a pull_request, and whether it's from a fork.
-      # (PRs run on the *source* but secrets are usually on the *target* -- that's *good*
-      # but also really annoying to build CI around when it needs secrets to work right.)
       # hand edit: the release PR's manifest holds the version it releases.
       # Planning with that version's tag builds what the tag will build.
       - name: Resolve the release PR's tag
@@ -97,6 +92,11 @@ jobs:
           crate=${HEAD_REF#release/}
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$crate/Cargo.toml" | head -1)
           echo "tag=$(tag_prefix "$crate")-v$version" >> "$GITHUB_OUTPUT"
+      # sure would be cool if github gave us proper conditionals...
+      # so here's a doubly-nested ternary-via-truthiness to try to provide the best possible
+      # functionality based on whether this is a pull_request, and whether it's from a fork.
+      # (PRs run on the *source* but secrets are usually on the *target* -- that's *good*
+      # but also really annoying to build CI around when it needs secrets to work right.)
       - id: plan
         run: |
           dist ${{ (!github.event.pull_request && format('host --steps=create --tag={0}', github.ref_name)) || format('plan --tag={0}', steps.pr-tag.outputs.tag) }} --output-format=json > plan-dist-manifest.json
@@ -217,6 +217,14 @@ jobs:
       - custom-check-artifacts
     runs-on: "ubuntu-22.04"
     steps:
+      # Drafts cannot merge, so the gate fails until the PR is ready and its builds run.
+      - name: Fail on a draft release PR
+        if: github.event.pull_request.draft && github.head_ref == 'release/pact_mock_server_cli'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "::error::$HEAD_REF is a draft; mark it ready to run the release builds."
+          exit 1
       - name: Fail if any job failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
