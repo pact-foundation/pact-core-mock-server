@@ -1,6 +1,6 @@
-To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
+# Changelog
 
-# 2.0.0 - [Feature Release]
+## 2.0.0 - [Feature Release]
 
 * 59278827 - chore(deps): cli - update all deps bar webmachine-rust (Yousaf Nabi, Fri Oct 24 13:09:58 2025 +0100)
 * 05aa5e63 - chore(docker): rename to pactfoundation/pact-mock-server (Yousaf Nabi, Wed Oct 29 20:27:03 2025 +0000)
@@ -25,7 +25,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * f190ef87 - chore: Upgrade pact_models to 1.2.2 (Ronald Holshausen, Wed Jul 17 11:20:30 2024 +1000)
 * 20dd88cf - bump version to 2.0.0-beta.1 (Ronald Holshausen, Tue Jul 2 16:59:32 2024 +1000)
 
-# 2.0.0-beta.0 - First beta with new mock server
+## 2.0.0-beta.0 - First beta with new mock server
 
 * 00f78d1f - chore: Upgrade pact_mock_server to 2.0.0-beta.5 (Ronald Holshausen, Tue Jul 2 16:17:05 2024 +1000)
 * 96958106 - chore: Fix compile error when feature are turned off (Ronald Holshausen, Tue Jul 2 16:04:27 2024 +1000)
@@ -50,7 +50,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 4ca5a20c - chore: Bump major version of mock server crates (Ronald Holshausen, Fri May 10 14:54:23 2024 +1000)
 * 1a9f909d - bump version to 1.0.7 (Ronald Holshausen, Wed May 8 10:44:09 2024 +1000)
 
-# 1.0.6 - Maintenance Release
+## 1.0.6 - Maintenance Release
 
 * cc62ff52 - chore: Update pact_mock_server crate to 1.2.7 (Ronald Holshausen, Wed May 8 10:38:25 2024 +1000)
 * 1d5b9300 - chore: Update repo in Cargo.toml (Ronald Holshausen, Tue May 7 17:11:46 2024 +1000)
@@ -66,7 +66,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 0d707388 - chore(pact_mock_server_cli): Create Multi-platform image (Ronald Holshausen, Fri Mar 15 17:12:20 2024 +1100)
 * c9da801a - bump version to 1.0.6 (Ronald Holshausen, Fri Mar 15 15:37:22 2024 +1100)
 
-# 1.0.5 - Maintenance Release
+## 1.0.5 - Maintenance Release
 
 * 2f974fc4 - chore(pact_mock_server_cli): Update dependencies (Ronald Holshausen, Fri Mar 15 15:15:40 2024 +1100)
 * ffffa61d - chore: Upgrade pact_mock_server to 1.2.5 (Ronald Holshausen, Fri Mar 15 15:13:04 2024 +1100)
@@ -81,7 +81,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 113470ca - chore: Update release script (Ronald Holshausen, Sat Jan 20 19:19:40 2024 +1100)
 * ba1f77a9 - bump version to 1.0.5 (Ronald Holshausen, Sat Jan 20 19:18:42 2024 +1100)
 
-# 1.0.4 - Maintenance Release
+## 1.0.4 - Maintenance Release
 
 * 0496fb75 - chore(pact_mock_server_cli): Upgrade dependencies (Ronald Holshausen, Sat Jan 20 19:06:50 2024 +1100)
 * def5685c - chore: Upgrade pact_mock_server to 1.2.4 (Ronald Holshausen, Sat Jan 20 18:56:26 2024 +1100)
@@ -110,7 +110,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * c2aad1ac - chore: Add support for datetime, xml, multipart and plugins crate features (Ronald Holshausen, Wed Jul 12 11:15:37 2023 +1000)
 * a3726bb8 - bump version to 1.0.4 (Ronald Holshausen, Tue Jul 11 15:12:25 2023 +1000)
 
-# 1.0.3 - Maintenance release
+## 1.0.3 - Maintenance release
 
 * de1f04e7 - chore: Update readme (Ronald Holshausen, Tue Jul 11 15:07:02 2023 +1000)
 * 66d010fb - chore: Add support for datetime, xml, multipart. plugins and tls crate features (Ronald Holshausen, Tue Jul 11 15:04:13 2023 +1000)
@@ -122,7 +122,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
 * 5331f99e - bump version to 1.0.3 (Ronald Holshausen, Wed Jun 14 16:19:39 2023 +1000)
 
-# 1.0.2 - Fixes a deadlock caused when getting mock server JSON
+## 1.0.2 - Fixes a deadlock caused when getting mock server JSON
 
 * 834f77cc - chore: Upgrade pact_mock_server to 1.2.0 (Ronald Holshausen, Wed Jun 14 15:22:11 2023 +1000)
 * 41147cf5 - chore(pact_mock_server_cli): Upgrade Clap to v4 (Ronald Holshausen, Wed Jun 14 15:01:45 2023 +1000)
@@ -132,7 +132,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 17a81361 - chore(pact_mock_server_cli): Switch to using tracing crate (Ronald Holshausen, Tue Jun 13 14:42:52 2023 +1000)
 * 2047ce09 - bump version to 1.0.2 (Ronald Holshausen, Tue Jun 13 11:35:52 2023 +1000)
 
-# 1.0.1 - Adds aarch64 osx binary + bug fixes
+## 1.0.1 - Adds aarch64 osx binary + bug fixes
 
 * 2a21bc0e - chore: correct the pact_matching version (Ronald Holshausen, Tue Jun 13 11:31:32 2023 +1000)
 * 666535ab - Revert "update changelog for release 1.0.1" (Ronald Holshausen, Tue Jun 13 11:30:16 2023 +1000)
@@ -154,7 +154,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * a7349c74 - feat: pact_mock_server_cli aarch64 osx (Yousaf Nabi, Wed Apr 12 12:29:14 2023 +0100)
 * b81d1d86 - bump version to 1.0.1 (Ronald Holshausen, Wed Apr 5 09:27:43 2023 +1000)
 
-# 1.0.0 - Maintenance Release
+## 1.0.0 - Maintenance Release
 
 * bb314a73 - chore(pact_mock_server_cli): Upgrade clap to v3 (Ronald Holshausen, Wed Apr 5 09:06:54 2023 +1000)
 * 7e99decf - chore: add CLI tests (Ronald Holshausen, Tue Apr 4 16:33:28 2023 +1000)
@@ -194,7 +194,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 98c5e2db - chore: correct pact_mock_server_cli docker file (Ronald Holshausen, Tue Aug 16 10:31:50 2022 +1000)
 * f2e3d9ff - bump version to 0.7.9 (Ronald Holshausen, Tue Aug 16 10:15:14 2022 +1000)
 
-# 0.7.8 - Maintenance Release
+## 0.7.8 - Maintenance Release
 
 * a41fe69c - chore: Upgrade pact_mock_server to 0.9.2 (Ronald Holshausen, Mon Aug 15 17:40:09 2022 +1000)
 * e3bef155 - feat: Add ARM64 (aarch64) linux targets to the release build #160 (Ronald Holshausen, Mon Aug 15 16:13:22 2022 +1000)
@@ -228,7 +228,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * d1bdd132 - chore: use docker builder image that supports Rust 2021 (Ronald Holshausen, Tue Jan 25 11:46:54 2022 +1100)
 * e22067be - bump version to 0.7.8 (Ronald Holshausen, Tue Jan 25 11:17:43 2022 +1100)
 
-# 0.7.7 - Maintenance Release
+## 0.7.7 - Maintenance Release
 
 * 10c9b842 - chore: Upgrade pact_mock_server to 0.8.6 (Ronald Holshausen, Mon Jan 17 16:57:31 2022 +1100)
 * 5e4c68ef - chore: update pact matching to 0.12.2 (Ronald Holshausen, Mon Jan 17 16:29:21 2022 +1100)
@@ -266,7 +266,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * b9aa7ecb - feat(Plugins): allow plugins to override text/binary format of the interaction content (Ronald Holshausen, Mon Aug 30 10:48:04 2021 +1000)
 * 0c5cede2 - chore: bump models crate to 0.2 (Ronald Holshausen, Mon Aug 23 12:56:14 2021 +1000)
 
-# 0.7.6 - support native TLS certs
+## 0.7.6 - support native TLS certs
 
 * df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
 * 971b980e - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:31:16 2021 +1000)
@@ -275,7 +275,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 47177971 - Revert "chore: pin the pact_mock_server_cli dependencies" (Ronald Holshausen, Wed Jul 21 15:53:47 2021 +1000)
 * 3dbb2b1c - bump version to 0.7.6 (Ronald Holshausen, Wed Jul 21 15:49:42 2021 +1000)
 
-# 0.7.5 - Bugfix Release
+## 0.7.5 - Bugfix Release
 
 * 15e5d587 - chore: pin the pact_mock_server_cli dependencies (Ronald Holshausen, Wed Jul 21 15:14:08 2021 +1000)
 * c958c24a - Revert "update changelog for release 0.7.5" (Ronald Holshausen, Wed Jul 21 15:07:34 2021 +1000)
@@ -289,7 +289,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 13221ad9 - chore: Mock server CLI release build was overwriting the Windows exe with the SHA checksum (Ronald Holshausen, Sun May 30 18:30:44 2021 +1000)
 * 11885733 - bump version to 0.7.5 (Ronald Holshausen, Sun May 30 18:08:28 2021 +1000)
 
-# 0.7.4 - Upgraded crates + V4 features
+## 0.7.4 - Upgraded crates + V4 features
 
 * 62a653c - chore: remove unused imports (Matt Fellows, Thu May 27 23:40:27 2021 +1000)
 * 4224088 - chore: add shasums to all release artifacts (Matt Fellows, Wed May 5 15:18:31 2021 +1000)
@@ -315,26 +315,26 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 3bef361 - chore: add apt clean to docker file (Ronald Holshausen, Tue Jan 5 13:31:31 2021 +1100)
 * b9ba322 - bump version to 0.7.4 (Ronald Holshausen, Tue Jan 5 13:13:50 2021 +1100)
 
-# 0.7.3 - Add TLS (self-signed) option
+## 0.7.3 - Add TLS (self-signed) option
 
 * 773b4b1 - fix: pinning version of webmachine until reqwest is updated (Ronald Holshausen, Tue Jan 5 12:41:05 2021 +1100)
 * 76f052b - feat: add self-signed tls option to mockserver cli (to test TLS with Tokio 1.0) (Ronald Holshausen, Tue Jan 5 11:39:53 2021 +1100)
 * 3d531b3 - bump version to 0.7.3 (Ronald Holshausen, Thu Dec 31 13:11:40 2020 +1100)
 * d85e9ee - chore: correct changelog (Ronald Holshausen, Thu Dec 31 13:06:58 2020 +1100)
 
-# 0.7.2 - support generators associated with array contains matcher variants
+## 0.7.2 - support generators associated with array contains matcher variants
 
 * 56a13d3: update pact_matching and pact_mock_server crates to latest
 * bfba4bd - bump version to 0.7.2 (Ronald Holshausen, Fri Oct 16 11:50:58 2020 +1100)
 
-# 0.7.1 - arrayContains matcher + text/xml content type
+## 0.7.1 - arrayContains matcher + text/xml content type
 
 * 2fb0c6e - fix: fix the build after refactoring the pact write function (Ronald Holshausen, Wed Oct 14 11:07:57 2020 +1100)
 * 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
 * 7232e89 - feat: Add initial V4 models and example pact files (Ronald Holshausen, Tue Oct 6 09:13:21 2020 +1100)
 * eb0389c - bump version to 0.7.1 (Ronald Holshausen, Mon Sep 28 12:17:05 2020 +1000)
 
-# 0.7.0 - Async changes (using Hyper 0.13) + CORS pre-flight support
+## 0.7.0 - Async changes (using Hyper 0.13) + CORS pre-flight support
 
 * 7e68e4c - feat: enable CORS behaviour based on the mock server config (Ronald Holshausen, Mon Sep 28 11:42:23 2020 +1000)
 * 4eb9188 - chore: cleanup warnings (Ronald Holshausen, Mon Sep 28 10:30:42 2020 +1000)
@@ -348,11 +348,11 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * ed207a7 - chore: updated readmes for docs site (Ronald Holshausen, Sun Jun 28 10:04:09 2020 +1000)
 * 56258d7 - bump version to 0.6.3 (Ronald Holshausen, Wed Jun 24 11:01:06 2020 +1000)
 
-# 0.6.2 - Updated XML Matching
+## 0.6.2 - Updated XML Matching
 
 * 218239c - chore: update to latest matching crate (Ronald Holshausen, Wed Jun 24 10:53:35 2020 +1000)
 
-# 0.6.1 - Updated crates
+## 0.6.1 - Updated crates
 
 * 98d7abb - chore: update GH action to build pact_mock_server_cli (Ronald Holshausen, Wed May 27 14:55:14 2020 +1000)
 * bea787c - chore: bump matching crate version to 0.6.0 (Ronald Holshausen, Sat May 23 17:56:04 2020 +1000)
@@ -364,7 +364,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 8a0c5c2 - fix: docker file needs to be able to build Oniguruma lib (Ronald Holshausen, Sat Dec 14 19:23:45 2019 +1100)
 * e1a0f16 - bump version to 0.6.1 (Ronald Holshausen, Sat Dec 14 17:32:50 2019 +1100)
 
-# 0.6.0 - Bugfix Release
+## 0.6.0 - Bugfix Release
 
 * d2908af - chore: bump minor version (Ronald Holshausen, Sat Dec 14 17:15:41 2019 +1100)
 * 2d95535 - pact_mock_server_cli: Remove extern crate from main.rs (Audun Halland, Sun Nov 17 23:10:10 2019 +0100)
@@ -376,12 +376,12 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * da1956a - chore: bump the version of the matching lib (Ronald Holshausen, Sat Aug 24 12:06:51 2019 +1000)
 * c5e55ab - bump version to 0.5.2 (Ronald Holshausen, Sat Aug 24 11:29:20 2019 +1000)
 
-# 0.5.1 - support headers with multiple values
+## 0.5.1 - support headers with multiple values
 
 * 5b22076 - fix: docker release script (Ronald Holshausen, Sat Jul 27 16:52:12 2019 +1000)
 * 2e59235 - bump version to 0.5.1 (Ronald Holshausen, Sat Jul 27 16:36:51 2019 +1000)
 
-# 0.5.0 - Upgrade to non-blocking Hyper 0.12
+## 0.5.0 - Upgrade to non-blocking Hyper 0.12
 
 * d842100 - chore: bump component versions to 0.5.0 (Ronald Holshausen, Sat Jul 27 15:44:51 2019 +1000)
 * 2826bb0 - Make pact_mock_server_cli use ServerManager (Audun Halland, Tue Jul 23 01:40:46 2019 +0200)
@@ -397,7 +397,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 6343607 - fix: CLI was reporting incorrect pact specification version (Ronald Holshausen, Sun Apr 8 12:36:56 2018 +1000)
 * 9ea039f - bump version to 0.4.1 (Ronald Holshausen, Sat Apr 7 14:55:59 2018 +1000)
 
-# 0.4.0 - First V3 specification release
+## 0.4.0 - First V3 specification release
 
 * 398edaf - Upgrade UUID library to latest (Ronald Holshausen, Sat Apr 7 12:29:58 2018 +1000)
 * 7fef36b - Merge branch 'v2-spec' into v3-spec (Ronald Holshausen, Sat Nov 4 12:49:07 2017 +1100)
@@ -414,7 +414,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * a7533dc - updated the mockserver lib and cli to generate V3 pacts (Ronald Holshausen, Thu Aug 4 22:13:20 2016 +1000)
 * 539eb48 - updated all the readmes and cargo manefests for v3 (Ronald Holshausen, Tue Jul 19 15:46:18 2016 +1000)
 
-# 0.3.1 - Bugfixes plus changes for running with docker
+## 0.3.1 - Bugfixes plus changes for running with docker
 
 * cdf01f3 - Add a docker file for the pact mock server cli (Ronald Holshausen, Fri Nov 3 11:51:01 2017 +1100)
 * a56b6a6 - Change the column heading to verification state in the mock server list output #24 (Ronald Holshausen, Sun Oct 22 15:15:30 2017 +1100)
@@ -422,7 +422,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 37abe19 - Pulled in changes from https://github.com/AssafKatz3/pact-reference.git #14 (Assaf Katz, Mon Sep 25 12:28:17 2017 +0300)
 * 9cda328 - bump version to 0.3.1 (Ronald Holshausen, Fri Oct 20 11:01:04 2017 +1100)
 
-# 0.3.0 - Backported the matching rules from the V3 branch
+## 0.3.0 - Backported the matching rules from the V3 branch
 
 * c8595cc - Correct the paths in the release scripts for pact_mock_server_cli (Ronald Holshausen, Fri Oct 20 10:48:03 2017 +1100)
 * ac94388 - Tests are now all passing #20 (Ronald Holshausen, Thu Oct 19 15:14:25 2017 +1100)
@@ -433,12 +433,12 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * a59fb98 - Migrate remaining pact modules over to serde (Anthony Damtsis, Mon May 15 16:59:04 2017 +1000)
 * c5f9c27 - bump version to 0.2.4 (Ronald Holshausen, Sun Apr 23 17:39:49 2017 +1000)
 
-# 0.2.3 - Bugfix Release
+## 0.2.3 - Bugfix Release
 
 * 224ad98 - Change no-console-log to no-term-log and use a simple logger if it is set #6 (Ronald Holshausen, Sun Apr 23 17:19:53 2017 +1000)
 * cec2358 - bump version to 0.2.3 (Ronald Holshausen, Fri Apr 21 14:33:13 2017 +1000)
 
-# 0.2.2 - Bugfix Release
+## 0.2.2 - Bugfix Release
 
 * 53074cf - Merge branch 'v1.1-spec' into v2-spec (Ronald Holshausen, Fri Apr 21 14:17:05 2017 +1000)
 * 01fa713 - bump version to 0.1.3 (Ronald Holshausen, Fri Apr 21 14:08:58 2017 +1000)
@@ -450,7 +450,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * ea5cec8 - bump version to 0.2.2 (Ronald Holshausen, Sun Oct 9 16:43:59 2016 +1100)
 * 0b83b06 - correct the displayed help for the pact_mock_server_cli (Ronald Holshausen, Sat Oct 8 17:29:19 2016 +1100)
 
-# 0.1.2 - Bugfix Release
+## 0.1.2 - Bugfix Release
 
 * 07b1827 - Merge branch 'v1-spec' into v1.1-spec (Ronald Holshausen, Fri Apr 21 13:39:50 2017 +1000)
 * da4e32f - bump version to 0.0.3 (Ronald Holshausen, Fri Apr 21 13:31:18 2017 +1000)
@@ -459,7 +459,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 91d1216 - bump version to 0.1.2 (Ronald Holshausen, Sat Oct 8 17:49:20 2016 +1100)
 * 0b83b06 - correct the displayed help for the pact_mock_server_cli (Ronald Holshausen, Sat Oct 8 17:29:19 2016 +1100)
 
-# 0.0.2 - Bugfix Release
+## 0.0.2 - Bugfix Release
 
 * 2276cd0 - upgraded simple log crate and added cli options to disable file or console logging #6 (Ronald Holshausen, Fri Apr 21 13:15:27 2017 +1000)
 * 0b83b06 - correct the displayed help for the pact_mock_server_cli (Ronald Holshausen, Sat Oct 8 17:29:19 2016 +1100)
@@ -468,7 +468,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * c1d97a0 - correct the repository paths in the cargo manifests (Ronald Holshausen, Tue Jun 28 14:52:46 2016 +1000)
 * 91d6d62 - removed the v1 from the project path, will use a git branch instead (Ronald Holshausen, Mon Jun 27 22:09:32 2016 +1000)
 
-# 0.2.1 - Changes required for verifying V2 pacts
+## 0.2.1 - Changes required for verifying V2 pacts
 
 * e3eebbd -  update projects to use the published pact mock server library (Ronald Holshausen, Sun Oct 9 16:36:25 2016 +1100)
 * 770010a - update projects to use the published pact matching lib (Ronald Holshausen, Sun Oct 9 16:25:15 2016 +1100)
@@ -481,7 +481,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 22b0bb9 - fix for failing build (Ronald Holshausen, Tue Jul 12 16:59:56 2016 +1000)
 * 534e7a1 - updated readmes and bump versions for the V2 implementation (Ronald Holshausen, Wed Jun 29 10:38:32 2016 +1000)
 
-# 0.1.1 - Changes required for verifying V1.1 pacts
+## 0.1.1 - Changes required for verifying V1.1 pacts
 
 * 28928ef - correct the displayed help for the pact_mock_server_cli (Ronald Holshausen, Sat Oct 8 17:29:19 2016 +1100)
 * 3ca2df8 - update dependencies (Ronald Holshausen, Sat Oct 8 17:22:48 2016 +1100)
@@ -492,21 +492,21 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * efe036c - bump version to 0.1.1 (Ronald Holshausen, Tue Jun 28 21:54:59 2016 +1000)
 * c1d97a0 - correct the repository paths in the cargo manifests (Ronald Holshausen, Tue Jun 28 14:52:46 2016 +1000)
 
-# 0.2.0 - V2 Specification Implementation
+## 0.2.0 - V2 Specification Implementation
 
 * 7ed156e - updated project for the V2 spec release (Ronald Holshausen, Wed Jul 13 14:19:12 2016 +1000)
 * 22b0bb9 - fix for failing build (Ronald Holshausen, Tue Jul 12 16:59:56 2016 +1000)
 * 534e7a1 - updated readmes and bump versions for the V2 implementation (Ronald Holshausen, Wed Jun 29 10:38:32 2016 +1000)
 * efe036c - bump version to 0.1.1 (Ronald Holshausen, Tue Jun 28 21:54:59 2016 +1000)
 
-# 0.1.0 - V1.1 Specification Implementation
+## 0.1.0 - V1.1 Specification Implementation
 
 * f91bb6e - use the published versions of the matching and mock server libraries (Ronald Holshausen, Tue Jun 28 21:38:21 2016 +1000)
 * 140526d - Implement V1.1 matching (Ronald Holshausen, Tue Jun 28 15:58:35 2016 +1000)
 * 4224875 - update readmes and bump versions for V1.1 implementation (Ronald Holshausen, Tue Jun 28 15:05:39 2016 +1000)
 * 91d6d62 - removed the v1 from the project path, will use a git branch instead (Ronald Holshausen, Mon Jun 27 22:09:32 2016 +1000)
 
-# 0.0.1 - Feature Release
+## 0.0.1 - Feature Release
 
 * 18c009b - added changelog (Ronald Holshausen, Mon Jun 27 19:42:26 2016 +1000)
 * 78126ab - no point publishing the rust docs as pact_mock_server_cli is not a library (Ronald Holshausen, Mon Jun 27 19:38:56 2016 +1000)
@@ -533,4 +533,4 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 * 5157386 - add rustdoc comment to the cli main file (Ronald Holshausen, Wed Jun 8 20:01:12 2016 +1000)
 
 
-# 0.0.0 - First Release
+## 0.0.0 - First Release

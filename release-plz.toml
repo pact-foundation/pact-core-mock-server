@@ -1,0 +1,62 @@
+# Release PRs are maintained per crate by .github/workflows/release-pr.yml.
+# release-plz computes versions and changelogs against crates.io releases.
+# .github/scripts/tag-releases.sh tags merged releases; dist and
+# publish-crate.yml own building, publishing and GitHub releases.
+
+[workspace]
+# Tags name the changelog compare links; tag-releases.sh creates them.
+git_tag_enable = false
+git_release_enable = false
+publish = false
+semver_check = true
+changelog_update = true
+
+[changelog]
+protect_breaking_commits = true
+sort_commits = "oldest"
+commit_preprocessors = [
+  # Link PR numbers appended by GitHub's merge button.
+  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/pact-foundation/pact-core-mock-server/pull/${2}))" },
+]
+commit_parsers = [
+  { message = '^(chore|fix)\(deps.*\)', skip = true },
+  { message = '^chore(\([^)]*\))?: release', skip = true },
+  { group = "<!-- 00 -->🚀 Features", message = "^feat" },
+  { group = "<!-- 01 -->🐛 Bug Fixes", message = "^fix" },
+  { group = "<!-- 50 -->🚜 Refactor", message = "^refactor" },
+  { group = "<!-- 51 -->⚡️ Performance", message = "^perf" },
+  { group = "<!-- 60 -->📚 Documentation", message = "^docs" },
+  { group = "<!-- 70 -->🏗️ Build and CI", message = "^(build|ci)" },
+  { group = "<!-- 80 -->🧪 Testing", message = "^test" },
+  { group = "<!-- 98 -->↩️ Revert", message = "^revert" },
+  { group = "<!-- 99 -->🛠️ Miscellaneous Tasks", message = "^chore" },
+  { group = "<!-- 99 -->📦 Other", message = ".*" },
+]
+trim = true
+header = """
+# Changelog
+
+"""
+body = """
+## [{{ version | trim_start_matches(pat="v") }}]{% if release_link %}({{ release_link }}){% endif %} - _{{ timestamp | date(format="%Y-%m-%d") }}_
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+-   {% if commit.scope -%}_({{ commit.scope }})_ {% endif -%}
+    {% if commit.breaking %}[**breaking**] {% endif -%}
+    {{ commit.message | upper_first }}
+{% endfor -%}
+{% endfor %}
+"""
+
+# Tag names are also defined in .github/scripts/release-tags.sh.
+[[package]]
+name = "pact_mock_server"
+changelog_path = "pact_mock_server/CHANGELOG.md"
+git_tag_name = "libpact_mock_server-v{{ version }}"
+
+# Tag names are also defined in .github/scripts/release-tags.sh.
+[[package]]
+name = "pact_mock_server_cli"
+changelog_path = "pact_mock_server_cli/CHANGELOG.md"
+git_tag_name = "pact_mock_server_cli-v{{ version }}"

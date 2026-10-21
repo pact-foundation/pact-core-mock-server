@@ -1,0 +1,13 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+
+# Development tooling.
+[tools]
+"aqua:axodotdev/cargo-dist" = "0.33.0"
+"aqua:release-plz/release-plz" = "0.3.172"
+"github:obi1kenobi/cargo-semver-checks" = "0.51.0"
+
+# Install cargo tools from prebuilt binaries only, falling back to
+# cargo-quickinstall's builds; never compile them from source.
+[settings.cargo]
+binstall_only = true
+binstall_quickinstall = true
