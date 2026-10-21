@@ -1,0 +1,62 @@
+---
+# Republishes pre-dist asset names for downstream installers that still
+# hard-code them. The assets go to the CLI release's own tag.
+#
+# Delete this file after the legacy cut-off date set in
+# .github/scripts/legacy-artifacts.sh, which lists everything else to
+# remove. The script publishes nothing from that date.
+name: Legacy artifacts
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+  # Runs the scripts from main: the recovery path when a fix to them
+  # must reach a release whose own run failed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: dist release tag to publish legacy assets for (e.g. pact_mock_server_cli-v2.0.1)
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  legacy-artifacts:
+    name: Publish legacy-named assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        env:
+          PLAN: ${{ inputs.plan }}
+          MANUAL_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ -n "$PLAN" ]]; then
+            echo "tag=$(jq -r '.announcement_tag' <<<"$PLAN")" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$MANUAL_TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Build legacy assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: .github/scripts/legacy-artifacts.sh "$TAG" "$RUNNER_TEMP/legacy"
+
+      - name: Upload legacy assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          files=("$RUNNER_TEMP"/legacy/*)
+          (( ${#files[@]} )) || exit 0
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
