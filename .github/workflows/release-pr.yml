@@ -1,0 +1,210 @@
+---
+name: Release PR
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Runs never overlap, so two runs can't race on the same tag. GitHub drops
+# a pending run when a newer one queues; the newer run tags every
+# untagged version, so no release is lost.
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+jobs:
+  # MARK: Tag
+
+  tag:
+    name: Tag released versions
+    if: github.repository == 'pact-foundation/pact-core-mock-server'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          app-id: ${{ vars.PACT_FOUNDATION_BOT_APP_ID }}
+          private-key: ${{ secrets.PACT_FOUNDATION_BOT_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Configure git identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "$(gh api "/users/${APP_SLUG}[bot]" --jq .id)+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
+        with:
+          build-warnings: warn
+          cache: false
+
+      # The checkout's credentials are the App token, so the tag pushes
+      # start the release workflow.
+      - name: Tag merged releases
+        run: .github/scripts/tag-releases.sh Cargo.toml origin
+
+  # MARK: Prepare
+
+  prepare:
+    name: Prepare (${{ matrix.crate }})
+    needs: tag
+    if: github.repository == 'pact-foundation/pact-core-mock-server'
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - pact_mock_server
+          - pact_mock_server_cli
+    runs-on: ubuntu-latest
+    env:
+      CRATE: ${{ matrix.crate }}
+      BRANCH: release/${{ matrix.crate }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          app-id: ${{ vars.PACT_FOUNDATION_BOT_APP_ID }}
+          private-key: ${{ secrets.PACT_FOUNDATION_BOT_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Resolve bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          echo "login=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "author=${APP_SLUG}[bot] <${id}+${APP_SLUG}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+
+      # Between a release tag and its crates.io publish, release-plz would
+      # compare main against a registry that lacks the new version. Wait
+      # for the publish instead.
+      - name: Check for a release still being published
+        id: lag
+        run: |
+          source .github/scripts/release-tags.sh
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$CRATE/Cargo.toml" | head -1)
+          tag="$(tag_prefix "$CRATE")-v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
+              && ! curl -fso /dev/null -A 'pact-foundation/pact-core-mock-server release' "https://crates.io/api/v1/crates/$CRATE/$version"; then
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$CRATE $version is tagged but not yet on crates.io; skipping until it is."
+          else
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A release PR with commits from people is theirs: regenerating it
+      # would force-push over their edits.
+      - name: Check for manual edits
+        id: manual
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BOT: ${{ steps.bot.outputs.login }}
+        run: |
+          others=$(gh pr view "$BRANCH" --json state,commits --jq '
+            select(.state == "OPEN")
+            | [.commits[].authors[].login | select(. != env.BOT)] | length' 2>/dev/null || true)
+          if [[ "${others:-0}" -gt 0 ]]; then
+            echo "edited=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "edited=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Note that regeneration is paused
+        if: steps.manual.outputs.edited == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          marker='<!-- release-pr:paused -->'
+          if ! gh pr view "$BRANCH" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            gh pr comment "$BRANCH" --body "$marker
+          This release PR has commits from people, so the release bot no longer regenerates it from \`main\`. Close it to get a fresh one."
+          fi
+
+      - name: Decide whether to regenerate
+        id: gate
+        if: steps.manual.outputs.edited == 'false' && steps.lag.outputs.pending == 'false'
+        run: echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        if: steps.gate.outputs.proceed == 'true'
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
+        with:
+          build-warnings: warn
+          cache: false
+
+      - name: Install tools
+        if: steps.gate.outputs.proceed == 'true'
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2
+        timeout-minutes: 3
+        with:
+          cache_save: false
+
+      # stdout carries the version summary and any breaking-change report.
+      - name: Update version and changelog
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          release-plz update \
+            -p "$CRATE" \
+            --manifest-path Cargo.toml \
+            --config release-plz.toml \
+            | .github/scripts/release-summary.sh \
+            | tee "$RUNNER_TEMP/summary.md"
+
+      - name: Describe the release
+        id: release
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          version=$(cargo metadata --format-version 1 --no-deps --manifest-path Cargo.toml \
+            | jq -r --arg c "$CRATE" '.packages[] | select(.name == $c) | .version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              cat "$RUNNER_TEMP/summary.md"
+              echo
+              .github/scripts/changelog-section.sh "$CRATE/CHANGELOG.md" "$version"
+            } > "$RUNNER_TEMP/body.md"
+          fi
+
+      - name: Open or update the release PR
+        if: steps.release.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: ${{ env.BRANCH }}
+          base: main
+          draft: true
+          title: "chore(${{ matrix.crate }}): release v${{ steps.release.outputs.version }}"
+          commit-message: "chore(${{ matrix.crate }}): release v${{ steps.release.outputs.version }}"
+          body-path: ${{ runner.temp }}/body.md
+          author: ${{ steps.bot.outputs.author }}
+          committer: ${{ steps.bot.outputs.author }}
+
+      - name: Close a release PR with nothing to release
+        if: steps.release.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr close "$BRANCH" --delete-branch 2>/dev/null || true
