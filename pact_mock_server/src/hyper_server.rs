@@ -614,6 +614,67 @@ mod tests {
   }
 
   #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
+  async fn repeated_custom_headers_match_combined_and_separate_field_lines() {
+    #[cfg(feature = "tls")]
+    let _ = default_provider().install_default();
+    let mut interaction = RequestResponseInteraction::default();
+    interaction.request.headers = Some(hashmap! {
+      "X-Request".to_string() => vec!["request1".to_string(), "request2".to_string()]
+    });
+    let pact = RequestResponsePact {
+      interactions: vec![interaction],
+      ..RequestResponsePact::default()
+    }.as_v4_pact().unwrap();
+    let specifications = [
+      pact_models::PactSpecification::V2,
+      pact_models::PactSpecification::V3,
+      pact_models::PactSpecification::V4
+    ];
+    let before: Vec<_> = specifications.iter()
+      .map(|specification| pact.to_json(*specification).unwrap())
+      .collect();
+    assert_eq!(before[2]["interactions"][0]["request"]["headers"]["X-Request"],
+      json!(["request1", "request2"]));
+
+    for field_lines in [vec!["request1, request2"], vec!["request1", "request2"]] {
+      let matches = Arc::new(Mutex::new(vec![]));
+      let (addr, shutdown, _events, handle) = create_and_bind(
+        "repeated-custom-headers".to_string(),
+        pact.clone(),
+        ([127, 0, 0, 1], 0u16).into(),
+        MockServerConfig::default(),
+        matches.clone()
+      ).await.unwrap();
+      let mut headers = HeaderMap::new();
+      for value in field_lines {
+        headers.append("x-request", value.parse().unwrap());
+      }
+      let response = reqwest::Client::builder().no_proxy().build().unwrap()
+        .get(format!("http://127.0.0.1:{}/", addr.port()))
+        .headers(headers)
+        .send()
+        .await;
+      shutdown.send(()).unwrap();
+      handle.await.unwrap();
+
+      assert_eq!(response.unwrap().status(), StatusCode::OK);
+      let results = matches.lock().unwrap();
+      assert_eq!(results.len(), 1);
+      match &results[0] {
+        MatchResult::RequestMatch(expected, _, _) => {
+          assert_eq!(expected.headers.as_ref().unwrap()["X-Request"], vec!["request1", "request2"]);
+        },
+        result => panic!("Expected a successful header match, got {result:?}")
+      }
+    }
+
+    let after: Vec<_> = specifications.iter()
+      .map(|specification| pact.to_json(*specification).unwrap())
+      .collect();
+    assert_eq!(before, after);
+  }
+
+  #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
   async fn support_http2() {
     let pact = RequestResponsePact {
       interactions: vec![ RequestResponseInteraction::default() ],
