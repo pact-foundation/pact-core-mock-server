@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.0.1](https://github.com/pact-foundation/pact-core-mock-server/compare/pact_mock_server_cli-v2.0.0...pact_mock_server_cli-v2.0.1) - _2026-10-22_
+
+### 🐛 Bug Fixes
+
+-   ServerManager spawn_mock_server function now handles mock servers provided by plugins
+
+### 📚 Documentation
+
+-   Document the release process and its recovery paths
+
+### 🏗️ Build and CI
+
+-   Use caret requirements for the pact crates
+
+-   Build and release the CLI with dist
+
+-   Publish the mock server image from each CLI release
+
+### 🛠️ Miscellaneous Tasks
+
+-   Update pact_mock_server to 2.2.6
+
+-   Update pact-plugin-driver to 1.0.0-beta.2 to support initial V2 plugins
+
+-   Bump pact_matching/pact_models/pact-plugin-driver requirements
+
+-   Update pact_matching, pact_models and pact-plugin-driver
+
+-   Configure release-plz and normalise changelogs
+
 ## 2.0.0 - [Feature Release]
 
 * 59278827 - chore(deps): cli - update all deps bar webmachine-rust (Yousaf Nabi, Fri Oct 24 13:09:58 2025 +0100)
