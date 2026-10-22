@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.6](https://github.com/pact-foundation/pact-core-mock-server/compare/libpact_mock_server-v2.2.5...libpact_mock_server-v2.2.6) - _2026-10-22_
+
+### 📚 Documentation
+
+-   Document the release process and its recovery paths
+
+### 🏗️ Build and CI
+
+-   Use caret requirements for the pact crates
+
+### 🛠️ Miscellaneous Tasks
+
+-   Configure release-plz and normalise changelogs
+
 ## 2.2.5 - Support matching rules and generators from plugins
 
 * 2fbd563b - chore: Update pact_matching, pact_models and pact-plugin-driver (Ronald Holshausen, Fri Aug 7 09:26:19 2026 +1000)
