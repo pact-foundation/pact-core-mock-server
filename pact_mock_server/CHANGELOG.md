@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.7](https://github.com/pact-foundation/pact-core-mock-server/compare/libpact_mock_server-v2.2.6...libpact_mock_server-v2.2.7) - _2026-11-13_
+
+### 🧪 Testing
+
+-   _(mock-server)_ Reproduce repeated custom header regression
+
 ## [2.2.6](https://github.com/pact-foundation/pact-core-mock-server/compare/libpact_mock_server-v2.2.5...libpact_mock_server-v2.2.6) - _2026-10-22_
 
 ### 📚 Documentation
