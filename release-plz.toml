@@ -19,7 +19,8 @@ commit_preprocessors = [
   { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/pact-foundation/pact-core-mock-server/pull/${2}))" },
 ]
 commit_parsers = [
-  { message = '^(chore|fix)\(deps.*\)', skip = true },
+  # Listed, not skipped: a dependency update can be a release's only change.
+  { group = "<!-- 90 -->⬆️ Dependencies", message = '^(chore|fix)\(deps.*\)' },
   { message = '^chore(\([^)]*\))?: release', skip = true },
   { group = "<!-- 00 -->🚀 Features", message = "^feat" },
   { group = "<!-- 01 -->🐛 Bug Fixes", message = "^fix" },
