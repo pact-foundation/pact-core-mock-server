@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.2](https://github.com/pact-foundation/pact-core-mock-server/compare/pact_mock_server_cli-v2.0.1...pact_mock_server_cli-v2.0.2) - _2026-11-13_
+
+### ⬆️ Dependencies
+
+-   _(deps)_ Update pact_matching//pact_models
+
 ## [2.0.1](https://github.com/pact-foundation/pact-core-mock-server/compare/pact_mock_server_cli-v2.0.0...pact_mock_server_cli-v2.0.1) - _2026-10-22_
 
 ### 🐛 Bug Fixes
